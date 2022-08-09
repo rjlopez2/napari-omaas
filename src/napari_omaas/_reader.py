@@ -63,13 +63,15 @@ def reader_function(path):
     # load all files into array
     # arrays = [np.load(_path) for _path in paths]
     # stack arrays into single array
-    data, _ = sif_parser.np_open(path)
+    data, info = sif_parser.np_open(path)
+    # meta = dict(info)
 
     # optional kwargs for the corresponding viewer.add_* method
     add_kwargs = {
         "colormap" : "twilight_shifted",
-        "gamma" : 0.2
+        "gamma" : 0.15,
+        "metadata": dict(info)
     }
 
     layer_type = "image"  # optional, default is "image"
-    return [(data,  add_kwargs, layer_type)]
+    return [(data, add_kwargs, layer_type)]
