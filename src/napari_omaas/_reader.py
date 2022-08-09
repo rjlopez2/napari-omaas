@@ -5,7 +5,7 @@ It implements the Reader specification, but your plugin may choose to
 implement multiple readers or even other plugin contributions. see:
 https://napari.org/stable/plugins/guides.html?#readers
 """
-import numpy as np
+import sif_parser
 
 
 def napari_get_reader(path):
@@ -29,7 +29,7 @@ def napari_get_reader(path):
         path = path[0]
 
     # if we know we cannot read the file, we immediately return None.
-    if not path.endswith(".npy"):
+    if not path.endswith(".sif"):
         return None
 
     # otherwise we return the *function* that can read ``path``.
@@ -61,12 +61,15 @@ def reader_function(path):
     # handle both a string and a list of strings
     paths = [path] if isinstance(path, str) else path
     # load all files into array
-    arrays = [np.load(_path) for _path in paths]
+    # arrays = [np.load(_path) for _path in paths]
     # stack arrays into single array
-    data = np.squeeze(np.stack(arrays))
+    data, _ = sif_parser.np_open(path)
 
     # optional kwargs for the corresponding viewer.add_* method
-    add_kwargs = {}
+    add_kwargs = {
+        "colormap" : "twilight_shifted",
+        "gamma" : 0.2
+    }
 
     layer_type = "image"  # optional, default is "image"
-    return [(data, add_kwargs, layer_type)]
+    return [(data,  add_kwargs, layer_type)]
