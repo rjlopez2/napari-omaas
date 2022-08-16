@@ -7,7 +7,7 @@
 [![codecov](https://codecov.io/gh/rjlopez2/napari-omaas/branch/main/graph/badge.svg)](https://codecov.io/gh/rjlopez2/napari-omaas)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-omaas)](https://napari-hub.org/plugins/napari-omaas)
 
-**napari-OMAAS stands for Optical Mapping Acquisition and Analysis Software**
+**napari-OMAAS stands for Optical Mapping Acquisition and Analysis Software for panoramic heart imaging**
 
 This plugin is intended to be an analyis and aquisition tool for optical mapping system for panoramic imaging of the heart. 
 
