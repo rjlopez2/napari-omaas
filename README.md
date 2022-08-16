@@ -7,7 +7,53 @@
 [![codecov](https://codecov.io/gh/rjlopez2/napari-omaas/branch/main/graph/badge.svg)](https://codecov.io/gh/rjlopez2/napari-omaas)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-omaas)](https://napari-hub.org/plugins/napari-omaas)
 
-napari-OMAAS stands for Optical Mapping Acquisition and Analysis Software
+**napari-OMAAS stands for Optical Mapping Acquisition and Analysis Software**
+
+This plugin is intended to be an analyis and aquisition tool for optical mapping system for panoramic imaging of the heart. 
+
+
+
+At the moment this pluging is in very early development/experimental stage and only support reading images in `.sif` format from Andor Technologies powered by the [sif_parser] python module.
+
+## Usage
+
+At the moment only can read images generated with Andor Technologies cameras and have been tested on Zyla cameras. Just drag and drop an image to the napari GUI and image will be display. Alternative you can from within a notebook programatically load/read the image
+
+    import napari
+
+    
+    file = "path/to/my/file/my_image.sif"
+
+    viewer = napari.Viewer()
+    viewer.open(path=file, plugin="napari-omaas", name = "my_image")
+
+to display the metadata just use the standard call to the corresponding layer:
+
+    viewer.layers['my_image'].metadata
+
+
+## Roadmap
+
+This plugin can be brake down to two mayor components: **analysis** and **aquisition**.
+
+### Analysis features
+    
+- [x] Read sif files from Andor Technologies.
+- [ ] Display time profile of ROIs on image sequences.
+- [ ] normalize images.
+    - [ ] segement images and aligne heart ROIs.
+    - [ ] perform peak analysis of action potential / Calcium traces 
+    - [ ] create activation maps
+    - [ ] add motion correction
+- [ ] export results and analysis log.
+
+### Aquisition features
+
+- [ ] Control Zyla camera for aquisition of data
+    - [ ] test using the PYME module
+- [ ] Real time analysis?
+
+    
 
 ----------------------------------
 
@@ -65,3 +111,4 @@ If you encounter any problems, please [file an issue] along with a detailed desc
 [tox]: https://tox.readthedocs.io/en/latest/
 [pip]: https://pypi.org/project/pip/
 [PyPI]: https://pypi.org/
+[sif_parser]: https://pypi.org/project/sif-parser/
