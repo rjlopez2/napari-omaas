@@ -9,7 +9,7 @@
 
 **napari-OMAAS stands for Optical Mapping Acquisition and Analysis Software for panoramic heart imaging**
 
-This plugin is intended to be an analyis and aquisition tool for optical mapping system for panoramic imaging of the heart. 
+This plugin is intended to be an analyis and aquisition tool for optical mapping system from panoramic imaging of potentiometric or Ca^2+^ fluorescence signals of intact hearts. 
 
 
 
