@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING
 from magicgui import magic_factory
 from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QTabWidget, QPushButton, QWidget, QGroupBox, QGridLayout
 
+from .widgets import *
+
 if TYPE_CHECKING:
     import napari
 
@@ -58,10 +60,19 @@ class Omass(QWidget):
         self.plotting_panel = VHGroup('Visualize image profile', orientation='G')
         self._analysis_layout.addWidget(self.plotting_panel.gbox)
 
+        # experimental for adding plot canvas
+
+        self.selector = LayerSelector(self.viewer)
+        self.plotter = ProfilePlotter(self.viewer, self.selector)
+        self.plotting_panel.glayout.addWidget(self.plotter, 0, 0, 1, 1)
+
         # add button for testing
         self.btn = QPushButton("Click me!")
         self.plotting_panel.glayout.addWidget(self.btn, 0, 0, 1, 2)
         # self.btn.clicked.connect(self._on_click)
+
+
+
 
         # adding the Analysis panel
         self.analysis_panel = VHGroup('Analysis', orientation='G')
