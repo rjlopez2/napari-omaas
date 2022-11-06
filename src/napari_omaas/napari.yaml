@@ -2,9 +2,6 @@ name: napari-omaas
 display_name: napari OMAAS
 contributions:
   commands:
-    - id: napari-omaas.get_reader
-      python_name: napari_omaas._reader:napari_get_reader
-      title: Open data with napari OMAAS
     - id: napari-omaas.write_multiple
       python_name: napari_omaas._writer:write_multiple
       title: Save multi-layer data with napari OMAAS
@@ -23,10 +20,6 @@ contributions:
     - id: napari-omaas.make_func_widget
       python_name: napari_omaas._widget:example_function_widget
       title: Make example function widget
-  readers:
-    - command: napari-omaas.get_reader
-      accepts_directories: false
-      filename_patterns: ['*.sif']
   writers:
     - command: napari-omaas.write_multiple
       layer_types: ['image*','labels*']
