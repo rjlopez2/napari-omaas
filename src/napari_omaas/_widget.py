@@ -11,6 +11,8 @@ from typing import TYPE_CHECKING
 from magicgui import magic_factory
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
 
+from .utils import *
+
 if TYPE_CHECKING:
     import napari
 
@@ -24,14 +26,39 @@ class ExampleQWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
 
-        btn = QPushButton("Click me!")
-        btn.clicked.connect(self._on_click)
+        inv_data_btn = QPushButton("invert image")
+        norm_data_btn = QPushButton("normalize image")
+
 
         self.setLayout(QHBoxLayout())
-        self.layout().addWidget(btn)
+        self.layout().addWidget(inv_data_btn)
+        self.layout().addWidget(norm_data_btn)
+        
+        # callbacks
+        inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
+        norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
 
-    def _on_click(self):
-        print("napari has", len(self.viewer.layers), "layers")
+    def _on_click_inv_data_btn(self):
+        results =invert_signal(self.viewer.layers.selection)
+        # name= f'{self.viewer.layers.layers.Image}_norm')
+        # self.viewer._add_layer_from_data(results)
+        self.viewer.add_image(results, 
+        colormap= "twilight_shifted", 
+        # gamma= 0.2,
+        name= f"{self.viewer.layers.selection.active}_Inv")
+        # invert_signal(self.viewer.layers.selection)
+
+    def _on_click_norm_data_btn(self):
+
+        results = local_normal_fun(self.viewer.layers.selection)
+
+
+        self.viewer.add_image(results, 
+        colormap= "twilight_shifted", 
+        # gamma= 0.2,
+        name= f"{self.viewer.layers.selection.active}_Nor")
+
+
 
 
 @magic_factory
