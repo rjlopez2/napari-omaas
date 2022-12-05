@@ -1,5 +1,9 @@
 from qtpy import QtCore, QtGui
 import numpy as np
+from skimage.filters import gaussian, threshold_triangle
+from skimage.morphology import disk
+from skimage import morphology
+from skimage import segmentation
 
 
 # functions
@@ -38,6 +42,7 @@ def invert_signal(
 
 def local_normal_fun(
     image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
+
     """Invert signal fluorescence values. This is usefull to properly visulaize
     AP signals from inverted traces.
 
@@ -60,6 +65,7 @@ def local_normal_fun(
 
 def split_channels_fun(
     image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
+
     """Split the stack every other images. 
     This is needed when doing Calcium and Voltage membrane recording.
     
@@ -70,11 +76,76 @@ def split_channels_fun(
 
     Returns
     -------
-    inverted_signal : np.ndarray
-        two images for Calcim and Voltage signals respectively?"""
+    ch_1, ch_2 : list 
+        two np.ndarray images for Calcim and Voltage signals respectively?"""
     
     data = image.active.data
     ch_1 = data[::2,:,:]
     ch_2 = data[1::2,:,:]
     print(f'applying "split_channels" to image {image.active}')
     return [ch_1, ch_2]
+
+def segment_heart_func( 
+    image: "napari.types.ImageData",
+    sigma = 2, 
+    nbins = 100, 
+    holes_siz = 500, 
+    expa_value = 25,
+    eros_value = 25)-> "napari.types.LayerDataTuple":
+
+    """
+    Subtract background from image.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be back subtracted.
+    
+    sigma: int
+        Magintud of gaussina filer kernel, default to 2.
+    
+    nbins: int
+        Magnitud of bins for the threshold_triangle method. Default to 100.
+    
+    holes_siz: int
+
+    expa_value = int
+
+    eros_value = int
+
+    
+    Returns
+    -------
+    img_no_background : np.ndarray
+       Image with backgrounf subtracted.
+
+    """
+
+    data = image.active.data
+    
+    # 1. apply a median projection on the 0 (time) axis
+    projet_img = np.median(data, axis = 0, keepdims= True)
+    # 2. apply gaussina filter
+    projet_img = gaussian(projet_img, sigma)
+    # 3. Threshold
+    threshold = threshold_triangle(projet_img, nbins)
+    # 4. create mask
+    mask = projet_img > threshold
+    # 5. remove holes
+    mask = morphology.remove_small_holes(mask, holes_siz)
+    # 6. remove small objects
+    mask = morphology.remove_small_objects(mask, holes_siz)
+    # 7. expand mask
+    mask = segmentation.expand_labels(mask, expa_value)
+    # 8. erode mask
+    mask = morphology.erosion(mask[0, ...], footprint=disk(eros_value))
+    # 9. expand to the 0 axis
+    mask = np.tile(mask, (data.shape[0], 1, 1))
+    
+    # 10. subtracts background from original img
+    raw_img_stack_nobg = data.copy()
+    raw_img_stack_nobg[~mask] = 0
+    
+    print(f'applying "segment_heart_func" to image {image.active}')
+    return raw_img_stack_nobg
+    # return mask

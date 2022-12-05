@@ -29,8 +29,9 @@ class OMAAS(QWidget):
         ##### instanciate buttons #####
         inv_data_btn = QPushButton("invert image")
         norm_data_btn = QPushButton("normalize (local max)")
-        splt_chann = QPushButton("Split Channels")
-        splt_chann = QPushButton("invert + Normaize (local max)")
+        splt_chann_btn = QPushButton("Split Channels")
+        rmv_backg_btn = QPushButton("remove Background")
+        # inv_and_norm_btn = QPushButton("invert + Normaize (local max)")
 
         # load_ROIs_btn = QPushButton("load ROIs")
         # save_ROIs_btn = QPushButton("Save ROIs")
@@ -39,7 +40,10 @@ class OMAAS(QWidget):
         self.setLayout(QHBoxLayout())
         self.layout().addWidget(inv_data_btn)
         self.layout().addWidget(norm_data_btn)
-        self.layout().addWidget(splt_chann)
+        self.layout().addWidget(splt_chann_btn)
+        self.layout().addWidget(rmv_backg_btn)
+        # self.layout().addWidget(inv_and_norm_btn)
+        
 
         # self.layout().addWidget(load_ROIs_btn)
         # self.layout().addWidget(save_ROIs_btn)
@@ -47,7 +51,10 @@ class OMAAS(QWidget):
         ##### callbacks #####
         inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
-        splt_chann.clicked.connect(self._on_click_splt_chann)
+        splt_chann_btn.clicked.connect(self._on_click_splt_chann)
+        rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
+        # inv_and_norm_btn.clicked.connect(self._on_click_inv_and_norm_btn)
+        # inv_and_norm_btn.clicked.connect(self._on_click_inv_data_btn, self._on_click_norm_data_btn)
         # load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
         # save_ROIs_btn.clicked.connect(self._on_click_save_ROIs_btn)
 
@@ -70,6 +77,16 @@ class OMAAS(QWidget):
             self.viewer.add_image(my_splitted_images[channel], 
             colormap= "twilight_shifted", 
             name= f"{curr_img_name}_ch{channel + 1}")
+    
+    def _on_click_rmv_backg_btn(self):
+        results =segment_heart_func(self.viewer.layers.selection)
+        self.viewer.add_image(results, 
+        colormap= "twilight_shifted", 
+        name= f"{self.viewer.layers.selection.active}_Bck")
+    
+    # def _on_click_inv_and_norm_btn(self):
+        # self._on_click_inv_data_btn(self)
+        # self._on_click_norm_data_btn(self)
 
 
 
