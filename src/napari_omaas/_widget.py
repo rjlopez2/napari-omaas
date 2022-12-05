@@ -26,25 +26,30 @@ class OMAAS(QWidget):
         super().__init__()
         self.viewer = napari_viewer
 
-        # create buttons
+        ##### instanciate buttons #####
         inv_data_btn = QPushButton("invert image")
-        norm_data_btn = QPushButton("normalize image")
+        norm_data_btn = QPushButton("normalize (local max)")
+        splt_chann = QPushButton("Split Channels")
+        splt_chann = QPushButton("invert + Normaize (local max)")
 
-        load_ROIs_btn = QPushButton("load ROIs")
-        save_ROIs_btn = QPushButton("Save ROIs")
+        # load_ROIs_btn = QPushButton("load ROIs")
+        # save_ROIs_btn = QPushButton("Save ROIs")
 
-
+        ##### adding buttons in layout #####
         self.setLayout(QHBoxLayout())
         self.layout().addWidget(inv_data_btn)
         self.layout().addWidget(norm_data_btn)
-        self.layout().addWidget(load_ROIs_btn)
-        self.layout().addWidget(save_ROIs_btn)
+        self.layout().addWidget(splt_chann)
+
+        # self.layout().addWidget(load_ROIs_btn)
+        # self.layout().addWidget(save_ROIs_btn)
         
-        # callbacks
+        ##### callbacks #####
         inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
-        load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
-        save_ROIs_btn.clicked.connect(self._on_click_save_ROIs_btn)
+        splt_chann.clicked.connect(self._on_click_splt_chann)
+        # load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
+        # save_ROIs_btn.clicked.connect(self._on_click_save_ROIs_btn)
 
     def _on_click_inv_data_btn(self):
         results =invert_signal(self.viewer.layers.selection)
@@ -58,15 +63,26 @@ class OMAAS(QWidget):
         colormap= "twilight_shifted", 
         name= f"{self.viewer.layers.selection.active}_Nor")
 
-    def _on_click_load_ROIs_btn(self, event=None, filename=None):
-        if filename is None: filename, _ = QFileDialog.getOpenFileName(self, "Load ROIs", ".", "ImageJ ROIS(*.roi *.zip)")
-        self.viewer.open(filename, plugin='napari_jroireader')
+    def _on_click_splt_chann(self):
+        my_splitted_images = split_channels_fun(self.viewer.layers.selection)
+        curr_img_name = self.viewer.layers.selection.active
+        for channel in range(len(my_splitted_images)):
+            self.viewer.add_image(my_splitted_images[channel], 
+            colormap= "twilight_shifted", 
+            name= f"{curr_img_name}_ch{channel + 1}")
+
+
+
+
+    # def _on_click_load_ROIs_btn(self, event=None, filename=None):
+    #     if filename is None: filename, _ = QFileDialog.getOpenFileName(self, "Load ROIs", ".", "ImageJ ROIS(*.roi *.zip)")
+    #     self.viewer.open(filename, plugin='napari_jroireader')
         
     
-    def _on_click_save_ROIs_btn(self, event=None, filename=None):
-        if filename is None: filename, _ = QFileDialog.getSaveFileName(self, "Save as .csv", ".", "*.csv")
-        # self.viewer.layers.save(filename, plugin='napari_jroiwriter')
-        self.viewer.layers.save(filename, plugin='napari')
+    # def _on_click_save_ROIs_btn(self, event=None, filename=None):
+    #     if filename is None: filename, _ = QFileDialog.getSaveFileName(self, "Save as .csv", ".", "*.csv")
+    #     # self.viewer.layers.save(filename, plugin='napari_jroiwriter')
+    #     self.viewer.layers.save(filename, plugin='napari')
     
 
 

@@ -57,3 +57,24 @@ def local_normal_fun(
     print(f'computing "local_normal_fun" to image {image.active}')
 
     return(processed_data)
+
+def split_channels_fun(
+    image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
+    """Split the stack every other images. 
+    This is needed when doing Calcium and Voltage membrane recording.
+    
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be splitted.
+
+    Returns
+    -------
+    inverted_signal : np.ndarray
+        two images for Calcim and Voltage signals respectively?"""
+    
+    data = image.active.data
+    ch_1 = data[::2,:,:]
+    ch_2 = data[1::2,:,:]
+    print(f'applying "split_channels" to image {image.active}')
+    return [ch_1, ch_2]
