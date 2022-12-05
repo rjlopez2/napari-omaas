@@ -1,5 +1,5 @@
 from qtpy import QtCore, QtGui
-# import numpy as np
+import numpy as np
 
 
 # functions
@@ -53,7 +53,7 @@ def local_normal_fun(
     """
     data = image.active.data
 
-    processed_data = (data - data.min(axis = 0)) / data.max(axis = 0)
+    processed_data = np.nan_to_num((data - data.min(axis = 0)) / data.max(axis = 0), nan=0.0)
     print(f'computing "local_normal_fun" to image {image.active}')
 
     return(processed_data)
