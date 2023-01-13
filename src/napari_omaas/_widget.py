@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout
 
 from .utils import *
 
@@ -31,17 +31,20 @@ class OMAAS(QWidget):
         norm_data_btn = QPushButton("normalize (local max)")
         splt_chann_btn = QPushButton("Split Channels")
         rmv_backg_btn = QPushButton("remove Background")
+        rmv_backg_btn = QPushButton("remove Background")
+        pick_frames_btn = QPushButton("Pick frames")
         # inv_and_norm_btn = QPushButton("invert + Normaize (local max)")
 
         # load_ROIs_btn = QPushButton("load ROIs")
         # save_ROIs_btn = QPushButton("Save ROIs")
 
         ##### adding buttons in layout #####
-        self.setLayout(QHBoxLayout())
+        self.setLayout(QVBoxLayout())
         self.layout().addWidget(inv_data_btn)
         self.layout().addWidget(norm_data_btn)
         self.layout().addWidget(splt_chann_btn)
         self.layout().addWidget(rmv_backg_btn)
+        self.layout().addWidget(pick_frames_btn)
         # self.layout().addWidget(inv_and_norm_btn)
         
 
@@ -53,6 +56,7 @@ class OMAAS(QWidget):
         norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
         splt_chann_btn.clicked.connect(self._on_click_splt_chann)
         rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
+        pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_and_norm_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_data_btn, self._on_click_norm_data_btn)
         # load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
@@ -83,7 +87,12 @@ class OMAAS(QWidget):
         self.viewer.add_image(results, 
         colormap= "twilight_shifted", 
         name= f"{self.viewer.layers.selection.active}_Bck")
-    
+
+    def _on_click_pick_frames_btn(self):
+        results =pick_frames_fun(self.viewer.layers.selection)
+        self.viewer.add_image(results, 
+        colormap= "twilight_shifted", 
+        name= f"{self.viewer.layers.selection.active}_sliced")    
     # def _on_click_inv_and_norm_btn(self):
         # self._on_click_inv_data_btn(self)
         # self._on_click_norm_data_btn(self)
