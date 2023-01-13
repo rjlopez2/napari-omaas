@@ -4,7 +4,7 @@ from skimage.filters import gaussian, threshold_triangle
 from skimage.morphology import disk
 from skimage import morphology
 from skimage import segmentation
-
+import warnings
 
 # functions
 
@@ -58,7 +58,9 @@ def local_normal_fun(
     """
     data = image.active.data
 
-    processed_data = np.nan_to_num((data - data.min(axis = 0)) / data.max(axis = 0), nan=0.0)
+    processed_data = np.where(np.isnan(data),
+                    data,
+                    (data - data.min(axis = 0)) / data.max(axis = 0))
     print(f'computing "local_normal_fun" to image {image.active}')
 
     return(processed_data)
@@ -149,3 +151,92 @@ def segment_heart_func(
     print(f'applying "segment_heart_func" to image {image.active}')
     return raw_img_stack_nobg
     # return mask
+
+
+def pick_frames_fun(
+    image: "napari.types.ImageData",
+    n_frames = 5,
+    from_time = 0,
+    to_time = 50,
+    fps = 200,
+    time_unit = "ms")-> "napari.types.LayerDataTuple":
+    
+    """
+    
+    Subset the stak based on selected time points.
+    
+    Parameters
+    ----------
+    data : np.ndarray
+        The image to be Subsetted.
+        
+    n_frames = int
+        Number of output frames output.
+    
+    from_time = float
+        starting timepoint frame in ms.
+    
+    to_time = float
+        final tinmepoint frame in ms.
+    
+    fps = float
+        time resolution of your aquisition in Hz.
+    
+    time_unit = str
+        "ms" or "s"
+    
+
+    Returns
+    -------
+    inverted_signal : np.ndarray
+        two images for Calcim and Voltage signals respectively?
+    
+    """
+    data = image.active.data
+
+    time_fct = None
+    
+    
+    try:
+        
+        if time_unit == "ms":
+            time_fct = 1000
+        
+        elif time_fct == "s":
+            time_fct = 1
+    
+    except ValueError:
+        
+        print("Time unit must be in 'ms' or 's'.")
+        
+    
+    time_conv_factor = int(1 / fps * time_fct)
+    
+    
+    if (to_time - from_time ) <  time_conv_factor:
+        
+        warnings.warn(f' number of frames requiered = {n_frames} in the time range selected {to_time - from_time} {time_unit} are beyond the time resolution allowed "fps" = {time_conv_factor} ms. Please select a larger range or less frames. Only 1 frame will be returned.')
+        
+        n_frames = 1
+
+   
+    from_time = int(from_time / time_conv_factor)
+    to_time = int(to_time / time_conv_factor) 
+    
+    
+
+    if (to_time - from_time ) <  n_frames:
+        
+        warnings.warn(f' number of frames requiered = {n_frames} in the time range selected {to_time - from_time} {time_unit} are beyond the time resolution allowed "fps" = {time_conv_factor} ms. Please select a larger range or less frames. Number of frames will be set to the maximum allowed: {to_time} frames.')
+        
+        n_frames = to_time
+        
+
+    
+    # inx = int((to_time - from_time )  / n_frames) 
+    # inx = np.arange(from_time, to_time, inx)
+    subset = data[from_time:to_time, ...]
+    indx = np.arange(0, subset.shape[0], subset.shape[0] / n_frames, dtype = int)
+    
+    print(f'applying "pick_frames_fun" to image {image.active}')
+    return(subset[indx, ...])
