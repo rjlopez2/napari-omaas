@@ -145,12 +145,12 @@ def segment_heart_func(
     mask = np.tile(mask, (data.shape[0], 1, 1))
     
     # 10. subtracts background from original img
-    raw_img_stack_nobg = data.copy()
-    raw_img_stack_nobg[~mask] = 0
+    # raw_img_stack_nobg = data.copy()
+    # raw_img_stack_nobg[~mask] = 0
     
     print(f'applying "segment_heart_func" to image {image.active}')
-    return raw_img_stack_nobg
-    # return mask
+    # return raw_img_stack_nobg
+    return mask
 
 
 def pick_frames_fun(
