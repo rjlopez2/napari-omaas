@@ -9,7 +9,8 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout
+
 
 from .utils import *
 
@@ -27,11 +28,13 @@ class OMAAS(QWidget):
         self.viewer = napari_viewer
 
         ##### instanciate buttons #####
-        inv_data_btn = QPushButton("invert image")
-        norm_data_btn = QPushButton("normalize (local max)")
+        inv_data_btn = QPushButton("Invert image")
+        norm_data_btn = QPushButton("Normalize (local max)")
         splt_chann_btn = QPushButton("Split Channels")
-        rmv_backg_btn = QPushButton("remove Background")
-        rmv_backg_btn = QPushButton("remove Background")
+        # segmentation
+        seg_heart_btn = QPushButton("Segment the heart shapes")
+        sub_backg_btn = QPushButton("Subtract Background")
+        rmv_backg_btn = QPushButton("Remove Background")
         pick_frames_btn = QPushButton("Pick frames")
         # inv_and_norm_btn = QPushButton("invert + Normaize (local max)")
 
@@ -43,6 +46,12 @@ class OMAAS(QWidget):
         self.layout().addWidget(inv_data_btn)
         self.layout().addWidget(norm_data_btn)
         self.layout().addWidget(splt_chann_btn)
+
+        # self.run_group = VHGroup('Run analysis', orientation='G')
+        # self._segmentation_layout.addWidget(self.run_group.gbox)
+
+        self.layout().addWidget(seg_heart_btn)
+        self.layout().addWidget(sub_backg_btn)
         self.layout().addWidget(rmv_backg_btn)
         self.layout().addWidget(pick_frames_btn)
         # self.layout().addWidget(inv_and_norm_btn)
@@ -55,7 +64,9 @@ class OMAAS(QWidget):
         inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
         splt_chann_btn.clicked.connect(self._on_click_splt_chann)
-        rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
+        rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
+        # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
+        # sub_backg_btn.clicked.connect(self._on_click_sub_backg_btn)
         pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_and_norm_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_data_btn, self._on_click_norm_data_btn)
@@ -82,10 +93,20 @@ class OMAAS(QWidget):
             colormap= "twilight_shifted", 
             name= f"{curr_img_name}_ch{channel + 1}")
     
-    def _on_click_rmv_backg_btn(self):
+    # def _on_click_sub_backg_btn(self):
+
+
+    
+    # def _on_click_rmv_backg_btn(self):
+    #     results =segment_heart_func(self.viewer.layers.selection)
+    #     self.viewer.add_labels(results, 
+    #     # colormap= "turbo", 
+    #     name= f"{self.viewer.layers.selection.active}_Bck")
+
+    def _on_click_seg_heart_btn(self):
         results =segment_heart_func(self.viewer.layers.selection)
-        self.viewer.add_image(results, 
-        colormap= "twilight_shifted", 
+        self.viewer.add_labels(results, 
+        # colormap= "turbo", 
         name= f"{self.viewer.layers.selection.active}_Bck")
 
     def _on_click_pick_frames_btn(self):
@@ -123,3 +144,31 @@ def example_magic_widget(img_layer: "napari.layers.Image"):
 # a widget.
 def example_function_widget(img_layer: "napari.layers.Image"):
     print(f"you have selected {img_layer}")
+
+
+
+
+
+class VHGroup():
+    """Group box with specific layout.
+
+    Parameters
+    ----------
+    name: str
+        Name of the group box
+    orientation: str
+        'V' for vertical, 'H' for horizontal, 'G' for grid
+    """
+
+    def __init__(self, name, orientation='V'):
+        self.gbox = QGroupBox(name)
+        if orientation=='V':
+            self.glayout = QVBoxLayout()
+        elif orientation=='H':
+            self.glayout = QHBoxLayout()
+        elif orientation=='G':
+            self.glayout = QGridLayout()
+        else:
+            raise Exception(f"Unknown orientation {orientation}") 
+
+        self.gbox.setLayout(self.glayout)
