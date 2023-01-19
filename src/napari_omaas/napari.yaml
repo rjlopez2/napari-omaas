@@ -12,8 +12,8 @@ contributions:
       python_name: napari_omaas._sample_data:make_sample_data
       title: Load sample data from napari OMAAS
     - id: napari-omaas.make_qwidget
-      python_name: napari_omaas._widget:ExampleQWidget
-      title: Make example QWidget
+      python_name: napari_omaas._widget:OMAAS
+      title: Optical Mapping Analysis
     - id: napari-omaas.make_magic_widget
       python_name: napari_omaas._widget:example_magic_widget
       title: Make example magic widget
@@ -33,7 +33,7 @@ contributions:
       key: unique_id.1
   widgets:
     - command: napari-omaas.make_qwidget
-      display_name: Example QWidget
+      display_name: Optical Mapping Analysis
     - command: napari-omaas.make_magic_widget
       display_name: Example Magic Widget
     - command: napari-omaas.make_func_widget

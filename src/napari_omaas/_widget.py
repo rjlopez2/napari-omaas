@@ -9,13 +9,17 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel
+from qtpy.QtCore import Qt
+
+
+from .utils import *
 
 if TYPE_CHECKING:
     import napari
 
 
-class ExampleQWidget(QWidget):
+class OMAAS(QWidget):
     # your QWidget.__init__ can optionally request the napari viewer instance
     # in one of two ways:
     # 1. use a parameter called `napari_viewer`, as done here
@@ -24,14 +28,141 @@ class ExampleQWidget(QWidget):
         super().__init__()
         self.viewer = napari_viewer
 
-        btn = QPushButton("Click me!")
-        btn.clicked.connect(self._on_click)
 
-        self.setLayout(QHBoxLayout())
-        self.layout().addWidget(btn)
+        self.main_layout = QVBoxLayout()
+        self.setLayout(self.main_layout)
 
-    def _on_click(self):
-        print("napari has", len(self.viewer.layers), "layers")
+        self.tabs = QTabWidget()
+        self.main_layout.addWidget(self.tabs)
+
+        # options tab
+        self.options_tab = QWidget()
+        self._options_tab_layout = QVBoxLayout()
+        self.options_tab.setLayout(self._options_tab_layout)
+        self.tabs.addTab(self.options_tab, 'Pre-processing')
+        #/////// Options tab /////////
+        self._options_tab_layout.setAlignment(Qt.AlignTop)
+        self.options_group = VHGroup('Segmentation Options', orientation='G')
+        self._options_tab_layout.addWidget(self.options_group.gbox)
+
+        self.flow_threshold_label = QLabel("Gaussian filter")
+        self.options_group.glayout.addWidget(self.flow_threshold_label, 3, 0, 1, 1)
+        self.flow_threshold = QDoubleSpinBox()
+        self.flow_threshold.setSingleStep(1)
+        self.flow_threshold.setMaximum(10)
+        self.flow_threshold.setMinimum(-10)
+        self.flow_threshold.setValue(1)
+        self.options_group.glayout.addWidget(self.flow_threshold, 3, 1, 1, 1)
+
+        self.btn_select_options_file = QPushButton("apply")
+        self.btn_select_options_file.setToolTip(("apply gaussina filter to selected image"))
+        self.options_group.glayout.addWidget(self.btn_select_options_file, 4, 0, 1, 1)
+
+        ##### instanciate buttons #####
+        inv_data_btn = QPushButton("Invert image")
+        norm_data_btn = QPushButton("Normalize (local max)")
+        splt_chann_btn = QPushButton("Split Channels")
+        # segmentation
+        seg_heart_btn = QPushButton("Segment the heart shapes")
+        sub_backg_btn = QPushButton("Subtract Background")
+        rmv_backg_btn = QPushButton("Remove Background")
+        pick_frames_btn = QPushButton("Pick frames")
+        # inv_and_norm_btn = QPushButton("invert + Normaize (local max)")
+
+        # load_ROIs_btn = QPushButton("load ROIs")
+        # save_ROIs_btn = QPushButton("Save ROIs")
+
+        ##### adding buttons in layout #####
+        self.setLayout(QVBoxLayout())
+        self.layout().addWidget(inv_data_btn)
+        self.layout().addWidget(norm_data_btn)
+        self.layout().addWidget(splt_chann_btn)
+
+        # self.run_group = VHGroup('Run analysis', orientation='G')
+        # self._segmentation_layout.addWidget(self.run_group.gbox)
+
+        self.layout().addWidget(seg_heart_btn)
+        self.layout().addWidget(sub_backg_btn)
+        self.layout().addWidget(rmv_backg_btn)
+        self.layout().addWidget(pick_frames_btn)
+        # self.layout().addWidget(inv_and_norm_btn)
+        
+
+        # self.layout().addWidget(load_ROIs_btn)
+        # self.layout().addWidget(save_ROIs_btn)
+        
+        ##### callbacks #####
+        inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
+        norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
+        splt_chann_btn.clicked.connect(self._on_click_splt_chann)
+        rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
+        # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
+        # sub_backg_btn.clicked.connect(self._on_click_sub_backg_btn)
+        pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
+        # inv_and_norm_btn.clicked.connect(self._on_click_inv_and_norm_btn)
+        # inv_and_norm_btn.clicked.connect(self._on_click_inv_data_btn, self._on_click_norm_data_btn)
+        # load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
+        # save_ROIs_btn.clicked.connect(self._on_click_save_ROIs_btn)
+
+    def _on_click_inv_data_btn(self):
+        results =invert_signal(self.viewer.layers.selection)
+        self.viewer.add_image(results, 
+        colormap= "twilight_shifted", 
+        name= f"{self.viewer.layers.selection.active}_Inv")
+
+    def _on_click_norm_data_btn(self):
+        results = local_normal_fun(self.viewer.layers.selection)
+        self.viewer.add_image(results, 
+        colormap= "twilight_shifted", 
+        name= f"{self.viewer.layers.selection.active}_Nor")
+
+    def _on_click_splt_chann(self):
+        my_splitted_images = split_channels_fun(self.viewer.layers.selection)
+        curr_img_name = self.viewer.layers.selection.active
+        for channel in range(len(my_splitted_images)):
+            self.viewer.add_image(my_splitted_images[channel], 
+            colormap= "twilight_shifted", 
+            name= f"{curr_img_name}_ch{channel + 1}")
+    
+    # def _on_click_sub_backg_btn(self):
+
+
+    
+    # def _on_click_rmv_backg_btn(self):
+    #     results =segment_heart_func(self.viewer.layers.selection)
+    #     self.viewer.add_labels(results, 
+    #     # colormap= "turbo", 
+    #     name= f"{self.viewer.layers.selection.active}_Bck")
+
+    def _on_click_seg_heart_btn(self):
+        results =segment_heart_func(self.viewer.layers.selection)
+        self.viewer.add_labels(results, 
+        # colormap= "turbo", 
+        name= f"{self.viewer.layers.selection.active}_Bck")
+
+    def _on_click_pick_frames_btn(self):
+        results =pick_frames_fun(self.viewer.layers.selection)
+        self.viewer.add_image(results, 
+        colormap= "twilight_shifted", 
+        name= f"{self.viewer.layers.selection.active}_sliced")    
+    # def _on_click_inv_and_norm_btn(self):
+        # self._on_click_inv_data_btn(self)
+        # self._on_click_norm_data_btn(self)
+
+
+
+
+    # def _on_click_load_ROIs_btn(self, event=None, filename=None):
+    #     if filename is None: filename, _ = QFileDialog.getOpenFileName(self, "Load ROIs", ".", "ImageJ ROIS(*.roi *.zip)")
+    #     self.viewer.open(filename, plugin='napari_jroireader')
+        
+    
+    # def _on_click_save_ROIs_btn(self, event=None, filename=None):
+    #     if filename is None: filename, _ = QFileDialog.getSaveFileName(self, "Save as .csv", ".", "*.csv")
+    #     # self.viewer.layers.save(filename, plugin='napari_jroiwriter')
+    #     self.viewer.layers.save(filename, plugin='napari')
+    
+
 
 
 @magic_factory
@@ -44,3 +175,31 @@ def example_magic_widget(img_layer: "napari.layers.Image"):
 # a widget.
 def example_function_widget(img_layer: "napari.layers.Image"):
     print(f"you have selected {img_layer}")
+
+
+
+
+
+class VHGroup():
+    """Group box with specific layout.
+
+    Parameters
+    ----------
+    name: str
+        Name of the group box
+    orientation: str
+        'V' for vertical, 'H' for horizontal, 'G' for grid
+    """
+
+    def __init__(self, name, orientation='V'):
+        self.gbox = QGroupBox(name)
+        if orientation=='V':
+            self.glayout = QVBoxLayout()
+        elif orientation=='H':
+            self.glayout = QHBoxLayout()
+        elif orientation=='G':
+            self.glayout = QGridLayout()
+        else:
+            raise Exception(f"Unknown orientation {orientation}") 
+
+        self.gbox.setLayout(self.glayout)
