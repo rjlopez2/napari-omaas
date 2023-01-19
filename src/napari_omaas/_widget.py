@@ -9,7 +9,8 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel
+from qtpy.QtCore import Qt
 
 
 from .utils import *
@@ -26,6 +27,36 @@ class OMAAS(QWidget):
     def __init__(self, napari_viewer):
         super().__init__()
         self.viewer = napari_viewer
+
+
+        self.main_layout = QVBoxLayout()
+        self.setLayout(self.main_layout)
+
+        self.tabs = QTabWidget()
+        self.main_layout.addWidget(self.tabs)
+
+        # options tab
+        self.options_tab = QWidget()
+        self._options_tab_layout = QVBoxLayout()
+        self.options_tab.setLayout(self._options_tab_layout)
+        self.tabs.addTab(self.options_tab, 'Pre-processing')
+        #/////// Options tab /////////
+        self._options_tab_layout.setAlignment(Qt.AlignTop)
+        self.options_group = VHGroup('Segmentation Options', orientation='G')
+        self._options_tab_layout.addWidget(self.options_group.gbox)
+
+        self.flow_threshold_label = QLabel("Gaussian filter")
+        self.options_group.glayout.addWidget(self.flow_threshold_label, 3, 0, 1, 1)
+        self.flow_threshold = QDoubleSpinBox()
+        self.flow_threshold.setSingleStep(1)
+        self.flow_threshold.setMaximum(10)
+        self.flow_threshold.setMinimum(-10)
+        self.flow_threshold.setValue(1)
+        self.options_group.glayout.addWidget(self.flow_threshold, 3, 1, 1, 1)
+
+        self.btn_select_options_file = QPushButton("apply")
+        self.btn_select_options_file.setToolTip(("apply gaussina filter to selected image"))
+        self.options_group.glayout.addWidget(self.btn_select_options_file, 4, 0, 1, 1)
 
         ##### instanciate buttons #####
         inv_data_btn = QPushButton("Invert image")
