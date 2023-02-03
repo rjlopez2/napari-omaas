@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel, QComboBox
 from qtpy.QtCore import Qt
 
 
@@ -35,15 +35,45 @@ class OMAAS(QWidget):
         self.tabs = QTabWidget()
         self.main_layout.addWidget(self.tabs)
 
-        # options tab
+        # create tabs
         self.options_tab = QWidget()
         self._options_tab_layout = QVBoxLayout()
         self.options_tab.setLayout(self._options_tab_layout)
         self.tabs.addTab(self.options_tab, 'Pre-processing')
+
+        self.layers_processing = QWidget()
+        self._layers_processing_layout = QVBoxLayout()
+        self.layers_processing.setLayout(self._layers_processing_layout)
+        self.tabs.addTab(self.layers_processing, 'Processing Layers')
+
+        #/////// Processing layers tab /////////
+        self._layers_processing_layout.setAlignment(Qt.AlignTop)
+        self.working_on_layers_groups = VHGroup('Transfer ROIs', orientation='G')
+        self._layers_processing_layout.addWidget(self.working_on_layers_groups.gbox)
+        
+        self.ROI_selection_1 = QComboBox()
+        self.ROI_1_label = QLabel("From layer")
+        self.working_on_layers_groups.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
+        # self.ROI_selection_1.setAccessibleName("From layer")
+        self.ROI_selection_1.addItems(self.get_rois_list())
+        self.working_on_layers_groups.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
+        
+        self.ROI_selection_2 = QComboBox()
+        self.ROI_2_label = QLabel("To layer")
+        self.working_on_layers_groups.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
+        # self.ROI_selection_2.setAccessibleName("To layer")
+        self.ROI_selection_2.addItems(self.get_rois_list())
+        self.working_on_layers_groups.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
+
+        self.copy_ROIs_btn = QPushButton("Copy ROIs")
+        self.working_on_layers_groups.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
+
+
         #/////// Options tab /////////
         self._options_tab_layout.setAlignment(Qt.AlignTop)
         self.options_group = VHGroup('Segmentation Options', orientation='G')
         self._options_tab_layout.addWidget(self.options_group.gbox)
+        
 
         self.flow_threshold_label = QLabel("Gaussian filter")
         self.options_group.glayout.addWidget(self.flow_threshold_label, 3, 0, 1, 1)
@@ -103,18 +133,35 @@ class OMAAS(QWidget):
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_data_btn, self._on_click_norm_data_btn)
         # load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
         # save_ROIs_btn.clicked.connect(self._on_click_save_ROIs_btn)
+        # self.ROI_selection.currentIndexChanged.connect(self.???)
+        self.ROI_selection_1.activated.connect(self._get_ROI_selection_1_current_text)
+        self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
+        self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
+        
+        
+        ##### handle events #####
+        self.viewer.layers.events.inserted.connect(self._shapes_layer_list_changed_callback)
+        self.viewer.layers.events.removed.connect(self._shapes_layer_list_changed_callback)
+        self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
+        
 
     def _on_click_inv_data_btn(self):
         results =invert_signal(self.viewer.layers.selection)
+        # print(type(results))
         self.viewer.add_image(results, 
-        colormap= "twilight_shifted", 
+        colormap = "turbo",
+        # colormap= "twilight_shifted", 
         name= f"{self.viewer.layers.selection.active}_Inv")
+
+
 
     def _on_click_norm_data_btn(self):
         results = local_normal_fun(self.viewer.layers.selection)
-        self.viewer.add_image(results, 
-        colormap= "twilight_shifted", 
-        name= f"{self.viewer.layers.selection.active}_Nor")
+        print(type(results))
+        local_normal_fun(self.viewer.layers.selection)
+        # self.viewer.add_image(results, 
+        # colormap= "twilight_shifted", 
+        # name= f"{self.viewer.layers.selection.active}_Nor")
 
     def _on_click_splt_chann(self):
         my_splitted_images = split_channels_fun(self.viewer.layers.selection)
@@ -123,6 +170,67 @@ class OMAAS(QWidget):
             self.viewer.add_image(my_splitted_images[channel], 
             colormap= "twilight_shifted", 
             name= f"{curr_img_name}_ch{channel + 1}")
+
+    
+    def get_rois_list(self):
+
+        shape_layer_list = [layer.name for layer in self.viewer.layers if layer._type_string == 'shapes']
+        
+        return shape_layer_list
+
+    def update_roi_list(self):
+
+        self.clear()
+        self.addItems(self.get_rois_list())
+    
+    def _shapes_layer_list_changed_callback(self, event):
+         if event.type in ['inserted', 'removed']:
+            value = event.value
+            etype = event.type
+            if value._type_string == 'shapes' :
+                if value:
+                    if etype == 'inserted':  # add layer to model
+                        # print("you  enter the event loop")
+                        self.ROI_selection_1.clear()
+                        self.ROI_selection_1.addItems(self.get_rois_list()) 
+                        self.ROI_selection_2.clear()
+                        self.ROI_selection_2.addItems(self.get_rois_list())
+                        
+                    elif etype == 'removed':  # remove layer from model
+                        self.ROI_selection_1.clear()
+                        self.ROI_selection_1.addItems(self.get_rois_list())
+                        self.ROI_selection_2.clear()
+                        self.ROI_selection_2.addItems(self.get_rois_list())
+                        
+
+                    elif etype == 'reordered':  # remove layer from model
+                        self.ROI_selection_1.clear()
+                        self.ROI_selection_1.addItems(self.get_rois_list())
+                        self.ROI_selection_2.clear()
+                        self.ROI_selection_2.addItems(self.get_rois_list())
+    
+    def _on_click_copy_ROIS(self):
+        
+        shape1 = self.ROI_selection_1.currentText()
+        shape2 = self.ROI_selection_2.currentText()
+
+        print(f"copy file shapes from layer _>{shape1} to layer ->{shape2}")
+    
+    def _get_ROI_selection_1_current_text(self, _): # We receive the index, but don't use it.
+        ctext = self.ROI_selection_1.currentText()
+        print(f"Current layer 1 is {ctext}")
+
+    def _get_ROI_selection_2_current_text(self, _): # We receive the index, but don't use it.
+        ctext = self.ROI_selection_2.currentText()
+        print(f"Current layer 2 is {ctext}")
+        
+                        
+                        
+                
+                
+
+        
+
     
     # def _on_click_sub_backg_btn(self):
 
