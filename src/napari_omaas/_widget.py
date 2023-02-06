@@ -48,7 +48,7 @@ class OMAAS(QWidget):
 
         #/////// Processing layers tab /////////
         self._layers_processing_layout.setAlignment(Qt.AlignTop)
-        self.working_on_layers_groups = VHGroup('Transfer ROIs', orientation='G')
+        self.working_on_layers_groups = VHGroup('Copy ROIs from one layer to another', orientation='G')
         self._layers_processing_layout.addWidget(self.working_on_layers_groups.gbox)
         
         self.ROI_selection_1 = QComboBox()
@@ -65,7 +65,7 @@ class OMAAS(QWidget):
         self.ROI_selection_2.addItems(self.get_rois_list())
         self.working_on_layers_groups.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
 
-        self.copy_ROIs_btn = QPushButton("Copy ROIs")
+        self.copy_ROIs_btn = QPushButton("Transfer ROIs")
         self.working_on_layers_groups.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
 
 
@@ -211,10 +211,24 @@ class OMAAS(QWidget):
     
     def _on_click_copy_ROIS(self):
         
-        shape1 = self.ROI_selection_1.currentText()
-        shape2 = self.ROI_selection_2.currentText()
+        shape1_name = self.ROI_selection_1.currentText()
+        shape2_name = self.ROI_selection_2.currentText()
 
-        print(f"copy file shapes from layer _>{shape1} to layer ->{shape2}")
+        # shapes_from = self.viewer.layers[shape1_name]
+        # shapes_to = self.viewer.layers[shape2_name]
+        
+        self.viewer.layers[shape2_name].data = self.viewer.layers[shape1_name].data
+
+        # no sure why the append method is not working
+        # for shapes in self.viewer.layers[shape1_name].data:
+        #     self.viewer.layers[shape2_name].data.append(shapes)
+        
+        # shapes_to.selected_data = set()
+        
+
+        
+        # print(f"copy file shapes from layer _>{shape1_name} to layer ->{shape2_name}")
+        # print(f" number of shapes from: {len(shapes_from)} and shapes to: {len(shapes_to)}/nshpes frm--->{shapes_from} /nshapes to, {shapes_to}" )
     
     def _get_ROI_selection_1_current_text(self, _): # We receive the index, but don't use it.
         ctext = self.ROI_selection_1.currentText()

@@ -5,11 +5,13 @@ from skimage.morphology import disk
 from skimage import morphology
 from skimage import segmentation
 import warnings
+from napari.layers import Image
 
 # functions
 
 def invert_signal(
-    image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
+    image: "napari.types.ImageData")-> "Image":
+
     """Invert signal fluorescence values. This is usefull to properly visulaize
     AP signals from inverted traces.
 
@@ -25,23 +27,24 @@ def invert_signal(
     """
     data = image.active.data
     processed_data = data.max(axis = 0) - data
-    layer_data  = (
-        processed_data,
-        {
+    # layer_data  = (
+    #     processed_data,
+    #     {
 
-        },
-        "image"
+    #     },
+    #     "image"
         
-    )
+    # )
     print(f'computing "invert_signal" to image {image.active}')
     # print (f'computing "invert_signal" to image colormap='magma' ndim: {image.active.data.ndim}')
     # return(inverted_data, dict(name= "lalala"), "image") 
     # return(layer_data)
     return(processed_data)
+    # return Image(image.active.data.max(axis = 0) - image.active.data)
 
 
 def local_normal_fun(
-    image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
+    image: "napari.types.ImageData")-> "napari.types.ImageData":
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
     AP signals from inverted traces.
