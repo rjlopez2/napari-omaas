@@ -48,29 +48,31 @@ class OMAAS(QWidget):
 
         #/////// Processing layers tab /////////
         self._layers_processing_layout.setAlignment(Qt.AlignTop)
-        self.working_on_layers_groups = VHGroup('Copy ROIs from one layer to another', orientation='G')
-        self._layers_processing_layout.addWidget(self.working_on_layers_groups.gbox)
+        ######## Rois handeling group ########
+        self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
+        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox)
         
         self.ROI_selection_1 = QComboBox()
         self.ROI_1_label = QLabel("From layer")
-        self.working_on_layers_groups.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
         # self.ROI_selection_1.setAccessibleName("From layer")
         self.ROI_selection_1.addItems(self.get_rois_list())
-        self.working_on_layers_groups.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
         
         self.ROI_selection_2 = QComboBox()
         self.ROI_2_label = QLabel("To layer")
-        self.working_on_layers_groups.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
         # self.ROI_selection_2.setAccessibleName("To layer")
         self.ROI_selection_2.addItems(self.get_rois_list())
-        self.working_on_layers_groups.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
 
         self.copy_ROIs_btn = QPushButton("Transfer ROIs")
-        self.working_on_layers_groups.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
+        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
 
 
         #/////// Options tab /////////
         self._options_tab_layout.setAlignment(Qt.AlignTop)
+        ######## segmentations group ########
         self.options_group = VHGroup('Segmentation Options', orientation='G')
         self._options_tab_layout.addWidget(self.options_group.gbox)
         
@@ -158,10 +160,11 @@ class OMAAS(QWidget):
     def _on_click_norm_data_btn(self):
         results = local_normal_fun(self.viewer.layers.selection)
         print(type(results))
-        local_normal_fun(self.viewer.layers.selection)
-        # self.viewer.add_image(results, 
+        # local_normal_fun(self.viewer.layers.selection)
+        self.viewer.add_image(results, 
         # colormap= "twilight_shifted", 
-        # name= f"{self.viewer.layers.selection.active}_Nor")
+        colormap = "turbo",
+        name= f"{self.viewer.layers.selection.active}_Nor")
 
     def _on_click_splt_chann(self):
         my_splitted_images = split_channels_fun(self.viewer.layers.selection)
