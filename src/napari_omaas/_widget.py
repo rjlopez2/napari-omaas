@@ -36,18 +36,19 @@ class OMAAS(QWidget):
         self.main_layout.addWidget(self.tabs)
 
         # create tabs
-        self.options_tab = QWidget()
-        self._options_tab_layout = QVBoxLayout()
-        self.options_tab.setLayout(self._options_tab_layout)
-        self.tabs.addTab(self.options_tab, 'Pre-processing')
+        self.pre_processing_tab = QWidget()
+        self._pre_processing_layout = QVBoxLayout()
+        self.pre_processing_tab.setLayout(self._pre_processing_layout)
+        self.tabs.addTab(self.pre_processing_tab, 'Pre-processing')
 
         self.layers_processing = QWidget()
         self._layers_processing_layout = QVBoxLayout()
         self.layers_processing.setLayout(self._layers_processing_layout)
-        self.tabs.addTab(self.layers_processing, 'Processing Layers')
+        self.tabs.addTab(self.layers_processing, 'Shapes')
 
         #/////// Processing layers tab /////////
         self._layers_processing_layout.setAlignment(Qt.AlignTop)
+        
         ######## Rois handeling group ########
         self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
         self._layers_processing_layout.addWidget(self.copy_rois_group.gbox)
@@ -70,67 +71,97 @@ class OMAAS(QWidget):
         self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
 
 
-        #/////// Options tab /////////
-        self._options_tab_layout.setAlignment(Qt.AlignTop)
-        ######## segmentations group ########
-        self.options_group = VHGroup('Segmentation Options', orientation='G')
-        self._options_tab_layout.addWidget(self.options_group.gbox)
+        ######## Options tab ########
+        self._pre_processing_layout.setAlignment(Qt.AlignTop)
         
+        ######## pre-processing  group ########
+        self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
+        self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
 
-        self.flow_threshold_label = QLabel("Gaussian filter")
-        self.options_group.glayout.addWidget(self.flow_threshold_label, 3, 0, 1, 1)
-        self.flow_threshold = QDoubleSpinBox()
-        self.flow_threshold.setSingleStep(1)
-        self.flow_threshold.setMaximum(10)
-        self.flow_threshold.setMinimum(-10)
-        self.flow_threshold.setValue(1)
-        self.options_group.glayout.addWidget(self.flow_threshold, 3, 1, 1, 1)
+        ######## pre-processing btns ########
+        self.inv_img_label = QLabel("Invert image")
+        self.pre_processing_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        self.inv_data_btn = QPushButton("Apply")
+        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 1, 1, 1)
+
+        self.norm_img_label = QLabel("Normalize image (loc max)")
+        self.pre_processing_group.glayout.addWidget(self.norm_img_label, 4, 0, 1, 1)
+        self.norm_data_btn = QPushButton("Apply")        
+        self.pre_processing_group.glayout.addWidget(self.norm_data_btn, 4, 1, 1, 1)
+
+        self.splt_chann_label = QLabel("Split Channels")
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 5, 0, 1, 1)
+        self.splt_chann_btn = QPushButton("Apply")
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 5, 1, 1, 1)
+
+        
+        ######## Filters group ########
+        self.filter_group = VHGroup('Filters', orientation='G')
+        self._pre_processing_layout.addWidget(self.filter_group.gbox)
+        
+        ######## Filters btns ########
+        self.Gauss_filt_label = QLabel("Gaussian filter")
+        self.filter_group.glayout.addWidget(self.Gauss_filt_label, 3, 0, 1, 1)
+        self.gaus_filt_value = QDoubleSpinBox()
+        self.gaus_filt_value.setSingleStep(1)
+        self.gaus_filt_value.setMaximum(10)
+        self.gaus_filt_value.setMinimum(-10)
+        self.gaus_filt_value.setValue(1)
+        self.filter_group.glayout.addWidget(self.gaus_filt_value, 3, 1, 1, 1)
 
         self.btn_select_options_file = QPushButton("apply")
         self.btn_select_options_file.setToolTip(("apply gaussina filter to selected image"))
-        self.options_group.glayout.addWidget(self.btn_select_options_file, 4, 0, 1, 1)
+        self.filter_group.glayout.addWidget(self.btn_select_options_file, 3, 2, 1, 1)
+
+        ######## Segmentation group ########
+        self.segmentation_group = VHGroup('Segmentation', orientation='G')
+        self._pre_processing_layout.addWidget(self.segmentation_group.gbox)
+
+        ######## Segmentation btns ########
+        self.seg_heart_label = QLabel("Segment the heart shape")
+        self.segmentation_group.glayout.addWidget(self.seg_heart_label, 3, 0, 1, 1)
+        self.seg_heart_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.seg_heart_btn, 3, 1, 1, 1)
+
+        self.sub_bkg_label = QLabel("Subtract Background")
+        self.segmentation_group.glayout.addWidget(self.sub_bkg_label, 4, 0, 1, 1)
+        self.sub_backg_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.sub_backg_btn, 4, 1, 1, 1)
+
+        self.del_bkg_label = QLabel("Delete Background")
+        self.segmentation_group.glayout.addWidget(self.del_bkg_label, 5, 0, 1, 1)
+        self.rmv_backg_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.rmv_backg_btn, 5, 1, 1, 1)
+
+        self.pick_frames_btn = QLabel("Pick frames")
+        self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 0, 1, 1)
+        self.pick_frames_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
+
+
+        # sub_backg_btn = QPushButton("Subtract Background")
+        # rmv_backg_btn = QPushButton("Delete Background")
+        # pick_frames_btn = QPushButton("Pick frames")
 
         ##### instanciate buttons #####
-        inv_data_btn = QPushButton("Invert image")
-        norm_data_btn = QPushButton("Normalize (local max)")
-        splt_chann_btn = QPushButton("Split Channels")
+        
         # segmentation
-        seg_heart_btn = QPushButton("Segment the heart shapes")
-        sub_backg_btn = QPushButton("Subtract Background")
-        rmv_backg_btn = QPushButton("Remove Background")
-        pick_frames_btn = QPushButton("Pick frames")
-        # inv_and_norm_btn = QPushButton("invert + Normaize (local max)")
-
-        # load_ROIs_btn = QPushButton("load ROIs")
-        # save_ROIs_btn = QPushButton("Save ROIs")
-
-        ##### adding buttons in layout #####
-        self.setLayout(QVBoxLayout())
-        self.layout().addWidget(inv_data_btn)
-        self.layout().addWidget(norm_data_btn)
-        self.layout().addWidget(splt_chann_btn)
-
-        # self.run_group = VHGroup('Run analysis', orientation='G')
-        # self._segmentation_layout.addWidget(self.run_group.gbox)
-
-        self.layout().addWidget(seg_heart_btn)
-        self.layout().addWidget(sub_backg_btn)
-        self.layout().addWidget(rmv_backg_btn)
-        self.layout().addWidget(pick_frames_btn)
-        # self.layout().addWidget(inv_and_norm_btn)
         
 
-        # self.layout().addWidget(load_ROIs_btn)
-        # self.layout().addWidget(save_ROIs_btn)
+        # self.layout().addWidget(seg_heart_btn)
+        # self.layout().addWidget(sub_backg_btn)
+        # self.layout().addWidget(rmv_backg_btn)
+        # self.layout().addWidget(pick_frames_btn)
+
         
         ##### callbacks #####
-        inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
-        norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
-        splt_chann_btn.clicked.connect(self._on_click_splt_chann)
-        rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
+        self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
+        self.norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
+        self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
+        self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
         # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
         # sub_backg_btn.clicked.connect(self._on_click_sub_backg_btn)
-        pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
+        self.pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_and_norm_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_data_btn, self._on_click_norm_data_btn)
         # load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
