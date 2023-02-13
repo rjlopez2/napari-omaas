@@ -97,7 +97,7 @@ class OMAAS(QWidget):
         
         ######## Filters group ########
         self.filter_group = VHGroup('Filters', orientation='G')
-        self._pre_processing_layout.addWidget(self.filter_group.gbox)
+        # self._pre_processing_layout.addWidget(self.filter_group.gbox)
         
         ######## Filters btns ########
         self.Gauss_filt_label = QLabel("Gaussian filter")
@@ -115,7 +115,7 @@ class OMAAS(QWidget):
 
         ######## Segmentation group ########
         self.segmentation_group = VHGroup('Segmentation', orientation='G')
-        self._pre_processing_layout.addWidget(self.segmentation_group.gbox)
+        # self._pre_processing_layout.addWidget(self.segmentation_group.gbox)
 
         ######## Segmentation btns ########
         self.seg_heart_label = QLabel("Segment the heart shape")
