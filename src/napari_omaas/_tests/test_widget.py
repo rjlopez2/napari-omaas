@@ -8,17 +8,17 @@ from napari_omaas import OMAAS, example_magic_widget
 def test_example_q_widget(make_napari_viewer, capsys):
     # make viewer and add an image layer using our fixture
     viewer = make_napari_viewer()
-    viewer.add_image(np.random.random((100, 100)))
+    layer = viewer.add_image(np.random.random((100, 100)))
 
     # create our widget, passing in the viewer
     my_widget = OMAAS(viewer)
 
     # call our widget method
-    my_widget._on_click()
+    my_widget._on_click_inv_data_btn()
 
     # read captured output and check that it's as we expected
     captured = capsys.readouterr()
-    assert captured.out == "napari has 1 layers\n"
+    assert captured.out == f'computing "invert_signal" to image {layer}\n'
 
 
 def test_example_magic_widget(make_napari_viewer, capsys):
