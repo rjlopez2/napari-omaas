@@ -89,10 +89,16 @@ class OMAAS(QWidget):
         self.norm_data_btn = QPushButton("Apply")        
         self.pre_processing_group.glayout.addWidget(self.norm_data_btn, 4, 1, 1, 1)
 
+        self.inv_and_norm_label = QLabel("Invert + Normalize (loc max)")
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_label, 5, 0, 1, 1)
+        self.inv_and_norm_data_btn = QPushButton("Apply")        
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 5, 1, 1, 1)
+
+
         self.splt_chann_label = QLabel("Split Channels")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 5, 0, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 6, 0, 1, 1)
         self.splt_chann_btn = QPushButton("Apply")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 5, 1, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 6, 1, 1, 1)
 
         
         ######## Filters group ########
@@ -157,6 +163,7 @@ class OMAAS(QWidget):
         ##### callbacks #####
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         self.norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
+        self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
         self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
         # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
@@ -196,6 +203,11 @@ class OMAAS(QWidget):
         # colormap= "twilight_shifted", 
         colormap = "turbo",
         name= f"{self.viewer.layers.selection.active}_Nor")
+
+    def _on_click_inv_and_norm_data_btn(self):
+        self._on_click_inv_data_btn()
+        self._on_click_norm_data_btn()
+
 
     def _on_click_splt_chann(self):
         my_splitted_images = split_channels_fun(self.viewer.layers.selection)
