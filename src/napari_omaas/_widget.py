@@ -299,19 +299,26 @@ class OMAAS(QWidget):
 
         if ctext == "Gaussian":
             sigma = self.filt_param.value()
-            print(f"applying {ctext} with value: {str(sigma)} ")
+            # print(f"applying {ctext} with value: {str(sigma)} ")
 
             results = apply_gaussian_func(self.viewer.layers.selection, sigma)
 
             self.viewer.add_image(results, 
             colormap = "turbo",
          # colormap= "twilight_shifted", 
-            name= f"{self.viewer.layers.selection.active}_Gaus_{str(sigma)}")
+            name= f"{self.viewer.layers.selection.active}_GausFilt_{str(sigma)}")
 
         
         if ctext == "Median":
             param = self.filt_param.value()
-            print(f"applying {ctext} with value: {str(param)} ")
+            # print(f"applying {ctext} with value: {str(param)} ")
+
+            results = apply_median_filt_func(self.viewer.layers.selection, param)
+
+            self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_MednFilt_{str(param)}")
 
 
 
