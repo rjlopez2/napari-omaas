@@ -155,6 +155,38 @@ def segment_heart_func(
     # return raw_img_stack_nobg
     return mask
 
+def apply_gaussian_func (image: "napari.types.ImageData",
+    sigma)-> "Image":
+
+    """
+    Apply Gaussina filter to selected image.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be back subtracted.
+    
+    sigma: int
+        Magintud of gaussina filer kernel, default to 2.
+    
+    
+    Returns
+    -------
+    img_no_background : np.ndarray
+       Smoothed Image with Gaussian filter.
+
+    """
+
+
+    data = image.active.data
+
+    print(f'applying "apply_gaussian_func" to image {image.active}')
+
+    return (gaussian(data, sigma))
+
+
+
+
 
 def pick_frames_fun(
     image: "napari.types.ImageData",
