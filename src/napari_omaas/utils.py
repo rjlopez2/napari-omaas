@@ -7,6 +7,7 @@ from skimage import segmentation
 import warnings
 from napari.layers import Image
 
+from numba import njit, prange
 # functions
 
 def invert_signal(
@@ -26,7 +27,9 @@ def invert_signal(
         The image with inverted fluorescence values
     """
     data = image.active.data
-    processed_data = data.max(axis = 0) - data
+    # processed_data = data.max(axis = 0) - data
+    # processed_data = np.nanmax(data, axis=0) - data
+    # processed_data = paralele_inv_signal(data)
     # layer_data  = (
     #     processed_data,
     #     {
@@ -39,7 +42,7 @@ def invert_signal(
     # print (f'computing "invert_signal" to image colormap='magma' ndim: {image.active.data.ndim}')
     # return(inverted_data, dict(name= "lalala"), "image") 
     # return(layer_data)
-    return(processed_data)
+    return np.nanmax(data, axis=0) - data
     # return Image(image.active.data.max(axis = 0) - image.active.data)
 
 
@@ -61,12 +64,9 @@ def local_normal_fun(
     """
     data = image.active.data
 
-    processed_data = np.where(np.isnan(data),
-                    data,
-                    (data - data.min(axis = 0)) / data.max(axis = 0))
     print(f'computing "local_normal_fun" to image {image.active}')
 
-    return(processed_data)
+    return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
 
 def split_channels_fun(
     image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
