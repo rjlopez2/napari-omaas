@@ -1,6 +1,6 @@
 from qtpy import QtCore, QtGui
 import numpy as np
-from skimage.filters import gaussian, threshold_triangle
+from skimage.filters import gaussian, threshold_triangle, median
 from skimage.morphology import disk
 from skimage import morphology
 from skimage import segmentation
@@ -172,7 +172,7 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     
     Returns
     -------
-    img_no_background : np.ndarray
+    out_img : np.ndarray
        Smoothed Image with Gaussian filter.
 
     """
@@ -181,7 +181,7 @@ def apply_gaussian_func (image: "napari.types.ImageData",
 
     data = image.active.data
     out_img = np.empty_like(data)
-    
+
     for plane, img in enumerate(data):
         out_img[plane] = gaussian(img, sigma)
 
@@ -190,6 +190,39 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     # return (gaussian(data, sigma))
     return out_img
 
+def apply_median_filt_func (image: "napari.types.ImageData",
+    footprint)-> "Image":
+
+    """
+    Apply Median filter to selected image.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be back subtracted.
+    
+    footprint: ndarray 
+        Magintud of Median filter.
+    
+    
+    Returns
+    -------
+    out_img : np.ndarray
+       Smoothed Image with Median filter.
+
+    """
+
+    data = image.active.data
+    out_img = np.empty_like(data)
+    footprint = disk(int(footprint))
+
+    for plane, img in enumerate(data):
+        out_img[plane] = median(img, footprint = footprint)
+
+    print(f'applying "apply_median_filt_func" to image {image.active}')
+
+    # return (gaussian(data, sigma))
+    return out_img
 
 
 
