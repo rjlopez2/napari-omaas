@@ -178,11 +178,17 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     """
 
 
+
     data = image.active.data
+    out_img = np.empty_like(data)
+    
+    for plane, img in enumerate(data):
+        out_img[plane] = gaussian(img, sigma)
 
     print(f'applying "apply_gaussian_func" to image {image.active}')
 
-    return (gaussian(data, sigma))
+    # return (gaussian(data, sigma))
+    return out_img
 
 
 
