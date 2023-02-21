@@ -102,22 +102,30 @@ class OMAAS(QWidget):
 
         
         ######## Filters group ########
-        self.filter_group = VHGroup('Filter', orientation='G')
+        self.filter_group = VHGroup('Filter Image', orientation='G')
         self._pre_processing_layout.addWidget(self.filter_group.gbox)
         
         ######## Filters btns ########
-        self.gauss_filt_label = QLabel("Gaussian filter")
-        self.filter_group.glayout.addWidget(self.gauss_filt_label, 3, 0, 1, 1)
-        self.gaus_filt_value = QDoubleSpinBox()
-        self.gaus_filt_value.setSingleStep(1)
-        self.gaus_filt_value.setMaximum(10)
-        self.gaus_filt_value.setMinimum(-10)
-        self.gaus_filt_value.setValue(1)
-        self.filter_group.glayout.addWidget(self.gaus_filt_value, 3, 1, 1, 1)
+        # self.filters_label = QLabel("Gaussian filter")
+        # self.filter_group.glayout.addWidget(self.filters_label, 3, 0, 1, 1)
 
-        self.apply_gaus_filt_btn = QPushButton("apply")
-        self.apply_gaus_filt_btn.setToolTip(("apply gaussina filter to selected image"))
-        self.filter_group.glayout.addWidget(self.apply_gaus_filt_btn, 3, 2, 1, 1)
+        self.filter_types = QComboBox()
+        self.filter_types.addItems(["Gaussian", "Median"])
+        self.filter_group.glayout.addWidget(self.filter_types, 3, 1, 1, 1)
+
+        
+        self.filt_param = QDoubleSpinBox()
+        self.filt_param.setSingleStep(1)
+        # self.filt_param.setMaximum(10)
+        # self.filt_param.setMinimum(-10)
+        self.filt_param.setValue(1)
+        self.filter_group.glayout.addWidget(self.filt_param, 3, 2, 1, 1)
+
+   
+
+        self.apply_filt_btn = QPushButton("apply")
+        self.apply_filt_btn.setToolTip(("apply selected filter to the image"))
+        self.filter_group.glayout.addWidget(self.apply_filt_btn, 3, 3, 1, 1)
 
         ######## Segmentation group ########
         self.segmentation_group = VHGroup('Segmentation', orientation='G')
@@ -168,7 +176,8 @@ class OMAAS(QWidget):
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
         self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
-        self.apply_gaus_filt_btn.clicked.connect(self._on_click_apply_gaus_filt_btn)
+        self.apply_filt_btn.clicked.connect(self._on_click_apply_filt_btn)
+        # self.filter_types.activated.connect(self._filter_type_change)
         # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
         # sub_backg_btn.clicked.connect(self._on_click_sub_backg_btn)
         self.pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
@@ -278,20 +287,43 @@ class OMAAS(QWidget):
         
         # print(f"copy file shapes from layer _>{shape1_name} to layer ->{shape2_name}")
         # print(f" number of shapes from: {len(shapes_from)} and shapes to: {len(shapes_to)}/nshpes frm--->{shapes_from} /nshapes to, {shapes_to}" )
+    # def _filter_type_change(self, _):
+    #    ctext = self.filter_types.currentText()
+    #    print(f"Current layer 1 is {ctext}")
 
 
-
-    def _on_click_apply_gaus_filt_btn(self):
+    def _on_click_apply_filt_btn(self):
         # self.gaus_filt_value.value()
-        sigma = self.gaus_filt_value.value()
-        print(f"its responding {str(self.gaus_filt_value.value())}")
+        
+        ctext = self.filter_types.currentText()
 
-        results = apply_gaussian_func(self.viewer.layers.selection, sigma)
+        if ctext == "Gaussian":
+            sigma = self.filt_param.value()
+            print(f"applying {ctext} with value: {str(sigma)} ")
 
-        self.viewer.add_image(results, 
-        colormap = "turbo",
-        # colormap= "twilight_shifted", 
-        name= f"{self.viewer.layers.selection.active}_Gaus_{str(sigma)}")
+            results = apply_gaussian_func(self.viewer.layers.selection, sigma)
+
+            self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_Gaus_{str(sigma)}")
+
+        
+        if ctext == "Median":
+            param = self.filt_param.value()
+            print(f"applying {ctext} with value: {str(param)} ")
+
+
+
+
+        # print(f"its responding {str(self.filt_param.value())}")
+
+        # results = apply_gaussian_func(self.viewer.layers.selection, sigma)
+
+        # self.viewer.add_image(results, 
+        # colormap = "turbo",
+        # # colormap= "twilight_shifted", 
+        # name= f"{self.viewer.layers.selection.active}_Gaus_{str(sigma)}")
 
     
     def _get_ROI_selection_1_current_text(self, _): # We receive the index, but don't use it.
