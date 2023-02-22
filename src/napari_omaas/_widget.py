@@ -209,7 +209,7 @@ class OMAAS(QWidget):
 
     def _on_click_norm_data_btn(self):
         results = local_normal_fun(self.viewer.layers.selection)
-        print(type(results))
+        # print(type(results))
         # local_normal_fun(self.viewer.layers.selection)
         self.viewer.add_image(results, 
         # colormap= "twilight_shifted", 
