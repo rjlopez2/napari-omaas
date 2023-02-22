@@ -7,7 +7,8 @@ from skimage import segmentation
 import warnings
 from napari.layers import Image
 
-from numba import njit, prange
+# from numba import jit, prange
+from scipy import signal, ndimage
 # functions
 
 def invert_signal(
@@ -191,7 +192,7 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     return out_img
 
 def apply_median_filt_func (image: "napari.types.ImageData",
-    footprint)-> "Image":
+    param)-> "Image":
 
     """
     Apply Median filter to selected image.
@@ -211,18 +212,39 @@ def apply_median_filt_func (image: "napari.types.ImageData",
        Smoothed Image with Median filter.
 
     """
-
+    param = int(param)
     data = image.active.data
     out_img = np.empty_like(data)
-    footprint = disk(int(footprint))
-
-    for plane, img in enumerate(data):
-        out_img[plane] = median(img, footprint = footprint)
+    footprint = disk(int(param))
 
     print(f'applying "apply_median_filt_func" to image {image.active}')
 
+    # for plane, img in enumerate(data):
+        # out_img[plane] = median(img, footprint = footprint)
+
+    # for plane in list(range(data.shape[0])):
+    #     out_img[plane, :, :] = median(data[plane, :, :], footprint = footprint)
+
+# using numba method #
+    # out_img = parallel_median(data,footprint)
+    # for plane, img in enumerate(data):
+    #     out_img[plane] = signal.medfilt2d(img, kernel_size = param)
+    
+    out_img = ndimage.median_filter(data, size = (1, param, param))
     # return (gaussian(data, sigma))
     return out_img
+
+
+# @jit
+# def parallel_median(image, footprint):
+#     out_img = np.empty_like(image)
+#     footprint = disk(int(footprint))
+#     for plane in prange(image.shape[0]):
+#         out_img[plane, :, :] = median(image[plane, :, :], footprint = footprint)
+#     return out_img
+
+
+
 
 
 
