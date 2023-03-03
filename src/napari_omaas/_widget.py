@@ -35,43 +35,34 @@ class OMAAS(QWidget):
         self.tabs = QTabWidget()
         self.main_layout.addWidget(self.tabs)
 
-        # create tabs
+        ###############################
+        ######## create tabs ##########
+        ###############################
+
+        ######## pre-processing tab ########
         self.pre_processing_tab = QWidget()
         self._pre_processing_layout = QVBoxLayout()
         self.pre_processing_tab.setLayout(self._pre_processing_layout)
         self.tabs.addTab(self.pre_processing_tab, 'Pre-processing')
-
+       
+       ######## Shapes tab ########
         self.layers_processing = QWidget()
         self._layers_processing_layout = QVBoxLayout()
         self.layers_processing.setLayout(self._layers_processing_layout)
         self.tabs.addTab(self.layers_processing, 'Shapes')
 
-        #/////// Processing layers tab /////////
-        self._layers_processing_layout.setAlignment(Qt.AlignTop)
-        
-        ######## Rois handeling group ########
-        self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
-        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox)
-        
-        self.ROI_selection_1 = QComboBox()
-        self.ROI_1_label = QLabel("From layer")
-        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
-        # self.ROI_selection_1.setAccessibleName("From layer")
-        self.ROI_selection_1.addItems(self.get_rois_list())
-        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
-        
-        self.ROI_selection_2 = QComboBox()
-        self.ROI_2_label = QLabel("To layer")
-        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
-        # self.ROI_selection_2.setAccessibleName("To layer")
-        self.ROI_selection_2.addItems(self.get_rois_list())
-        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
+        ######## Mot-Correction tab ########
+        self.motion_correction = QWidget()
+        self._motion_correction_layout = QVBoxLayout()
+        self.motion_correction.setLayout(self._motion_correction_layout)
+        self.tabs.addTab(self.motion_correction, 'Mot-Correction')
 
-        self.copy_ROIs_btn = QPushButton("Transfer ROIs")
-        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
+        #########################################
+        ######## Editing indivicual tabs ########
+        #########################################
 
-
-        ######## Options tab ########
+        ######## Pre-processing tab ########
+        ####################################
         self._pre_processing_layout.setAlignment(Qt.AlignTop)
         
         ######## pre-processing  group ########
@@ -99,8 +90,7 @@ class OMAAS(QWidget):
         self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 6, 0, 1, 1)
         self.splt_chann_btn = QPushButton("Apply")
         self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 6, 1, 1, 1)
-
-        
+ 
         ######## Filters group ########
         self.filter_group = VHGroup('Filter Image', orientation='G')
         self._pre_processing_layout.addWidget(self.filter_group.gbox)
@@ -120,8 +110,6 @@ class OMAAS(QWidget):
         # self.filt_param.setMinimum(-10)
         self.filt_param.setValue(1)
         self.filter_group.glayout.addWidget(self.filt_param, 3, 2, 1, 1)
-
-   
 
         self.apply_filt_btn = QPushButton("apply")
         self.apply_filt_btn.setToolTip(("apply selected filter to the image"))
@@ -151,6 +139,42 @@ class OMAAS(QWidget):
         self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 0, 1, 1)
         self.pick_frames_btn = QPushButton("apply")
         self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
+
+        ######## Shapes tab ########
+        ############################
+
+        self._layers_processing_layout.setAlignment(Qt.AlignTop)
+        
+        ######## Rois handeling group ########
+        self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
+        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox)
+        
+        self.ROI_selection_1 = QComboBox()
+        self.ROI_1_label = QLabel("From layer")
+        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
+        # self.ROI_selection_1.setAccessibleName("From layer")
+        self.ROI_selection_1.addItems(self.get_rois_list())
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
+        
+        self.ROI_selection_2 = QComboBox()
+        self.ROI_2_label = QLabel("To layer")
+        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
+        # self.ROI_selection_2.setAccessibleName("To layer")
+        self.ROI_selection_2.addItems(self.get_rois_list())
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
+
+        self.copy_ROIs_btn = QPushButton("Transfer ROIs")
+        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
+
+
+        ######## Mot-Correction tab ########
+        ####################################
+
+        self._motion_correction_layout.setAlignment(Qt.AlignTop)
+        ######## Mot-Correction group ########
+        self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
+        self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
+
 
 
         # sub_backg_btn = QPushButton("Subtract Background")
