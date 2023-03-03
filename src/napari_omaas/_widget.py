@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel, QComboBox
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel, QComboBox, QSpinBox
 from qtpy.QtCore import Qt
 
 
@@ -174,6 +174,34 @@ class OMAAS(QWidget):
         ######## Mot-Correction group ########
         self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
+
+        self.inv_and_norm_label = QLabel("Foot print size")
+        self.mot_correction_group.glayout.addWidget(self.inv_and_norm_label, 3, 0, 1, 1)
+        
+        self.footprint_size = QSpinBox()
+        self.footprint_size.setSingleStep(1)
+        self.footprint_size.setValue(10)
+        self.mot_correction_group.glayout.addWidget(self.footprint_size, 3, 1, 1, 1)
+
+        self.radius_size_label = QLabel("Radius size")
+        self.mot_correction_group.glayout.addWidget(self.radius_size_label, 4, 0, 1, 1)
+        
+        self.radius_size = QSpinBox()
+        self.radius_size.setSingleStep(1)
+        self.radius_size.setValue(7)
+        self.mot_correction_group.glayout.addWidget(self.radius_size, 4, 1, 1, 1)
+
+        self.n_warps_label = QLabel("Number of warps")
+        self.mot_correction_group.glayout.addWidget(self.n_warps_label, 5, 0, 1, 1)
+        
+        self.n_warps = QSpinBox()
+        self.n_warps.setSingleStep(1)
+        self.n_warps.setValue(20)
+        self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
+
+        self.apply_mot_correct_btn = QPushButton("apply")
+        self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
+        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 2)
 
 
 
