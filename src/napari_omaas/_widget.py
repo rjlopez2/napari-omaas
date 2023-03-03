@@ -164,6 +164,7 @@ class OMAAS(QWidget):
         self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
 
         self.copy_ROIs_btn = QPushButton("Transfer ROIs")
+        self.copy_ROIs_btn.setToolTip(("Transfer ROIs from one 'Shape' layer to another 'Shape' layer"))
         self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
 
 
@@ -219,9 +220,10 @@ class OMAAS(QWidget):
         # self.layout().addWidget(rmv_backg_btn)
         # self.layout().addWidget(pick_frames_btn)
 
+        ######################
+        ##### callbacks ######
+        ######################
         
-        ##### callbacks #####
-        # - 
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         self.norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
@@ -241,6 +243,7 @@ class OMAAS(QWidget):
         self.ROI_selection_1.activated.connect(self._get_ROI_selection_1_current_text)
         self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
+        self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         
         
         ##### handle events #####
@@ -392,6 +395,12 @@ class OMAAS(QWidget):
     def _get_ROI_selection_2_current_text(self, _): # We receive the index, but don't use it.
         ctext = self.ROI_selection_2.currentText()
         print(f"Current layer 2 is {ctext}")
+
+    
+    def _on_click_apply_mot_correct_btn(self):
+
+        print ("it is connected")
+
         
                         
                         
