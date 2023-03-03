@@ -406,3 +406,26 @@ def motion_correction_func(image: "napari.types.ImageData",
     registered_img = np.asanyarray(registered_img, dtype=np.uint16).copy()
     
     return registered_img
+
+
+def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
+
+    """
+    Transfrom numpy array values to type: np.uint16.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be processed.
+     
+    
+    Returns
+    -------
+        image : np.ndarray of type np.uint16
+
+    """
+    
+    
+
+    return image.active.data.astype(np.uint16)
+    

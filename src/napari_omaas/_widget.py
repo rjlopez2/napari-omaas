@@ -115,6 +115,18 @@ class OMAAS(QWidget):
         self.apply_filt_btn.setToolTip(("apply selected filter to the image"))
         self.filter_group.glayout.addWidget(self.apply_filt_btn, 3, 3, 1, 1)
 
+        ######## Transform group ########
+        self.transform_group = VHGroup('Transform Image data', orientation='G')
+        self._pre_processing_layout.addWidget(self.transform_group.gbox)
+
+        ######## Transform btns ########
+        self.inv_img_label = QLabel("Transform data to integer")
+        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        self.transform_to_uint16_btn = QPushButton("Apply")
+        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
+        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+
+
         ######## Segmentation group ########
         self.segmentation_group = VHGroup('Segmentation', orientation='G')
         # self._pre_processing_layout.addWidget(self.segmentation_group.gbox)
@@ -244,6 +256,7 @@ class OMAAS(QWidget):
         self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
+        self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         
         
         ##### handle events #####
@@ -402,8 +415,6 @@ class OMAAS(QWidget):
         radius_size = self.radius_size.value()
         n_warps = self.n_warps.value()
 
-        print (f"it is connected and this is the value of footprint: {foot_print}, radius size: {radius_size}, and n warps: {n_warps}")
-
         results = motion_correction_func(self.viewer.layers.selection, 
                                         foot_print_size=foot_print, 
                                         radius_size=radius_size, num_warp=n_warps)
@@ -411,6 +422,17 @@ class OMAAS(QWidget):
             colormap = "turbo",
          # colormap= "twilight_shifted", 
             name= f"{self.viewer.layers.selection.active}_MotCorr_fp{str(foot_print)}_rs{str(radius_size)}_nw{str(n_warps)}")
+        
+    def _on_click_transform_to_uint16_btn(self):
+        
+        results = transform_to_unit16_func(self.viewer.layers.selection)
+        print( "is doing something")
+
+        self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_uint16")
+
 
 
 
