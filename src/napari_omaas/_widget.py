@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel, QComboBox
+from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel, QComboBox, QSpinBox
 from qtpy.QtCore import Qt
 
 
@@ -35,43 +35,34 @@ class OMAAS(QWidget):
         self.tabs = QTabWidget()
         self.main_layout.addWidget(self.tabs)
 
-        # create tabs
+        ###############################
+        ######## create tabs ##########
+        ###############################
+
+        ######## pre-processing tab ########
         self.pre_processing_tab = QWidget()
         self._pre_processing_layout = QVBoxLayout()
         self.pre_processing_tab.setLayout(self._pre_processing_layout)
         self.tabs.addTab(self.pre_processing_tab, 'Pre-processing')
-
+       
+       ######## Shapes tab ########
         self.layers_processing = QWidget()
         self._layers_processing_layout = QVBoxLayout()
         self.layers_processing.setLayout(self._layers_processing_layout)
         self.tabs.addTab(self.layers_processing, 'Shapes')
 
-        #/////// Processing layers tab /////////
-        self._layers_processing_layout.setAlignment(Qt.AlignTop)
-        
-        ######## Rois handeling group ########
-        self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
-        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox)
-        
-        self.ROI_selection_1 = QComboBox()
-        self.ROI_1_label = QLabel("From layer")
-        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
-        # self.ROI_selection_1.setAccessibleName("From layer")
-        self.ROI_selection_1.addItems(self.get_rois_list())
-        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
-        
-        self.ROI_selection_2 = QComboBox()
-        self.ROI_2_label = QLabel("To layer")
-        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
-        # self.ROI_selection_2.setAccessibleName("To layer")
-        self.ROI_selection_2.addItems(self.get_rois_list())
-        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
+        ######## Mot-Correction tab ########
+        self.motion_correction = QWidget()
+        self._motion_correction_layout = QVBoxLayout()
+        self.motion_correction.setLayout(self._motion_correction_layout)
+        self.tabs.addTab(self.motion_correction, 'Mot-Correction')
 
-        self.copy_ROIs_btn = QPushButton("Transfer ROIs")
-        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
+        #########################################
+        ######## Editing indivicual tabs ########
+        #########################################
 
-
-        ######## Options tab ########
+        ######## Pre-processing tab ########
+        ####################################
         self._pre_processing_layout.setAlignment(Qt.AlignTop)
         
         ######## pre-processing  group ########
@@ -99,8 +90,7 @@ class OMAAS(QWidget):
         self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 6, 0, 1, 1)
         self.splt_chann_btn = QPushButton("Apply")
         self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 6, 1, 1, 1)
-
-        
+ 
         ######## Filters group ########
         self.filter_group = VHGroup('Filter Image', orientation='G')
         self._pre_processing_layout.addWidget(self.filter_group.gbox)
@@ -121,11 +111,21 @@ class OMAAS(QWidget):
         self.filt_param.setValue(1)
         self.filter_group.glayout.addWidget(self.filt_param, 3, 2, 1, 1)
 
-   
-
         self.apply_filt_btn = QPushButton("apply")
         self.apply_filt_btn.setToolTip(("apply selected filter to the image"))
         self.filter_group.glayout.addWidget(self.apply_filt_btn, 3, 3, 1, 1)
+
+        ######## Transform group ########
+        self.transform_group = VHGroup('Transform Image data', orientation='G')
+        self._pre_processing_layout.addWidget(self.transform_group.gbox)
+
+        ######## Transform btns ########
+        self.inv_img_label = QLabel("Transform data to integer")
+        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        self.transform_to_uint16_btn = QPushButton("Apply")
+        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
+        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+
 
         ######## Segmentation group ########
         self.segmentation_group = VHGroup('Segmentation', orientation='G')
@@ -152,6 +152,71 @@ class OMAAS(QWidget):
         self.pick_frames_btn = QPushButton("apply")
         self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
 
+        ######## Shapes tab ########
+        ############################
+
+        self._layers_processing_layout.setAlignment(Qt.AlignTop)
+        
+        ######## Rois handeling group ########
+        self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
+        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox)
+        
+        self.ROI_selection_1 = QComboBox()
+        self.ROI_1_label = QLabel("From layer")
+        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
+        # self.ROI_selection_1.setAccessibleName("From layer")
+        self.ROI_selection_1.addItems(self.get_rois_list())
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
+        
+        self.ROI_selection_2 = QComboBox()
+        self.ROI_2_label = QLabel("To layer")
+        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
+        # self.ROI_selection_2.setAccessibleName("To layer")
+        self.ROI_selection_2.addItems(self.get_rois_list())
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
+
+        self.copy_ROIs_btn = QPushButton("Transfer ROIs")
+        self.copy_ROIs_btn.setToolTip(("Transfer ROIs from one 'Shape' layer to another 'Shape' layer"))
+        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
+
+
+        ######## Mot-Correction tab ########
+        ####################################
+
+        self._motion_correction_layout.setAlignment(Qt.AlignTop)
+        ######## Mot-Correction group ########
+        self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
+        self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
+
+        self.inv_and_norm_label = QLabel("Foot print size")
+        self.mot_correction_group.glayout.addWidget(self.inv_and_norm_label, 3, 0, 1, 1)
+        
+        self.footprint_size = QSpinBox()
+        self.footprint_size.setSingleStep(1)
+        self.footprint_size.setValue(10)
+        self.mot_correction_group.glayout.addWidget(self.footprint_size, 3, 1, 1, 1)
+
+        self.radius_size_label = QLabel("Radius size")
+        self.mot_correction_group.glayout.addWidget(self.radius_size_label, 4, 0, 1, 1)
+        
+        self.radius_size = QSpinBox()
+        self.radius_size.setSingleStep(1)
+        self.radius_size.setValue(7)
+        self.mot_correction_group.glayout.addWidget(self.radius_size, 4, 1, 1, 1)
+
+        self.n_warps_label = QLabel("Number of warps")
+        self.mot_correction_group.glayout.addWidget(self.n_warps_label, 5, 0, 1, 1)
+        
+        self.n_warps = QSpinBox()
+        self.n_warps.setSingleStep(1)
+        self.n_warps.setValue(20)
+        self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
+
+        self.apply_mot_correct_btn = QPushButton("apply")
+        self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
+        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 2)
+
+
 
         # sub_backg_btn = QPushButton("Subtract Background")
         # rmv_backg_btn = QPushButton("Delete Background")
@@ -167,9 +232,10 @@ class OMAAS(QWidget):
         # self.layout().addWidget(rmv_backg_btn)
         # self.layout().addWidget(pick_frames_btn)
 
+        ######################
+        ##### callbacks ######
+        ######################
         
-        ##### callbacks #####
-        # - 
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         self.norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
@@ -189,6 +255,8 @@ class OMAAS(QWidget):
         self.ROI_selection_1.activated.connect(self._get_ROI_selection_1_current_text)
         self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
+        self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
+        self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         
         
         ##### handle events #####
@@ -340,6 +408,36 @@ class OMAAS(QWidget):
     def _get_ROI_selection_2_current_text(self, _): # We receive the index, but don't use it.
         ctext = self.ROI_selection_2.currentText()
         print(f"Current layer 2 is {ctext}")
+
+    
+    def _on_click_apply_mot_correct_btn(self):
+        foot_print = self.footprint_size.value()
+        radius_size = self.radius_size.value()
+        n_warps = self.n_warps.value()
+
+        results = motion_correction_func(self.viewer.layers.selection, 
+                                        foot_print_size=foot_print, 
+                                        radius_size=radius_size, num_warp=n_warps)
+        self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_MotCorr_fp{str(foot_print)}_rs{str(radius_size)}_nw{str(n_warps)}")
+        
+    def _on_click_transform_to_uint16_btn(self):
+        
+        results = transform_to_unit16_func(self.viewer.layers.selection)
+        print( "is doing something")
+
+        self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_uint16")
+
+
+
+
+
+
         
                         
                         
