@@ -1,7 +1,9 @@
 from qtpy import QtCore, QtGui
 import numpy as np
-from skimage.filters import gaussian, threshold_triangle, median
+from skimage.filters import gaussian, threshold_triangle, median, rank
 from skimage.morphology import disk
+from skimage.registration import optical_flow_ilk
+from skimage.transform import warp
 from skimage import morphology
 from skimage import segmentation
 import warnings
@@ -336,3 +338,71 @@ def pick_frames_fun(
     
     print(f'applying "pick_frames_fun" to image {image.active}')
     return(subset[indx, ...])
+
+
+def motion_correction_func(image: "napari.types.ImageData",
+        foot_print_size = 10, radius_size = 7, num_warp = 20)-> "Image":
+
+    """
+    Apply Registration (motion correction) to selected image.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be processed.
+    
+    foot_print_size: int
+        Magintud of footprint for local normalization, default to 10.
+
+    radius_size: int
+        Magintud of footprint for local normalization, default to 7.
+    
+    num_warp: int
+         Magintud of footprint for local normalization, default to 7.
+
+    
+    
+    Returns
+    -------
+        registered_img : np.ndarray of type np.uint16
+        Corrected Image after registration filter.
+
+    """
+    foot_print = disk(foot_print_size)
+    data = image.active.data
+    # imgae must be converted to integer for the method `skimage.filters.rank.minimum`
+    data = data.astype(np.uint16)
+    
+    # out_img = np.zeros_like(my_3d_image)
+    
+    # apply local scaling
+    scaled_img = []
+    # print(type(data))
+    
+    for plane, img in enumerate(data):
+
+        im_min = rank.minimum(img, footprint=foot_print)
+        im_max = rank.maximum(img, footprint=foot_print)
+        im_local_scaled = (img - im_min) / (im_max- im_min)
+        scaled_img.append( im_local_scaled)
+    
+    scaled_img = np.asanyarray(scaled_img)
+    
+    ref_frame = scaled_img[0, ...] # take 1st frame as reference? (only works on averaged traces)
+    nr, nc = ref_frame.shape
+    
+    # apply registration
+    registered_img = []
+    
+    for plane2, img2 in enumerate(scaled_img):
+        v, u = optical_flow_ilk(ref_frame, img2, radius = radius_size, num_warp=num_warp)
+        row_coords, col_coords = np.meshgrid(np.arange(nr), np.arange(nc),
+                                     indexing='ij')
+        image1_warp = warp(data[plane2], np.array([row_coords + v, col_coords + u]),
+                   mode='edge', preserve_range=True)
+        registered_img.append(image1_warp)
+        
+    
+    registered_img = np.asanyarray(registered_img, dtype=np.uint16).copy()
+    
+    return registered_img

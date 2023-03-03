@@ -398,8 +398,23 @@ class OMAAS(QWidget):
 
     
     def _on_click_apply_mot_correct_btn(self):
+        foot_print = self.footprint_size.value()
+        radius_size = self.radius_size.value()
+        n_warps = self.n_warps.value()
 
-        print ("it is connected")
+        print (f"it is connected and this is the value of footprint: {foot_print}, radius size: {radius_size}, and n warps: {n_warps}")
+
+        results = motion_correction_func(self.viewer.layers.selection, 
+                                        foot_print_size=foot_print, 
+                                        radius_size=radius_size, num_warp=n_warps)
+        self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_MotCorr_fp{str(foot_print)}_rs{str(radius_size)}_nw{str(n_warps)}")
+
+
+
+
 
         
                         
