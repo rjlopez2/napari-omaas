@@ -12,6 +12,7 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel, QComboBox, QSpinBox
 from qtpy.QtCore import Qt
 import pyqtgraph as pg
+from napari_time_series_plotter import TSPExplorer
 
 from .utils import *
 
@@ -232,28 +233,39 @@ class OMAAS(QWidget):
         # self.layout().addWidget(rmv_backg_btn)
         # self.layout().addWidget(pick_frames_btn)
 
-        # plotter
+        ######################
+        ##### Plotters ######
+        ######################
 
-        graph_container = QWidget()
+        ##### using pyqtgraph ######
 
-        # histogram view
-        self._graphics_widget = pg.GraphicsLayoutWidget()
-        self._graphics_widget.setBackground("w")
+        # graph_container = QWidget()
 
-        #graph_container.setMaximumHeight(100)
-        graph_container.setLayout(QHBoxLayout())
-        graph_container.layout().addWidget(self._graphics_widget)
+        # # histogram view
+        # self._graphics_widget = pg.GraphicsLayoutWidget()
+        # self._graphics_widget.setBackground("w")
 
-        # individual layers: legend
-        self._labels = QWidget()
-        self._labels.setLayout(QVBoxLayout())
-        self._labels.layout().setSpacing(0)
+        # #graph_container.setMaximumHeight(100)
+        # graph_container.setLayout(QHBoxLayout())
+        # graph_container.layout().addWidget(self._graphics_widget§
 
-        # setup layout
-        self.setLayout(QVBoxLayout())
+        # # individual layers: legend
+        # self._labels = QWidget()
+        # self._labels.setLayout(QVBoxLayout())
+        # self._labels.layout().setSpacing(0)
 
-        self.layout().addWidget(graph_container)
-        self.layout().addWidget(self._labels)
+        # # setup layout
+        # self.setLayout(QVBoxLayout())
+
+        # self.layout().addWidget(graph_container)
+        # self.layout().addWidget(self._labels)
+
+
+        ##### using TSPExplorer ######
+
+        self._graphics_widget_TSP = TSPExplorer(self.viewer)
+        self.layout().addWidget(self._graphics_widget_TSP)
+
 
 
 
