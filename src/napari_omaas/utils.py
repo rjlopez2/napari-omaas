@@ -162,7 +162,7 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     sigma)-> "Image":
 
     """
-    Apply Gaussina filter to selected image.
+    Apply Gaussian filter to selected image.
 
     Parameters
     ----------
