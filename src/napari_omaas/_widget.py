@@ -95,6 +95,17 @@ class OMAAS(QWidget):
         ######## Filters group ########
         self.filter_group = VHGroup('Filter Image', orientation='G')
         self._pre_processing_layout.addWidget(self.filter_group.gbox)
+
+
+        ####### temporal filter subgroup #######     
+        self.temp_filter_group = VHGroup('Temp Filters', orientation='G')
+        self.filter_group.glayout.addWidget(self.temp_filter_group.gbox)
+
+
+        ####### spacial filter subgroup #######
+        self.spac_filter_group = VHGroup('Spacial Filters', orientation='G')
+        self.filter_group.glayout.addWidget(self.spac_filter_group.gbox)
+
         
         ######## Filters btns ########
         # self.filters_label = QLabel("Gaussian filter")
@@ -102,7 +113,7 @@ class OMAAS(QWidget):
 
         self.filter_types = QComboBox()
         self.filter_types.addItems(["Gaussian", "Median"])
-        self.filter_group.glayout.addWidget(self.filter_types, 3, 1, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.filter_types, 3, 1, 1, 1)
 
         
         self.filt_param = QDoubleSpinBox()
@@ -110,22 +121,11 @@ class OMAAS(QWidget):
         # self.filt_param.setMaximum(10)
         # self.filt_param.setMinimum(-10)
         self.filt_param.setValue(1)
-        self.filter_group.glayout.addWidget(self.filt_param, 3, 2, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.filt_param, 3, 2, 1, 1)
 
         self.apply_filt_btn = QPushButton("apply")
         self.apply_filt_btn.setToolTip(("apply selected filter to the image"))
-        self.filter_group.glayout.addWidget(self.apply_filt_btn, 3, 3, 1, 1)
-
-        ######## Transform group ########
-        self.transform_group = VHGroup('Transform Image data', orientation='G')
-        self._pre_processing_layout.addWidget(self.transform_group.gbox)
-
-        ######## Transform btns ########
-        self.inv_img_label = QLabel("Transform data to integer")
-        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
-        self.transform_to_uint16_btn = QPushButton("Apply")
-        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
-        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.apply_filt_btn, 3, 3, 1, 1)
 
 
         ######## Segmentation group ########
@@ -185,6 +185,18 @@ class OMAAS(QWidget):
         ####################################
 
         self._motion_correction_layout.setAlignment(Qt.AlignTop)
+        
+        ######## Transform group ########
+        self.transform_group = VHGroup('Transform Image data', orientation='G')
+        self._motion_correction_layout.addWidget(self.transform_group.gbox)
+
+        ######## Transform btns ########
+        self.inv_img_label = QLabel("Transform data to integer")
+        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        self.transform_to_uint16_btn = QPushButton("Apply")
+        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
+        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+
         ######## Mot-Correction group ########
         self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
@@ -238,21 +250,49 @@ class OMAAS(QWidget):
         ######################
 
         ##### using pyqtgraph ######
+        self.plotting_group = VHGroup('Plot profile', orientation='G')
+        # self.layout().addWidget(self.plotting_group.gbox)
+
+        ######## pre-processing btns ########
+        # self.inv_img_label = QLabel("Invert image")
+        # self.pre_processing_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        # self.inv_data_btn = QPushButton("Apply")
+        # self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 1, 1, 1)
+
+        # self.plotting_group = VHGroup('Pre-porcessing', orientation='G')
+        # self._pre_processing_layout.addWidget(self.plotting_group.gbox)
+
+
+
+
+
+
 
         # graph_container = QWidget()
 
-        # # histogram view
-        # self._graphics_widget = pg.GraphicsLayoutWidget()
-        # self._graphics_widget.setBackground("w")
+        # histogram view
+        self._graphics_widget = pg.GraphicsLayoutWidget()
+        self._graphics_widget.setBackground("w")
 
-        # #graph_container.setMaximumHeight(100)
-        # graph_container.setLayout(QHBoxLayout())
-        # graph_container.layout().addWidget(self._graphics_widget§
 
-        # # individual layers: legend
+
+        self.plotting_group.glayout.addWidget(self._graphics_widget, 3, 0, 1, 1)
+
+        hour = [1,2,3,4,5,6,7,8,9,10]
+        temperature = [30,32,34,32,33,31,29,32,35,45]
+
+        self.p2 = self._graphics_widget.addPlot()
+        axis = self.p2.getAxis('bottom')
+        axis.setLabel("Distance")
+        axis = self.p2.getAxis('left')
+        axis.setLabel("Intensity")
+
+        self.p2.plot(hour, temperature, pen="red", name="test")
+
+        # individual layers: legend
         # self._labels = QWidget()
         # self._labels.setLayout(QVBoxLayout())
-        # self._labels.layout().setSpacing(0)
+        # # self._labels.layout().setSpacing(0)
 
         # # setup layout
         # self.setLayout(QVBoxLayout())
