@@ -9,7 +9,12 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from qtpy.QtWidgets import QHBoxLayout, QPushButton, QWidget, QFileDialog, QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QDoubleSpinBox, QLabel, QComboBox, QSpinBox
+from qtpy.QtWidgets import (
+    QHBoxLayout, QPushButton, QWidget, QFileDialog, 
+    QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit
+    )
+
 from qtpy.QtCore import Qt
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
@@ -71,38 +76,83 @@ class OMAAS(QWidget):
         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
 
         ######## pre-processing btns ########
-        self.inv_img_label = QLabel("Invert image")
+        self.inv_img_label = QLabel("Invert")
         self.pre_processing_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
         self.inv_data_btn = QPushButton("Apply")
         self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 1, 1, 1)
 
-        self.norm_img_label = QLabel("Normalize image (loc max)")
-        self.pre_processing_group.glayout.addWidget(self.norm_img_label, 4, 0, 1, 1)
+        self.norm_img_label = QLabel("Normalize (loc max)")
+        self.pre_processing_group.glayout.addWidget(self.norm_img_label, 3, 2, 1, 1)
         self.norm_data_btn = QPushButton("Apply")        
-        self.pre_processing_group.glayout.addWidget(self.norm_data_btn, 4, 1, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.norm_data_btn, 3, 3, 1, 1)
 
         self.inv_and_norm_label = QLabel("Invert + Normalize (loc max)")
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_label, 5, 0, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_label, 3, 4, 1, 1)
         self.inv_and_norm_data_btn = QPushButton("Apply")        
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 5, 1, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 3, 5, 1, 1)
 
 
         self.splt_chann_label = QLabel("Split Channels")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 6, 0, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
         self.splt_chann_btn = QPushButton("Apply")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 6, 1, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 3, 7, 1, 1)
  
         ######## Filters group ########
         self.filter_group = VHGroup('Filter Image', orientation='G')
         self._pre_processing_layout.addWidget(self.filter_group.gbox)
+
+
+        ####### temporal filter subgroup #######     
+        self.temp_filter_group = VHGroup('Temporal Filters', orientation='G')
+        self.filter_group.glayout.addWidget(self.temp_filter_group.gbox)
+
+        ######## temporal Filters btns ########
+        self.temp_filter_types = QComboBox()
+        self.temp_filter_types.addItems(["Butterworth", "FIR"])
+        self.temp_filter_group.glayout.addWidget(self.temp_filter_types, 3, 0, 1, 1)
+
+        self.cutoff_freq_label = QLabel("Cutoff frequency")
+        self.temp_filter_group.glayout.addWidget(self.cutoff_freq_label, 3, 1, 1, 1)
+
+        self.butter_cutoff_freq_val = QSpinBox()
+        self.butter_cutoff_freq_val.setSingleStep(5)
+        self.butter_cutoff_freq_val.setValue(30)
+        self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_val, 3, 2, 1, 1)
         
-        ######## Filters btns ########
+        self.filt_order_label = QLabel("Filter order")
+        self.temp_filter_group.glayout.addWidget(self.filt_order_label, 3, 3, 1, 1)
+
+        self.butter_order_val = QSpinBox()
+        self.butter_order_val.setSingleStep(1)
+        self.butter_order_val.setValue(5)
+        self.temp_filter_group.glayout.addWidget(self.butter_order_val, 3, 4, 1, 1)
+
+        self.fps_label = QLabel("Cycle time (s)")
+        self.temp_filter_group.glayout.addWidget(self.fps_label, 3, 5, 1, 1)
+        
+        self.fps_val = QLineEdit()
+        self.fps_val.setText("Unkwnown")
+        self.temp_filter_group.glayout.addWidget(self.fps_val, 3, 6, 1, 1)
+
+        self.apply_temp_filt_btn = QPushButton("Apply")
+        self.temp_filter_group.glayout.addWidget(self.apply_temp_filt_btn, 3, 7, 1, 1)
+
+
+
+
+
+        ####### spacial filter subgroup #######
+        self.spac_filter_group = VHGroup('Spacial Filters', orientation='G')
+        self.filter_group.glayout.addWidget(self.spac_filter_group.gbox)
+
+        
+        ######## spacial Filters btns ########
         # self.filters_label = QLabel("Gaussian filter")
         # self.filter_group.glayout.addWidget(self.filters_label, 3, 0, 1, 1)
 
-        self.filter_types = QComboBox()
-        self.filter_types.addItems(["Gaussian", "Median"])
-        self.filter_group.glayout.addWidget(self.filter_types, 3, 1, 1, 1)
+        self.spat_filter_types = QComboBox()
+        self.spat_filter_types.addItems(["Gaussian", "Median"])
+        self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 3, 1, 1, 1)
 
         
         self.filt_param = QDoubleSpinBox()
@@ -110,22 +160,11 @@ class OMAAS(QWidget):
         # self.filt_param.setMaximum(10)
         # self.filt_param.setMinimum(-10)
         self.filt_param.setValue(1)
-        self.filter_group.glayout.addWidget(self.filt_param, 3, 2, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.filt_param, 3, 2, 1, 1)
 
-        self.apply_filt_btn = QPushButton("apply")
-        self.apply_filt_btn.setToolTip(("apply selected filter to the image"))
-        self.filter_group.glayout.addWidget(self.apply_filt_btn, 3, 3, 1, 1)
-
-        ######## Transform group ########
-        self.transform_group = VHGroup('Transform Image data', orientation='G')
-        self._pre_processing_layout.addWidget(self.transform_group.gbox)
-
-        ######## Transform btns ########
-        self.inv_img_label = QLabel("Transform data to integer")
-        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
-        self.transform_to_uint16_btn = QPushButton("Apply")
-        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
-        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+        self.apply_spat_filt_btn = QPushButton("apply")
+        self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
+        self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 3, 1, 1)
 
 
         ######## Segmentation group ########
@@ -185,6 +224,18 @@ class OMAAS(QWidget):
         ####################################
 
         self._motion_correction_layout.setAlignment(Qt.AlignTop)
+
+        ######## Transform group ########
+        self.transform_group = VHGroup('Transform Image data', orientation='G')
+        self._motion_correction_layout.addWidget(self.transform_group.gbox)
+
+        ######## Transform btns ########
+        self.inv_img_label = QLabel("Transform data to integer")
+        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        self.transform_to_uint16_btn = QPushButton("Apply")
+        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
+        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+
         ######## Mot-Correction group ########
         self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
@@ -238,21 +289,49 @@ class OMAAS(QWidget):
         ######################
 
         ##### using pyqtgraph ######
+        self.plotting_group = VHGroup('Plot profile', orientation='G')
+        # self.layout().addWidget(self.plotting_group.gbox)
+
+        ######## pre-processing btns ########
+        # self.inv_img_label = QLabel("Invert image")
+        # self.pre_processing_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        # self.inv_data_btn = QPushButton("Apply")
+        # self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 1, 1, 1)
+
+        # self.plotting_group = VHGroup('Pre-porcessing', orientation='G')
+        # self._pre_processing_layout.addWidget(self.plotting_group.gbox)
+
+
+
+
+
+
 
         # graph_container = QWidget()
 
-        # # histogram view
-        # self._graphics_widget = pg.GraphicsLayoutWidget()
-        # self._graphics_widget.setBackground("w")
+        # histogram view
+        self._graphics_widget = pg.GraphicsLayoutWidget()
+        self._graphics_widget.setBackground("w")
 
-        # #graph_container.setMaximumHeight(100)
-        # graph_container.setLayout(QHBoxLayout())
-        # graph_container.layout().addWidget(self._graphics_widget§
 
-        # # individual layers: legend
+
+        self.plotting_group.glayout.addWidget(self._graphics_widget, 3, 0, 1, 1)
+
+        hour = [1,2,3,4,5,6,7,8,9,10]
+        temperature = [30,32,34,32,33,31,29,32,35,45]
+
+        self.p2 = self._graphics_widget.addPlot()
+        axis = self.p2.getAxis('bottom')
+        axis.setLabel("Distance")
+        axis = self.p2.getAxis('left')
+        axis.setLabel("Intensity")
+
+        self.p2.plot(hour, temperature, pen="red", name="test")
+
+        # individual layers: legend
         # self._labels = QWidget()
         # self._labels.setLayout(QVBoxLayout())
-        # self._labels.layout().setSpacing(0)
+        # # self._labels.layout().setSpacing(0)
 
         # # setup layout
         # self.setLayout(QVBoxLayout())
@@ -264,14 +343,14 @@ class OMAAS(QWidget):
         ##### using TSPExplorer ######
 
         self._graphics_widget_TSP = TSPExplorer(self.viewer)
-        self.layout().addWidget(self._graphics_widget_TSP)
+        self.layout().addWidget(self._graphics_widget_TSP, 1)
 
 
 
 
-        ######################
-        ##### callbacks ######
-        ######################
+        ##################################################################
+        ############################ callbacks ###########################
+        ##################################################################
         
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         self.norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
@@ -279,7 +358,7 @@ class OMAAS(QWidget):
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
         self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
-        self.apply_filt_btn.clicked.connect(self._on_click_apply_filt_btn)
+        self.apply_spat_filt_btn.clicked.connect(self._on_click_apply_spat_filt_btn)
         # self.filter_types.activated.connect(self._filter_type_change)
         # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
         # sub_backg_btn.clicked.connect(self._on_click_sub_backg_btn)
@@ -294,6 +373,7 @@ class OMAAS(QWidget):
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
+        self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         
         
         ##### handle events #####
@@ -397,10 +477,10 @@ class OMAAS(QWidget):
     #    print(f"Current layer 1 is {ctext}")
 
 
-    def _on_click_apply_filt_btn(self):
+    def _on_click_apply_spat_filt_btn(self):
         # self.gaus_filt_value.value()
         
-        ctext = self.filter_types.currentText()
+        ctext = self.spat_filter_types.currentText()
 
         if ctext == "Gaussian":
             sigma = self.filt_param.value()
@@ -463,12 +543,45 @@ class OMAAS(QWidget):
     def _on_click_transform_to_uint16_btn(self):
         
         results = transform_to_unit16_func(self.viewer.layers.selection)
-        print( "is doing something")
+        # print( "is doing something")
 
         self.viewer.add_image(results, 
             colormap = "turbo",
          # colormap= "twilight_shifted", 
             name= f"{self.viewer.layers.selection.active}_uint16")
+
+    def _on_click_apply_temp_filt_btn(self):
+        cutoff_freq_value = self.butter_cutoff_freq_val.value()
+        order_value = self.butter_order_val.value()
+        fps_val = float(self.fps_val.text())
+
+        results = apply_butterworth_filt_func(self.viewer.layers.selection, 
+                                             ac_freq=fps_val, 
+                                             cf_freq= cutoff_freq_value, 
+                                             fil_ord=order_value)
+
+        self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_buttFilt_fre{str(cutoff_freq_value)}_ord{str(order_value)}_fps{str(fps_val)}")
+
+        # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")
+
+    
+    ####### helper functions #######
+    # def add_result_img_helper_func(self, results, sufix_name = None, color_map = "turbo"):
+        
+    #     self.viewer.add_image(
+    #         results,
+    #         name = f"{self.viewer.layers.selection.active}_{str(sufix_name)}"
+    #         colormap = color_map
+
+    #     )
+
+
+
+
+    
 
 
 
