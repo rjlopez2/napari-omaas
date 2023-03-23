@@ -114,10 +114,10 @@ class OMAAS(QWidget):
         self.cutoff_freq_label = QLabel("Cutoff frequency")
         self.temp_filter_group.glayout.addWidget(self.cutoff_freq_label, 3, 1, 1, 1)
 
-        self.butter_cutoff_freq_size = QSpinBox()
-        self.butter_cutoff_freq_size.setSingleStep(1)
-        self.butter_cutoff_freq_size.setValue(30)
-        self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_size, 3, 2, 1, 1)
+        self.butter_cutoff_freq_val = QSpinBox()
+        self.butter_cutoff_freq_val.setSingleStep(5)
+        self.butter_cutoff_freq_val.setValue(30)
+        self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_val, 3, 2, 1, 1)
         
         self.filt_order_label = QLabel("Filter order")
         self.temp_filter_group.glayout.addWidget(self.filt_order_label, 3, 3, 1, 1)
@@ -127,15 +127,15 @@ class OMAAS(QWidget):
         self.butter_order_val.setValue(5)
         self.temp_filter_group.glayout.addWidget(self.butter_order_val, 3, 4, 1, 1)
 
-        self.fps_label = QLabel("FPS")
+        self.fps_label = QLabel("Cycle time (s)")
         self.temp_filter_group.glayout.addWidget(self.fps_label, 3, 5, 1, 1)
         
         self.fps_val = QLineEdit()
         self.fps_val.setText("Unkwnown")
         self.temp_filter_group.glayout.addWidget(self.fps_val, 3, 6, 1, 1)
 
-        self.apply_filt_btn = QPushButton("Apply")
-        self.temp_filter_group.glayout.addWidget(self.apply_filt_btn, 3, 7, 1, 1)
+        self.apply_temp_filt_btn = QPushButton("Apply")
+        self.temp_filter_group.glayout.addWidget(self.apply_temp_filt_btn, 3, 7, 1, 1)
 
 
 
@@ -162,9 +162,9 @@ class OMAAS(QWidget):
         self.filt_param.setValue(1)
         self.spac_filter_group.glayout.addWidget(self.filt_param, 3, 2, 1, 1)
 
-        self.apply_filt_btn = QPushButton("apply")
-        self.apply_filt_btn.setToolTip(("apply selected filter to the image"))
-        self.spac_filter_group.glayout.addWidget(self.apply_filt_btn, 3, 3, 1, 1)
+        self.apply_spat_filt_btn = QPushButton("apply")
+        self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
+        self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 3, 1, 1)
 
 
         ######## Segmentation group ########
@@ -358,7 +358,7 @@ class OMAAS(QWidget):
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
         self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
-        self.apply_filt_btn.clicked.connect(self._on_click_apply_filt_btn)
+        self.apply_spat_filt_btn.clicked.connect(self._on_click_apply_spat_filt_btn)
         # self.filter_types.activated.connect(self._filter_type_change)
         # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
         # sub_backg_btn.clicked.connect(self._on_click_sub_backg_btn)
@@ -373,6 +373,7 @@ class OMAAS(QWidget):
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
+        self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         
         
         ##### handle events #####
@@ -476,7 +477,7 @@ class OMAAS(QWidget):
     #    print(f"Current layer 1 is {ctext}")
 
 
-    def _on_click_apply_filt_btn(self):
+    def _on_click_apply_spat_filt_btn(self):
         # self.gaus_filt_value.value()
         
         ctext = self.spat_filter_types.currentText()
@@ -542,12 +543,45 @@ class OMAAS(QWidget):
     def _on_click_transform_to_uint16_btn(self):
         
         results = transform_to_unit16_func(self.viewer.layers.selection)
-        print( "is doing something")
+        # print( "is doing something")
 
         self.viewer.add_image(results, 
             colormap = "turbo",
          # colormap= "twilight_shifted", 
             name= f"{self.viewer.layers.selection.active}_uint16")
+
+    def _on_click_apply_temp_filt_btn(self):
+        cutoff_freq_value = self.butter_cutoff_freq_val.value()
+        order_value = self.butter_order_val.value()
+        fps_val = float(self.fps_val.text())
+
+        results = apply_butterworth_filt_func(self.viewer.layers.selection, 
+                                             ac_freq=fps_val, 
+                                             cf_freq= cutoff_freq_value, 
+                                             fil_ord=order_value)
+
+        self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_buttFilt_fre{str(cutoff_freq_value)}_ord{str(order_value)}_fps{str(fps_val)}")
+
+        # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")
+
+    
+    ####### helper functions #######
+    # def add_result_img_helper_func(self, results, sufix_name = None, color_map = "turbo"):
+        
+    #     self.viewer.add_image(
+    #         results,
+    #         name = f"{self.viewer.layers.selection.active}_{str(sufix_name)}"
+    #         colormap = color_map
+
+    #     )
+
+
+
+
+    
 
 
 

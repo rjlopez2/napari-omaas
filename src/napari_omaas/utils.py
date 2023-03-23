@@ -8,6 +8,7 @@ from skimage import morphology
 from skimage import segmentation
 import warnings
 from napari.layers import Image
+from scipy import signal
 
 # from numba import jit, prange
 from scipy import signal, ndimage
@@ -428,4 +429,45 @@ def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
     
 
     return image.active.data.astype(np.uint16)
+
+
+
+def apply_butterworth_filt_func(image: "napari.types.ImageData",
+        ac_freq, cf_freq, fil_ord )-> "Image":
+        
+        """
+        Transfrom numpy array values to type: np.uint16.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            The image to be processed.
+        
+        ac_freq : float
+            Acquisition time interval betwen each fram in ms.
+        
+        cf_freq : int
+            Cutoff Frequency for butterworth low band filter.
+
+        fil_ord : int
+            Order size of the filter.
+        
+
+     
+    
+        Returns
+        -------
+            filt_image : np.ndarray with filtered data
+
+        """
+        
+        normal_freq = cf_freq / ((1 /ac_freq) / 2)
+        
+        a, b = signal.butter(fil_ord, normal_freq, btype='low')
+
+        print(f"Applying 'apply_butterworth_filt_func'  to image {image.active}'")
+        filt_image = signal.filtfilt(a, b, image.active.data, 0)
+        
+        return filt_image
+
     
