@@ -12,7 +12,7 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
-    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QTreeWidget, QTreeWidgetItem
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QTreeWidget, QTreeWidgetItem,
     )
 
 from qtpy.QtCore import Qt
@@ -289,12 +289,12 @@ class OMAAS(QWidget):
         ##### Metadata display  widget #############
         ############################################
 
-        
         self.metadata_display_group = VHGroup('Image metadata', orientation='G')
-        self.tree = QTreeWidget()
-        self.tree.setColumnCount(2)
-        self.tree.setHeaderLabels(["Parameter", "Value"])
-        self.metadata_display_group.glayout.addWidget(self.tree)
+        self.metadata_tree = QTreeWidget()
+        # self.metadata_tree.setGeometry(30, 30, 300, 100)
+        self.metadata_tree.setColumnCount(2)
+        self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
+        self.metadata_display_group.glayout.addWidget(self.metadata_tree)
         self.layout().addWidget(self.metadata_display_group.gbox)
 
 
@@ -641,14 +641,20 @@ class OMAAS(QWidget):
             if value is not None and value._type_string == 'image' :
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
                 print(f"getting image: '{self.viewer.layers.selection.active.name}'")
-                self.tree.clear()
-                data = self.img_metadata_dict
+                self.metadata_tree.clear()
+                metadata = self.img_metadata_dict
                 items = []
-                for key, values in data.items():
+                for key, values in metadata.items():
                     item = QTreeWidgetItem([key, str(values)])
                     items.append(item)
             
-                self.tree.insertTopLevelItems(0, items)                         
+                self.metadata_tree.insertTopLevelItems(0, items)  
+                self.xscale = metadata["CycleTime"]       
+                # update plotter x scale and x label expressed in ms
+                self._graphics_widget_TSP.options.xscale.setText(str(metadata["CycleTime"] * 1000))
+                self._graphics_widget_TSP.options.xaxis_label.setText("Time (ms)")
+                options = self._graphics_widget_TSP.options.plotter_options()  
+                self._graphics_widget_TSP.plotter.update_options(options) 
 
 
 
