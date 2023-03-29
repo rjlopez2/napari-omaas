@@ -12,7 +12,7 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
-    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QTreeWidget, QTreeWidgetItem
     )
 
 from qtpy.QtCore import Qt
@@ -284,6 +284,20 @@ class OMAAS(QWidget):
         # self.layout().addWidget(rmv_backg_btn)
         # self.layout().addWidget(pick_frames_btn)
 
+
+        ############################################
+        ##### Metadata display  widget #############
+        ############################################
+
+        
+        self.metadata_display_group = VHGroup('Image metadata', orientation='G')
+        self.tree = QTreeWidget()
+        self.tree.setColumnCount(2)
+        self.tree.setHeaderLabels(["Parameter", "Value"])
+        self.metadata_display_group.glayout.addWidget(self.tree)
+        self.layout().addWidget(self.metadata_display_group.gbox)
+
+
         ######################
         ##### Plotters ######
         ######################
@@ -312,7 +326,6 @@ class OMAAS(QWidget):
         # histogram view
         self._graphics_widget = pg.GraphicsLayoutWidget()
         self._graphics_widget.setBackground("w")
-
 
 
         self.plotting_group.glayout.addWidget(self._graphics_widget, 3, 0, 1, 1)
@@ -376,10 +389,12 @@ class OMAAS(QWidget):
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         
         
+        
         ##### handle events #####
         self.viewer.layers.events.inserted.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.events.removed.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
+        self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
         
 
     def _on_click_inv_data_btn(self):
@@ -578,22 +593,6 @@ class OMAAS(QWidget):
 
     #     )
 
-
-
-
-    
-
-
-
-
-
-
-        
-                        
-                        
-                
-                
-
         
 
     
@@ -635,6 +634,21 @@ class OMAAS(QWidget):
     #     # self.viewer.layers.save(filename, plugin='napari_jroiwriter')
     #     self.viewer.layers.save(filename, plugin='napari')
     
+    def _retrieve_metadata_call_back(self, event):
+
+        if event.type in ['active']:
+            value = event.value
+            if value is not None and value._type_string == 'image' :
+                self.img_metadata_dict = self.viewer.layers.selection.active.metadata
+                print(f"getting image: '{self.viewer.layers.selection.active.name}'")
+                self.tree.clear()
+                data = self.img_metadata_dict
+                items = []
+                for key, values in data.items():
+                    item = QTreeWidgetItem([key, str(values)])
+                    items.append(item)
+            
+                self.tree.insertTopLevelItems(0, items)                         
 
 
 
