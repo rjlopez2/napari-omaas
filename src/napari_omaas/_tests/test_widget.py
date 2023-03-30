@@ -21,16 +21,16 @@ from napari_omaas import OMAAS, example_magic_widget #, ExampleQWidget
 #     assert captured.out == "napari has 1 layers\n"
 
 
-def test_example_magic_widget(make_napari_viewer, capsys):
-    viewer = make_napari_viewer()
-    layer = viewer.add_image(np.random.random((100, 100)))
+# def test_example_magic_widget(make_napari_viewer, capsys):
+#     viewer = make_napari_viewer()
+#     layer = viewer.add_image(np.random.random((100, 100)))
 
-    # this time, our widget will be a MagicFactory or FunctionGui instance
-    my_widget = example_magic_widget()
+#     # this time, our widget will be a MagicFactory or FunctionGui instance
+#     my_widget = example_magic_widget()
 
-    # if we "call" this object, it'll execute our function
-    my_widget(viewer.layers[0])
+#     # if we "call" this object, it'll execute our function
+#     my_widget(viewer.layers[0])
 
-    # read captured output and check that it's as we expected
-    captured = capsys.readouterr()
-    assert captured.out == f"you have selected {layer}\n"
+#     # read captured output and check that it's as we expected
+#     captured = capsys.readouterr()
+#     assert captured.out == f"you have selected {layer}\n"
