@@ -656,6 +656,12 @@ class OMAAS(QWidget):
                     self._graphics_widget_TSP.options.xaxis_label.setText("Time (ms)")
                     options = self._graphics_widget_TSP.options.plotter_options()  
                     self._graphics_widget_TSP.plotter.update_options(options) 
+                
+            if value is not None and value._type_string != 'image' :
+                self.metadata_tree.clear()
+                self._graphics_widget_TSP.options.xscale.setText(str(1))
+                self._graphics_widget_TSP.options.xaxis_label.setText("Time")
+                options = self._graphics_widget_TSP.options.plotter_options()  
 
 
 
