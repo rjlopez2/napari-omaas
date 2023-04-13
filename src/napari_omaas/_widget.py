@@ -640,21 +640,22 @@ class OMAAS(QWidget):
             value = event.value
             if value is not None and value._type_string == 'image' :
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
-                print(f"getting image: '{self.viewer.layers.selection.active.name}'")
-                self.metadata_tree.clear()
-                metadata = self.img_metadata_dict
-                items = []
-                for key, values in metadata.items():
-                    item = QTreeWidgetItem([key, str(values)])
-                    items.append(item)
-            
-                self.metadata_tree.insertTopLevelItems(0, items)  
-                self.xscale = metadata["CycleTime"]       
-                # update plotter x scale and x label expressed in ms
-                self._graphics_widget_TSP.options.xscale.setText(str(metadata["CycleTime"] * 1000))
-                self._graphics_widget_TSP.options.xaxis_label.setText("Time (ms)")
-                options = self._graphics_widget_TSP.options.plotter_options()  
-                self._graphics_widget_TSP.plotter.update_options(options) 
+                if "CycleTime" in self.img_metadata_dict:
+                    print(f"getting image: '{self.viewer.layers.selection.active.name}'")
+                    self.metadata_tree.clear()
+                    metadata = self.img_metadata_dict
+                    items = []
+                    for key, values in metadata.items():
+                        item = QTreeWidgetItem([key, str(values)])
+                        items.append(item)
+                
+                    self.metadata_tree.insertTopLevelItems(0, items)  
+                    self.xscale = metadata["CycleTime"]       
+                    # update plotter x scale and x label expressed in ms
+                    self._graphics_widget_TSP.options.xscale.setText(str(metadata["CycleTime"] * 1000))
+                    self._graphics_widget_TSP.options.xaxis_label.setText("Time (ms)")
+                    options = self._graphics_widget_TSP.options.plotter_options()  
+                    self._graphics_widget_TSP.plotter.update_options(options) 
 
 
 
