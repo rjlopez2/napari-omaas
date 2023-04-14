@@ -8,14 +8,22 @@ from skimage import morphology
 from skimage import segmentation
 import warnings
 from napari.layers import Image
-from scipy import signal
 
 # from numba import jit, prange
 from scipy import signal, ndimage
 # functions
 
+from napari.types import ImageData, ShapesData
+# def detect_spots(
+#     image: "napari.types.ImageData",
+#     high_pass_sigma: float = 2,
+#     spot_threshold: float = 0.01,
+#     blob_sigma: float = 2
+# ) -> "napari.types.LayerDataTuple":
+
 def invert_signal(
-    image: "napari.types.ImageData")-> "Image":
+    image: "napari.types.ImageData"
+    )-> "napari.types.LayerDataTuple":
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
     AP signals from inverted traces.
@@ -34,18 +42,23 @@ def invert_signal(
     # processed_data = data.max(axis = 0) - data
     # processed_data = np.nanmax(data, axis=0) - data
     # processed_data = paralele_inv_signal(data)
-    # layer_data  = (
-    #     processed_data,
-    #     {
-
-    #     },
-    #     "image"
-        
-    # )
+    
     print(f'computing "invert_signal" to image {image.active}')
     # print (f'computing "invert_signal" to image colormap='magma' ndim: {image.active.data.ndim}')
     # return(inverted_data, dict(name= "lalala"), "image") 
     # return(layer_data)
+    # norm_data = np.nanmax(data, axis=0) - data
+
+    # layer_data  = (
+    #     norm_data,
+    #     {
+    #         'name': 'My Image', 
+    #         'colormap': 'red'
+    #     },
+    #     "image"
+        
+    # )
+    # return layer_data
     return np.nanmax(data, axis=0) - data
     # return Image(image.active.data.max(axis = 0) - image.active.data)
 
@@ -160,7 +173,7 @@ def segment_heart_func(
     return mask
 
 def apply_gaussian_func (image: "napari.types.ImageData",
-    sigma)-> "Image":
+    sigma, kernel_size = 3)-> "Image":
 
     """
     Apply Gaussian filter to selected image.
@@ -186,10 +199,13 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     data = image.active.data
     out_img = np.empty_like(data)
 
-    for plane, img in enumerate(data):
-        out_img[plane] = gaussian(img, sigma)
-
     print(f'applying "apply_gaussian_func" to image {image.active}')
+
+    for plane, img in enumerate(data):
+        # out_img[plane] = gaussian(img, sigma, preserve_range = True)
+        gauss_kernel1d = signal.windows.gaussian(M= kernel_size, std=sigma)
+        gauss_kernel2d = gauss_kernel1d[:, None] @ gauss_kernel1d[None]
+        out_img[plane] = signal.oaconvolve(img, gauss_kernel2d, mode="same")
 
     # return (gaussian(data, sigma))
     return out_img
