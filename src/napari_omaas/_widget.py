@@ -122,11 +122,11 @@ class OMAAS(QWidget):
         self.butter_order_val.setValue(5)
         self.temp_filter_group.glayout.addWidget(self.butter_order_val, 3, 4, 1, 1)
 
-        self.fps_label = QLabel("Cycle time (s)")
+        self.fps_label = QLabel("Sampling Freq (Hz)")
         self.temp_filter_group.glayout.addWidget(self.fps_label, 3, 5, 1, 1)
         
         self.fps_val = QLineEdit()
-        self.fps_val.setText("Unkwnown")
+        self.fps_val.setText("")
         self.temp_filter_group.glayout.addWidget(self.fps_val, 3, 6, 1, 1)
 
         self.apply_temp_filt_btn = QPushButton("apply")
@@ -601,7 +601,7 @@ class OMAAS(QWidget):
             #     colormap = "turbo",
             # # colormap= "twilight_shifted", 
             #     name= f"{self.viewer.layers.selection.active}_buttFilt_fre{str(cutoff_freq_value)}_ord{str(order_value)}_fps{str(fps_val)}")
-            self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=fps_val)
+            self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
                 
 
         # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")
@@ -680,14 +680,14 @@ class OMAAS(QWidget):
                     self._graphics_widget_TSP.options.xaxis_label.setText("Time (ms)")
                     options = self._graphics_widget_TSP.options.plotter_options()  
                     self._graphics_widget_TSP.plotter.update_options(options) 
-                    self.fps_val.setText(str(metadata["CycleTime"]))
+                    self.fps_val.setText(str(round(1/metadata["CycleTime"], 2)))
                 
             if value is not None and value._type_string != 'image' :
                 self.metadata_tree.clear()
                 self._graphics_widget_TSP.options.xscale.setText(str(1))
                 self._graphics_widget_TSP.options.xaxis_label.setText("Time")
                 options = self._graphics_widget_TSP.options.plotter_options()
-                self.fps_val.setText("Unkwnown")
+                self.fps_val.setText("")
 
 
 
