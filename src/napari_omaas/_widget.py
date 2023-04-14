@@ -519,8 +519,8 @@ class OMAAS(QWidget):
                 self.add_result_img(results, BoxFilt = kernel_size)
             
             if filter_type == "Laplace Filter":
-                results = apply_laplace_filter(self.viewer.layers.selection)
-                self.add_result_img(results)
+                results = apply_laplace_filter(self.viewer.layers.selection, kernel_size=kernel_size, sigma=sigma)
+                self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
                 
     
     

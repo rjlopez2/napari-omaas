@@ -194,17 +194,15 @@ def apply_gaussian_func (image: "napari.types.ImageData",
 
     """
 
-
-
     data = image.active.data
     out_img = np.empty_like(data)
+    gauss_kernel1d = signal.windows.gaussian(M= kernel_size, std=sigma)
+    gauss_kernel2d = gauss_kernel1d[:, None] @ gauss_kernel1d[None]
 
     print(f'applying "apply_gaussian_func" to image {image.active}')
 
     for plane, img in enumerate(data):
         # out_img[plane] = gaussian(img, sigma, preserve_range = True)
-        gauss_kernel1d = signal.windows.gaussian(M= kernel_size, std=sigma)
-        gauss_kernel2d = gauss_kernel1d[:, None] @ gauss_kernel1d[None]
         out_img[plane] = signal.oaconvolve(img, gauss_kernel2d, mode="same")
 
     # return (gaussian(data, sigma))
@@ -487,11 +485,21 @@ def apply_box_filter(image: "napari.types.ImageData", kernel_size):
     return (out_img)
 
 
-
-
-def apply_laplace_filter(image: "napari.types.ImageData"):
+def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
     
-    print("lelele")
+    data = image.active.data
+    out_img = np.empty_like(data)
+
+    mex_hat_kernel1d = signal.ricker(kernel_size, sigma)
+    mex_hat_kernel2d = (mex_hat_kernel1d[:, None] @ mex_hat_kernel1d[None]) * -1
+
+    for plane, img in enumerate(data):
+        out_img[plane] = signal.oaconvolve(img, mex_hat_kernel2d, mode="same")
+
+    print(f'applying "apply_laplace_filter" to image {image.active}')
+
+    return (out_img)
+
 
 
     
