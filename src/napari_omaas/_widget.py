@@ -515,12 +515,13 @@ class OMAAS(QWidget):
                 self.add_result_img(results, MednFilt = kernel_size)
 
             if filter_type == "Box Filter":
-                sigma = self.sigma_filt_param.value()
-                kernel_size = self.filt_kernel_value.value()
+                results = apply_box_filter(self.viewer.layers.selection, kernel_size)
+                self.add_result_img(results, BoxFilt = kernel_size)
             
             if filter_type == "Laplace Filter":
-                sigma = self.sigma_filt_param.value()
-                kernel_size = self.filt_kernel_value.value()
+                results = apply_laplace_filter(self.viewer.layers.selection)
+                self.add_result_img(results)
+                
     
     
     
@@ -597,10 +598,6 @@ class OMAAS(QWidget):
                                                 cf_freq= cutoff_freq_value, 
                                                 fil_ord=order_value)
 
-            # self.viewer.add_image(results, 
-            #     colormap = "turbo",
-            # # colormap= "twilight_shifted", 
-            #     name= f"{self.viewer.layers.selection.active}_buttFilt_fre{str(cutoff_freq_value)}_ord{str(order_value)}_fps{str(fps_val)}")
             self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
                 
 

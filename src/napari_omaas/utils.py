@@ -254,20 +254,6 @@ def apply_median_filt_func (image: "napari.types.ImageData",
     return out_img
 
 
-# @jit
-# def parallel_median(image, footprint):
-#     out_img = np.empty_like(image)
-#     footprint = disk(int(footprint))
-#     for plane in prange(image.shape[0]):
-#         out_img[plane, :, :] = median(image[plane, :, :], footprint = footprint)
-#     return out_img
-
-
-
-
-
-
-
 def pick_frames_fun(
     image: "napari.types.ImageData",
     n_frames = 5,
@@ -447,7 +433,6 @@ def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
     return image.active.data.astype(np.uint16)
 
 
-
 def apply_butterworth_filt_func(image: "napari.types.ImageData",
         ac_freq, cf_freq, fil_ord )-> "Image":
         
@@ -477,7 +462,7 @@ def apply_butterworth_filt_func(image: "napari.types.ImageData",
 
         """
         
-        normal_freq = cf_freq / ((1 /ac_freq) / 2)
+        normal_freq = cf_freq / (ac_freq / 2)
         
         a, b = signal.butter(fil_ord, normal_freq, btype='low')
 
@@ -485,5 +470,28 @@ def apply_butterworth_filt_func(image: "napari.types.ImageData",
         filt_image = signal.filtfilt(a, b, image.active.data, 0)
         
         return filt_image
+
+
+def apply_box_filter(image: "napari.types.ImageData", kernel_size):
+
+    data = image.active.data
+    out_img = np.empty_like(data)
+
+    box_kernel2d = np.ones((kernel_size, kernel_size))/kernel_size**2
+
+    for plane, img in enumerate(data):
+        out_img[plane] = signal.oaconvolve(img, box_kernel2d, mode="same")
+
+    print(f'applying "apply_box_filter" to image {image.active}')
+
+    return (out_img)
+
+
+
+
+def apply_laplace_filter(image: "napari.types.ImageData"):
+    
+    print("lelele")
+
 
     
