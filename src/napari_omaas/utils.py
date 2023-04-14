@@ -59,7 +59,7 @@ def invert_signal(
         
     # )
     # return layer_data
-    return np.nanmax(data, axis=0) - data
+    return np.nanmax(data) - data
     # return Image(image.active.data.max(axis = 0) - image.active.data)
 
 
