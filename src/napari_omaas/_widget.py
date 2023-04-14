@@ -76,27 +76,21 @@ class OMAAS(QWidget):
         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
 
         ######## pre-processing btns ########
-        self.inv_img_label = QLabel("Invert")
-        self.pre_processing_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 3, 1, 1, 1)
+
         self.inv_data_btn = QPushButton("Invert signal")
         self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
-        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 1, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 2, 1, 1)
 
-        self.norm_img_label = QLabel("Normalize (loc max)")
-        self.pre_processing_group.glayout.addWidget(self.norm_img_label, 3, 2, 1, 1)
-        self.norm_data_btn = QPushButton("Apply")        
+        self.norm_data_btn = QPushButton("Normalize (loc max)")        
         self.pre_processing_group.glayout.addWidget(self.norm_data_btn, 3, 3, 1, 1)
 
-        self.inv_and_norm_label = QLabel("Invert + Normalize (loc max)")
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_label, 3, 4, 1, 1)
-        self.inv_and_norm_data_btn = QPushButton("Apply")        
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 3, 5, 1, 1)
 
-
-        self.splt_chann_label = QLabel("Split Channels")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
-        self.splt_chann_btn = QPushButton("Apply")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 3, 7, 1, 1)
+        # self.splt_chann_label = QLabel("Split Channels")
+        # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
+        self.splt_chann_btn = QPushButton("Split Channels")
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 3, 4, 1, 1)
  
         ######## Filters group ########
         self.filter_group = VHGroup('Filter Image', orientation='G')
@@ -135,7 +129,7 @@ class OMAAS(QWidget):
         self.fps_val.setText("Unkwnown")
         self.temp_filter_group.glayout.addWidget(self.fps_val, 3, 6, 1, 1)
 
-        self.apply_temp_filt_btn = QPushButton("Apply")
+        self.apply_temp_filt_btn = QPushButton("apply")
         self.temp_filter_group.glayout.addWidget(self.apply_temp_filt_btn, 3, 7, 1, 1)
 
 
@@ -682,12 +676,14 @@ class OMAAS(QWidget):
                     self._graphics_widget_TSP.options.xaxis_label.setText("Time (ms)")
                     options = self._graphics_widget_TSP.options.plotter_options()  
                     self._graphics_widget_TSP.plotter.update_options(options) 
+                    self.fps_val.setText(str(metadata["CycleTime"]))
                 
             if value is not None and value._type_string != 'image' :
                 self.metadata_tree.clear()
                 self._graphics_widget_TSP.options.xscale.setText(str(1))
                 self._graphics_widget_TSP.options.xaxis_label.setText("Time")
-                options = self._graphics_widget_TSP.options.plotter_options()  
+                options = self._graphics_widget_TSP.options.plotter_options()
+                self.fps_val.setText("Unkwnown")
 
 
 
