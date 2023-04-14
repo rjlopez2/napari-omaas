@@ -406,27 +406,16 @@ class OMAAS(QWidget):
     def _on_click_inv_data_btn(self):
 
         if self.viewer.layers.selection.active._type_string == "image":
-
             results =invert_signal(self.viewer.layers.selection)
-            # print(type(results))
-            # self.viewer.add_image(results, 
-            # colormap = "turbo",
-            # # colormap= "twilight_shifted", 
-            # name= f"{self.viewer.layers.selection.active}_Inv")
             self.add_result_img(result_img=results, single_label_sufix="Inv")
-
 
 
     def _on_click_norm_data_btn(self):
 
         if self.viewer.layers.selection.active._type_string == "image":
             results = local_normal_fun(self.viewer.layers.selection)
-            # print(type(results))
-            # local_normal_fun(self.viewer.layers.selection)
-            self.viewer.add_image(results, 
-            # colormap= "twilight_shifted", 
-            colormap = "turbo",
-            name= f"{self.viewer.layers.selection.active}_Nor")
+            self.add_result_img(result_img=results, single_label_sufix="Nor")
+
 
     def _on_click_inv_and_norm_data_btn(self):
         self._on_click_inv_data_btn()
@@ -440,7 +429,7 @@ class OMAAS(QWidget):
             curr_img_name = self.viewer.layers.selection.active
             for channel in range(len(my_splitted_images)):
                 self.viewer.add_image(my_splitted_images[channel], 
-                colormap= "twilight_shifted", 
+                colormap= "turbo", 
                 name= f"{curr_img_name}_ch{channel + 1}")
 
     
@@ -509,30 +498,21 @@ class OMAAS(QWidget):
     def _on_click_apply_spat_filt_btn(self):
         # self.gaus_filt_value.value()
         if self.viewer.layers.selection.active._type_string == "image":
-
         
             filter_type = self.spat_filter_types.currentText()
             sigma = self.sigma_filt_param.value()
             kernel_size = self.filt_kernel_value.value()
 
             if filter_type == "Gaussian":
-                # print(f"applying {ctext} with value: {str(sigma)} ")
                 results = apply_gaussian_func(self.viewer.layers.selection, 
                                             sigma= sigma, 
                                             kernel_size=kernel_size)
-                self.viewer.add_image(results, 
-                colormap = "turbo",
-            # colormap= "twilight_shifted", 
-                name= f"{self.viewer.layers.selection.active}_GausFilt_Kern{str(kernel_size)}_sgma{str(sigma)}")
+                self.add_result_img(results, KrnlSiz = kernel_size, Sgma = sigma)
 
             
             if filter_type == "Median":
-                # print(f"applying {ctext} with value: {str(param)} ")
-                results = apply_median_filt_func(self.viewer.layers.selection, sigma)
-                self.viewer.add_image(results, 
-                colormap = "turbo",
-            # colormap= "twilight_shifted", 
-                name= f"{self.viewer.layers.selection.active}_MednFilt_{str(sigma)}")
+                results = apply_median_filt_func(self.viewer.layers.selection, kernel_size)
+                self.add_result_img(results, MednFilt = kernel_size)
 
             if filter_type == "Box Filter":
                 sigma = self.sigma_filt_param.value()
@@ -553,7 +533,7 @@ class OMAAS(QWidget):
 
         if label_and_value_sufix is not None:
             for key, value in label_and_value_sufix.items():
-                img_name += f"_{key}_{value}"
+                img_name += f"_{key}{value}"
 
         self.viewer.add_image(result_img,
         colormap = colormap,
@@ -592,10 +572,8 @@ class OMAAS(QWidget):
         results = motion_correction_func(self.viewer.layers.selection, 
                                         foot_print_size=foot_print, 
                                         radius_size=radius_size, num_warp=n_warps)
-        self.viewer.add_image(results, 
-            colormap = "turbo",
-         # colormap= "twilight_shifted", 
-            name= f"{self.viewer.layers.selection.active}_MotCorr_fp{str(foot_print)}_rs{str(radius_size)}_nw{str(n_warps)}")
+
+        self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
         
     def _on_click_transform_to_uint16_btn(self):
         
@@ -619,10 +597,12 @@ class OMAAS(QWidget):
                                                 cf_freq= cutoff_freq_value, 
                                                 fil_ord=order_value)
 
-            self.viewer.add_image(results, 
-                colormap = "turbo",
-            # colormap= "twilight_shifted", 
-                name= f"{self.viewer.layers.selection.active}_buttFilt_fre{str(cutoff_freq_value)}_ord{str(order_value)}_fps{str(fps_val)}")
+            # self.viewer.add_image(results, 
+            #     colormap = "turbo",
+            # # colormap= "twilight_shifted", 
+            #     name= f"{self.viewer.layers.selection.active}_buttFilt_fre{str(cutoff_freq_value)}_ord{str(order_value)}_fps{str(fps_val)}")
+            self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=fps_val)
+                
 
         # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")
 
