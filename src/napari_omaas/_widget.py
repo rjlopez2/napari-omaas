@@ -146,7 +146,7 @@ class OMAAS(QWidget):
         # self.filter_group.glayout.addWidget(self.filters_label, 3, 0, 1, 1)
 
         self.spat_filter_types = QComboBox()
-        self.spat_filter_types.addItems(["Gaussian", "Median"])
+        self.spat_filter_types.addItems(["Gaussian", "Box Filter", "Laplace Filter", "Median"])
         self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 3, 1, 1, 1)
 
         self.sigma_label = QLabel("Sigma")
@@ -409,10 +409,11 @@ class OMAAS(QWidget):
 
             results =invert_signal(self.viewer.layers.selection)
             # print(type(results))
-            self.viewer.add_image(results, 
-            colormap = "turbo",
-            # colormap= "twilight_shifted", 
-            name= f"{self.viewer.layers.selection.active}_Inv")
+            # self.viewer.add_image(results, 
+            # colormap = "turbo",
+            # # colormap= "twilight_shifted", 
+            # name= f"{self.viewer.layers.selection.active}_Inv")
+            self.add_result_img(result_img=results, single_label_sufix="Inv")
 
 
 
@@ -511,16 +512,14 @@ class OMAAS(QWidget):
 
         
             filter_type = self.spat_filter_types.currentText()
+            sigma = self.sigma_filt_param.value()
+            kernel_size = self.filt_kernel_value.value()
 
             if filter_type == "Gaussian":
-                sigma = self.sigma_filt_param.value()
-                kernel_size = self.filt_kernel_value.value()
                 # print(f"applying {ctext} with value: {str(sigma)} ")
-
                 results = apply_gaussian_func(self.viewer.layers.selection, 
                                             sigma= sigma, 
                                             kernel_size=kernel_size)
-
                 self.viewer.add_image(results, 
                 colormap = "turbo",
             # colormap= "twilight_shifted", 
@@ -528,15 +527,40 @@ class OMAAS(QWidget):
 
             
             if filter_type == "Median":
-                param = self.sigma_filt_param.value()
                 # print(f"applying {ctext} with value: {str(param)} ")
-
-                results = apply_median_filt_func(self.viewer.layers.selection, param)
-
+                results = apply_median_filt_func(self.viewer.layers.selection, sigma)
                 self.viewer.add_image(results, 
                 colormap = "turbo",
             # colormap= "twilight_shifted", 
-                name= f"{self.viewer.layers.selection.active}_MednFilt_{str(param)}")
+                name= f"{self.viewer.layers.selection.active}_MednFilt_{str(sigma)}")
+
+            if filter_type == "Box Filter":
+                sigma = self.sigma_filt_param.value()
+                kernel_size = self.filt_kernel_value.value()
+            
+            if filter_type == "Laplace Filter":
+                sigma = self.sigma_filt_param.value()
+                kernel_size = self.filt_kernel_value.value()
+    
+    
+    
+    def add_result_img(self, result_img, single_label_sufix = None, colormap="turbo", **label_and_value_sufix):
+        img_name = self.viewer.layers.selection.active.name
+        
+        if single_label_sufix is not None:
+            # for value in single_label_sufix:
+            img_name += f"_{single_label_sufix}"
+
+        if label_and_value_sufix is not None:
+            for key, value in label_and_value_sufix.items():
+                img_name += f"_{key}_{value}"
+
+        self.viewer.add_image(result_img,
+        colormap = colormap,
+        # metadata = inherit_metadata,
+        name = img_name
+        )
+
 
 
 
