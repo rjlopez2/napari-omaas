@@ -410,23 +410,28 @@ class OMAAS(QWidget):
         
 
     def _on_click_inv_data_btn(self):
-        results =invert_signal(self.viewer.layers.selection)
-        # print(type(results))
-        self.viewer.add_image(results, 
-        colormap = "turbo",
-        # colormap= "twilight_shifted", 
-        name= f"{self.viewer.layers.selection.active}_Inv")
+
+        if self.viewer.layers.selection.active._type_string == "image":
+
+            results =invert_signal(self.viewer.layers.selection)
+            # print(type(results))
+            self.viewer.add_image(results, 
+            colormap = "turbo",
+            # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_Inv")
 
 
 
     def _on_click_norm_data_btn(self):
-        results = local_normal_fun(self.viewer.layers.selection)
-        # print(type(results))
-        # local_normal_fun(self.viewer.layers.selection)
-        self.viewer.add_image(results, 
-        # colormap= "twilight_shifted", 
-        colormap = "turbo",
-        name= f"{self.viewer.layers.selection.active}_Nor")
+
+        if self.viewer.layers.selection.active._type_string == "image":
+            results = local_normal_fun(self.viewer.layers.selection)
+            # print(type(results))
+            # local_normal_fun(self.viewer.layers.selection)
+            self.viewer.add_image(results, 
+            # colormap= "twilight_shifted", 
+            colormap = "turbo",
+            name= f"{self.viewer.layers.selection.active}_Nor")
 
     def _on_click_inv_and_norm_data_btn(self):
         self._on_click_inv_data_btn()
@@ -434,12 +439,14 @@ class OMAAS(QWidget):
 
 
     def _on_click_splt_chann(self):
-        my_splitted_images = split_channels_fun(self.viewer.layers.selection)
-        curr_img_name = self.viewer.layers.selection.active
-        for channel in range(len(my_splitted_images)):
-            self.viewer.add_image(my_splitted_images[channel], 
-            colormap= "twilight_shifted", 
-            name= f"{curr_img_name}_ch{channel + 1}")
+        if self.viewer.layers.selection.active._type_string == "image":
+
+            my_splitted_images = split_channels_fun(self.viewer.layers.selection)
+            curr_img_name = self.viewer.layers.selection.active
+            for channel in range(len(my_splitted_images)):
+                self.viewer.add_image(my_splitted_images[channel], 
+                colormap= "twilight_shifted", 
+                name= f"{curr_img_name}_ch{channel + 1}")
 
     
     def get_rois_list(self):
@@ -506,34 +513,36 @@ class OMAAS(QWidget):
 
     def _on_click_apply_spat_filt_btn(self):
         # self.gaus_filt_value.value()
-        
-        filter_type = self.spat_filter_types.currentText()
-
-        if filter_type == "Gaussian":
-            sigma = self.sigma_filt_param.value()
-            kernel_size = self.filt_kernel_value.value()
-            # print(f"applying {ctext} with value: {str(sigma)} ")
-
-            results = apply_gaussian_func(self.viewer.layers.selection, 
-                                        sigma= sigma, 
-                                        kernel_size=kernel_size)
-
-            self.viewer.add_image(results, 
-            colormap = "turbo",
-         # colormap= "twilight_shifted", 
-            name= f"{self.viewer.layers.selection.active}_GausFilt_Kern{str(kernel_size)}_sgma{str(sigma)}")
+        if self.viewer.layers.selection.active._type_string == "image":
 
         
-        if filter_type == "Median":
-            param = self.sigma_filt_param.value()
-            # print(f"applying {ctext} with value: {str(param)} ")
+            filter_type = self.spat_filter_types.currentText()
 
-            results = apply_median_filt_func(self.viewer.layers.selection, param)
+            if filter_type == "Gaussian":
+                sigma = self.sigma_filt_param.value()
+                kernel_size = self.filt_kernel_value.value()
+                # print(f"applying {ctext} with value: {str(sigma)} ")
 
-            self.viewer.add_image(results, 
-            colormap = "turbo",
-         # colormap= "twilight_shifted", 
-            name= f"{self.viewer.layers.selection.active}_MednFilt_{str(param)}")
+                results = apply_gaussian_func(self.viewer.layers.selection, 
+                                            sigma= sigma, 
+                                            kernel_size=kernel_size)
+
+                self.viewer.add_image(results, 
+                colormap = "turbo",
+            # colormap= "twilight_shifted", 
+                name= f"{self.viewer.layers.selection.active}_GausFilt_Kern{str(kernel_size)}_sgma{str(sigma)}")
+
+            
+            if filter_type == "Median":
+                param = self.sigma_filt_param.value()
+                # print(f"applying {ctext} with value: {str(param)} ")
+
+                results = apply_median_filt_func(self.viewer.layers.selection, param)
+
+                self.viewer.add_image(results, 
+                colormap = "turbo",
+            # colormap= "twilight_shifted", 
+                name= f"{self.viewer.layers.selection.active}_MednFilt_{str(param)}")
 
 
 
@@ -581,19 +590,21 @@ class OMAAS(QWidget):
             name= f"{self.viewer.layers.selection.active}_uint16")
 
     def _on_click_apply_temp_filt_btn(self):
-        cutoff_freq_value = self.butter_cutoff_freq_val.value()
-        order_value = self.butter_order_val.value()
-        fps_val = float(self.fps_val.text())
+        if self.viewer.layers.selection.active._type_string == "image":
 
-        results = apply_butterworth_filt_func(self.viewer.layers.selection, 
-                                             ac_freq=fps_val, 
-                                             cf_freq= cutoff_freq_value, 
-                                             fil_ord=order_value)
+            cutoff_freq_value = self.butter_cutoff_freq_val.value()
+            order_value = self.butter_order_val.value()
+            fps_val = float(self.fps_val.text())
 
-        self.viewer.add_image(results, 
-            colormap = "turbo",
-         # colormap= "twilight_shifted", 
-            name= f"{self.viewer.layers.selection.active}_buttFilt_fre{str(cutoff_freq_value)}_ord{str(order_value)}_fps{str(fps_val)}")
+            results = apply_butterworth_filt_func(self.viewer.layers.selection, 
+                                                ac_freq=fps_val, 
+                                                cf_freq= cutoff_freq_value, 
+                                                fil_ord=order_value)
+
+            self.viewer.add_image(results, 
+                colormap = "turbo",
+            # colormap= "twilight_shifted", 
+                name= f"{self.viewer.layers.selection.active}_buttFilt_fre{str(cutoff_freq_value)}_ord{str(order_value)}_fps{str(fps_val)}")
 
         # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")
 
