@@ -15,7 +15,7 @@ This plugin is in a very early developmental/experimental stage and only support
 
 ## Usage
 
-This plugin can only read images generated with Andor Technologies cameras currently, having been tested on Zyla cameras. Just drag and drop an image to the napari GUI, and the image will display. Alternatively, you can programmatically load/read the image from within a notebook.
+This plugin can only read images generated with Andor Technologies cameras currently, having been tested on Zyla cameras. Just drag and drop an image to the napari GUI, and the image will display. Alternatively, you can programmatically load/read the image within a notebook.
     
     import napari
     
@@ -24,7 +24,7 @@ This plugin can only read images generated with Andor Technologies cameras curre
     viewer = napari.Viewer()
     viewer.open(path=file, plugin="napari-omaas", name = "my_image")
 
-to display the metadata just use the standard call to the corresponding layer:
+to display the metadata use the standard call to the corresponding layer:
 
     viewer.layers['my_image'].metadata
 
@@ -46,9 +46,9 @@ This plugin is composed of two major components: **analysis** and **acquisition*
 
 ### Acquisition Features
 
-- [ ] Control Zyla camera for acquisition of data
+- [ ] Control Zyla camera for the acquisition of data
     - [ ] test using the PYME module
-- [ ] Real time analysis(?)
+- [ ] Real-time analysis(?)
 
     
 
