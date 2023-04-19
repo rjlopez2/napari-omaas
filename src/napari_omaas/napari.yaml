@@ -30,7 +30,7 @@ contributions:
   sample_data:
     - command: napari-omaas.make_sample_data
       display_name: napari OMAAS
-      key: unique_id.1
+      key: heartsample
   widgets:
     - command: napari-omaas.make_qwidget
       display_name: Optical Mapping Analysis
