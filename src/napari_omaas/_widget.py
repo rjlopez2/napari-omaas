@@ -18,6 +18,7 @@ from qtpy.QtWidgets import (
 from qtpy.QtCore import Qt
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
+from napari_matplotlib.base import NapariMPLWidget
 
 from .utils import *
 
@@ -62,6 +63,12 @@ class OMAAS(QWidget):
         self._motion_correction_layout = QVBoxLayout()
         self.motion_correction.setLayout(self._motion_correction_layout)
         self.tabs.addTab(self.motion_correction, 'Mot-Correction')
+
+        ######## APD analysis tab ########
+        self.APD_analysis = QWidget()
+        self._APD_analysis_layout = QVBoxLayout()
+        self.APD_analysis.setLayout(self._APD_analysis_layout)
+        self.tabs.addTab(self.APD_analysis, 'APD analysis')
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -275,6 +282,28 @@ class OMAAS(QWidget):
         self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 2)
 
 
+        ######## APD-analysis tab ########
+        # ####################################
+        self._APD_analysis_layout.setAlignment(Qt.AlignTop)
+        self.APD_plot_group = VHGroup('APD plot group', orientation='G')
+        self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
+
+        # self._APD_widget_TSP = TSPExplorer(self.viewer)
+        # self.APD_plot_group.glayout.addWidget(self._APD_widget_TSP, 3, 0, 1, 1)
+        
+        self._APD_TSP = NapariMPLWidget(self.viewer)
+        self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 6, 6, 1)
+        self.APD_axes = self._APD_TSP.canvas.figure.subplots()
+
+        self.plot_APD_btn = QPushButton("Plot traces")
+        self.plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
+        self.APD_plot_group.glayout.addWidget(self.plot_APD_btn, 4, 1, 1, 1)
+
+        self.clear_plot_APD_btn = QPushButton("Clear traces")
+        self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
+        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 5, 1, 1, 1)
+               
+        
 
         # sub_backg_btn = QPushButton("Subtract Background")
         # rmv_backg_btn = QPushButton("Delete Background")
@@ -393,6 +422,8 @@ class OMAAS(QWidget):
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
+        self.plot_APD_btn.clicked.connect(self._get_traces_call_back)
+        self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         
         
         
@@ -687,6 +718,34 @@ class OMAAS(QWidget):
                 self.fps_val.setText("")
 
 
+
+    def _get_traces_call_back(self, event):
+        if len(self._graphics_widget_TSP.plotter.data) > 0 :
+            # clear APD on every instance of plot
+            self._clear_APD_plot(self)
+
+            handles = []
+            print("lalala")
+            traces = self._graphics_widget_TSP.plotter.data[1::2]
+            time = self._graphics_widget_TSP.plotter.data[0]
+            lname = self.viewer.layers.selection.active.name
+
+            for trace in range(len(traces)):
+                handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
+            
+            self._APD_TSP._draw()
+                
+
+    
+    def _clear_APD_plot(self, event):
+        """
+        Clear the canvas.
+        """
+        self.APD_axes.clear()
+        self._APD_TSP._draw()
+
+        # ---->>>> this return the data currently pltting -> self._graphics_widget_TSP.plotter.data
+        # ----->>>>> this retrn the new cavas to plot on to -> self._APD_TSP.canvas.figure.subplots
 
 @magic_factory
 def example_magic_widget(img_layer: "napari.layers.Image"):
