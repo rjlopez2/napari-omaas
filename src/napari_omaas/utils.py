@@ -14,6 +14,7 @@ from scipy import signal, ndimage
 # functions
 
 from napari.types import ImageData, ShapesData
+import pandas as pd
 # def detect_spots(
 #     image: "napari.types.ImageData",
 #     high_pass_sigma: float = 2,
@@ -499,6 +500,48 @@ def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
     print(f'applying "apply_laplace_filter" to image {image.active}')
 
     return (out_img)
+
+def find_dvdt_max(np_1Darray, diff_n = 1, filter_size = 5, prominence= 0.6, cycle_length_ms = 0.004):
+    
+    """
+        Find the DF/Dt max using 1st derivative of a given average trace.
+
+        Parameters
+        ----------
+        np_1Darray : np.ndarray
+            1D average trace taken form ROI.
+        
+        diff_n : float
+            the Nth derivative to be computed. default to 1st derivative.
+        
+        prominence : int
+            Prominence to detect peaks.
+
+        cycle_length_ms : float
+            Cycle length from current acquisition.
+        
+
+     
+    
+        Returns
+        -------
+            dft_max_df : pd.Dataframe conatining the DF/Dt max for peaks founds in signal.
+
+        """
+    
+    dff = np.diff(np_1Darray, n = diff_n, prepend = np_1Darray[:diff_n])
+    
+    dff =  (dff - dff.min()) /  dff.max()
+    dff = signal.savgol_filter(dff, filter_size, 2)
+    peaks_indx, peaks_props = signal.find_peaks(dff, prominence=prominence)
+    
+    dft_max = dff[peaks_indx] * cycle_length_ms
+    
+    row_names = [f'Beat_{i}' for i in range(dft_max.shape[-1])]
+    dft_max_df = pd.DataFrame(dft_max, columns= ["dvdt_max"], index= row_names)
+    
+    
+    return dft_max_df, peaks_indx
 
 
 

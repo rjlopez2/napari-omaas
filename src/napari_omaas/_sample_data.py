@@ -25,11 +25,7 @@ file_ext = [".zip"]
 
 # sample_img_dir = THIS_DIR + '/../../img/' 
 
-# ext_link = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OM/napari-omaas_things/data_samples/4view_stacks/11h-27m-32s.sif"
-# ext_link = "https://unibe365-my.sharepoint.com/:u:/g/personal/ruben_lopez_unibe_ch/EYzTZlFA06VFvwHH_qBsaE4BBMYZ3Z3GA7ZiMOuNlhb_cw?e=1mW9gt" #original
-# ext_link = 'https://unibe365-my.sharepoint.com/:u:/g/personal/ruben_lopez_unibe_ch/EX3rR1ZlV-FFqU4lIRP9xdoBHp0rHjNSMBAFoJb4L7OfEQ?e=bAPjDN' # zipped
-# ext_link = 'https://unibe365-my.sharepoint.com/:u:/r/personal/ruben_lopez_unibe_ch/Documents/Bern/Odening_lab/OM/napari-omaas_things/data_samples/4view_stacks/11h-27m-32s.zip'
-ext_link = 'https://www.dropbox.com/s/9g1m4ptvl6waevv/11h-27m-32s.zip?dl=1' # dropbox link
+ext_link = 'https://physiologie.unibe.ch/~odening/group/data/zipped/4viewpanoramicstackimage.zip' # institute link for the "4 view panoramic stack image" dataset
 
 if not os.path.exists(DATA_DIR + filename):
     r = requests.get(ext_link)
