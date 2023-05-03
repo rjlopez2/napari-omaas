@@ -724,14 +724,23 @@ class OMAAS(QWidget):
             # clear APD on every instance of plot
             self._clear_APD_plot(self)
 
-            handles = []
-            print("lalala")
+            # handles = []
+            # print("lalala")
             traces = self._graphics_widget_TSP.plotter.data[1::2]
             time = self._graphics_widget_TSP.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
+            self.img_metadata_dict = self.viewer.layers.select_previous()
 
             for trace in range(len(traces)):
-                handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
+                dft_max_df,  dft_max_indx = find_dvdt_max(traces[trace], cycle_length_ms= self.img_metadata_dict["CycleTime"])
+                # print(rslts)
+                self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5)
+                # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
+                for indx in dft_max_indx:
+                    # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
+                    # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
+                    self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
+
             
             self._APD_TSP._draw()
                 
