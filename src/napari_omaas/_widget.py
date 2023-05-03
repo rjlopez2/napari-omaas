@@ -438,14 +438,14 @@ class OMAAS(QWidget):
 
         if self.viewer.layers.selection.active._type_string == "image":
             results =invert_signal(self.viewer.layers.selection)
-            self.add_result_img(result_img=results, single_label_sufix="Inv")
+            self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
 
 
     def _on_click_norm_data_btn(self):
 
         if self.viewer.layers.selection.active._type_string == "image":
             results = local_normal_fun(self.viewer.layers.selection)
-            self.add_result_img(result_img=results, single_label_sufix="Nor")
+            self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
 
 
     def _on_click_inv_and_norm_data_btn(self):
@@ -556,9 +556,20 @@ class OMAAS(QWidget):
     
     
     
-    def add_result_img(self, result_img, single_label_sufix = None, colormap="turbo", **label_and_value_sufix):
-        img_name = self.viewer.layers.selection.active.name
+    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", **label_and_value_sufix):
         
+        # NOTE: Bug: it always change the iriginal dict even if I make a copy
+        img_name = self.viewer.layers.selection.active.name
+        self.curr_img_metadata = self.viewer.layers.selection.active.metadata.copy()
+
+        key_name = "Processing_method"
+        if key_name not in self.curr_img_metadata:
+            self.curr_img_metadata[key_name] = []
+
+        if add_to_metadata is not None:            
+            self.curr_img_metadata[key_name].append(add_to_metadata)
+
+
         if single_label_sufix is not None:
             # for value in single_label_sufix:
             img_name += f"_{single_label_sufix}"
@@ -566,12 +577,18 @@ class OMAAS(QWidget):
         if label_and_value_sufix is not None:
             for key, value in label_and_value_sufix.items():
                 img_name += f"_{key}{value}"
+        
+        
+        if metadata:
+            self.viewer.add_image(result_img, 
+                        metadata = self.curr_img_metadata,
+                        colormap = colormap,
+                        name = img_name)
 
-        self.viewer.add_image(result_img,
-        colormap = colormap,
-        # metadata = inherit_metadata,
-        name = img_name
-        )
+        else: 
+            self.viewer.add_image(result_img,
+                        colormap = colormap,
+                        name = img_name)
 
 
 
@@ -729,10 +746,11 @@ class OMAAS(QWidget):
             traces = self._graphics_widget_TSP.plotter.data[1::2]
             time = self._graphics_widget_TSP.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
-            self.img_metadata_dict = self.viewer.layers.select_previous()
+            # self.viewer.layers.select_previous()
+            # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
 
             for trace in range(len(traces)):
-                dft_max_df,  dft_max_indx = find_dvdt_max(traces[trace], cycle_length_ms= self.img_metadata_dict["CycleTime"])
+                dft_max_df,  dft_max_indx = find_dvdt_max(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
                 # print(rslts)
                 self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5)
                 # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
@@ -740,6 +758,8 @@ class OMAAS(QWidget):
                     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
                     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
                     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
+
+            print(dft_max_df)
 
             
             self._APD_TSP._draw()
