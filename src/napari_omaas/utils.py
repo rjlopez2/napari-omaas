@@ -23,7 +23,7 @@ import pandas as pd
 # ) -> "napari.types.LayerDataTuple":
 
 def invert_signal(
-    image: "napari.types.ImageData"
+    data: "napari.types.ImageData"
     )-> "napari.types.LayerDataTuple":
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
@@ -39,12 +39,12 @@ def invert_signal(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    data = image.active.data
+    # data = image.active.data
     # processed_data = data.max(axis = 0) - data
     # processed_data = np.nanmax(data, axis=0) - data
     # processed_data = paralele_inv_signal(data)
     
-    print(f'computing "invert_signal" to image {image.active}')
+    # print(f'computing "invert_signal" to image {image.active}')
     # print (f'computing "invert_signal" to image colormap='magma' ndim: {image.active.data.ndim}')
     # return(inverted_data, dict(name= "lalala"), "image") 
     # return(layer_data)

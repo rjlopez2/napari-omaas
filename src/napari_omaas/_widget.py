@@ -14,7 +14,7 @@ from qtpy.QtWidgets import (
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QTreeWidget, QTreeWidgetItem,
     )
-
+from warnings import warn
 from qtpy.QtCore import Qt
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
@@ -435,11 +435,14 @@ class OMAAS(QWidget):
         
 
     def _on_click_inv_data_btn(self):
+        current_selection = self.viewer.layers.selection.active
 
-        if self.viewer.layers.selection.active._type_string == "image":
-            results =invert_signal(self.viewer.layers.selection)
+        if current_selection._type_string == "image":
+            print(f'computing "invert_signal" to image {current_selection}')
+            results =invert_signal(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
-
+        else:
+            warn(f"Not a Image layer selected for layer: '{current_selection}' type: '{current_selection._type_string}'")
 
     def _on_click_norm_data_btn(self):
 
