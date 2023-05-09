@@ -422,7 +422,7 @@ class OMAAS(QWidget):
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
-        self.plot_APD_btn.clicked.connect(self._get_traces_call_back)
+        self.plot_APD_btn.clicked.connect(self._get_APD_params_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         
         
@@ -710,7 +710,7 @@ class OMAAS(QWidget):
             if value is not None and value._type_string == 'image' :
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
                 if "CycleTime" in self.img_metadata_dict:
-                    print(f"getting image: '{self.viewer.layers.selection.active.name}'")
+                    # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
                     self.metadata_tree.clear()
                     metadata = self.img_metadata_dict
                     items = []
@@ -736,7 +736,7 @@ class OMAAS(QWidget):
 
 
 
-    def _get_traces_call_back(self, event):
+    def _get_APD_params_call_back(self, event):
         if len(self._graphics_widget_TSP.plotter.data) > 0 :
             # clear APD on every instance of plot
             self._clear_APD_plot(self)
@@ -750,16 +750,23 @@ class OMAAS(QWidget):
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
 
             for trace in range(len(traces)):
-                dft_max_df,  dft_max_indx = find_dvdt_max(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
+                acttime_peaks_indx, ini_peaks_indx = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
                 # print(rslts)
                 self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5)
                 # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
-                for indx in dft_max_indx:
+                for indx in acttime_peaks_indx:
                     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
                     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
                     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
+                
+                for indx in ini_peaks_indx:
+                    # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
+                    # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
+                    self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
 
-            print(dft_max_df)
+
+
+            print(acttime_peaks_indx, ini_peaks_indx )
 
             
             self._APD_TSP._draw()

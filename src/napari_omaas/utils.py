@@ -501,7 +501,7 @@ def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
 
     return (out_img)
 
-def find_dvdt_max(np_1Darray, diff_n = 1, filter_size = 5, prominence= 0.6, cycle_length_ms = 0.004):
+def compute_APD_props_func(np_1Darray, diff_n = 1, filter_size = 5, prominence= 0.6, cycle_length_ms = 0.004):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -532,16 +532,28 @@ def find_dvdt_max(np_1Darray, diff_n = 1, filter_size = 5, prominence= 0.6, cycl
     dff = np.diff(np_1Darray, n = diff_n, prepend = np_1Darray[:diff_n])
     
     dff =  (dff - dff.min()) /  dff.max()
-    dff = signal.savgol_filter(dff, filter_size, 2)
-    peaks_indx, peaks_props = signal.find_peaks(dff, prominence=prominence)
+    dff_filt = signal.savgol_filter(dff, filter_size, 2)
     
-    dft_max = dff[peaks_indx] * cycle_length_ms
+    # find Activation time
+    acttime_peaks_indx, acttime_peaks_props = signal.find_peaks(dff_filt, prominence=prominence)
+    dft_max = dff[acttime_peaks_indx] * cycle_length_ms
+    del dff_filt
     
-    row_names = [f'Beat_{i}' for i in range(dft_max.shape[-1])]
-    dft_max_df = pd.DataFrame(dft_max, columns= ["dvdt_max"], index= row_names)
+    # find AP start
+    dff_filt = signal.savgol_filter(dff, round(filter_size*1.6), 2, deriv=1)
+    ini_peaks_indx, ini_peaks_props = signal.find_peaks(dff_filt, prominence=prominence * 0.2)
     
     
-    return dft_max_df, peaks_indx
+    row_names = [f'AP_{i}' for i in range(dft_max.shape[-1])]
+    # rslt_df = pd.DataFrame([dft_max, ini_peaks_indx], columns= ["dvdt_max", "indx_AP_start"], index= row_names)
+    # rslt_df = pd.DataFrame({
+    #                         "dvdt_max": dft_max,
+    #                         "indx_AP_start": ini_peaks_indx,
+    #                         "indx_dft_max": acttime_peaks_indx
+    #                         }, index= row_names)
+    
+    
+    return acttime_peaks_indx, ini_peaks_indx
 
 
 
