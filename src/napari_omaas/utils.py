@@ -44,7 +44,7 @@ def invert_signal(
    
 
 def local_normal_fun(
-    image: "napari.types.ImageData")-> "napari.types.ImageData":
+    data: "napari.types.ImageData")-> "napari.types.ImageData":
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
     AP signals from inverted traces.
@@ -59,11 +59,8 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    data = image.active.data
-
-    print(f'computing "local_normal_fun" to image {image.active}')
-
     return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
+    
 
 def split_channels_fun(
     image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
