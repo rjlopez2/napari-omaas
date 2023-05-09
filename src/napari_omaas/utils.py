@@ -39,30 +39,9 @@ def invert_signal(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    # data = image.active.data
-    # processed_data = data.max(axis = 0) - data
-    # processed_data = np.nanmax(data, axis=0) - data
-    # processed_data = paralele_inv_signal(data)
-    
-    # print(f'computing "invert_signal" to image {image.active}')
-    # print (f'computing "invert_signal" to image colormap='magma' ndim: {image.active.data.ndim}')
-    # return(inverted_data, dict(name= "lalala"), "image") 
-    # return(layer_data)
-    # norm_data = np.nanmax(data, axis=0) - data
 
-    # layer_data  = (
-    #     norm_data,
-    #     {
-    #         'name': 'My Image', 
-    #         'colormap': 'red'
-    #     },
-    #     "image"
-        
-    # )
-    # return layer_data
     return np.nanmax(data) - data
-    # return Image(image.active.data.max(axis = 0) - image.active.data)
-
+   
 
 def local_normal_fun(
     image: "napari.types.ImageData")-> "napari.types.ImageData":
