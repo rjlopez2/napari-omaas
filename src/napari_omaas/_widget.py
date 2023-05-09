@@ -470,10 +470,10 @@ class OMAAS(QWidget):
             curr_img_name = current_selection.name
 
             for channel in range(len(my_splitted_images)):
-                self.viewer.add_image(my_splitted_images[channel],
-                colormap= "turbo", 
-                name= f"{curr_img_name}_ch{channel + 1}")
-                # self.add_result_img(result_img=channel, )
+                # self.viewer.add_image(my_splitted_images[channel],
+                # colormap= "turbo", 
+                # name= f"{curr_img_name}_ch{channel + 1}")
+                self.add_result_img(result_img=my_splitted_images[channel], img_custom_nam=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -570,10 +570,14 @@ class OMAAS(QWidget):
     
     
     
-    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", **label_and_value_sufix):
+    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_nam = None, **label_and_value_sufix):
         
         # NOTE: Bug: it always change the iriginal dict even if I make a copy
-        img_name = self.viewer.layers.selection.active.name
+        if img_custom_nam is not None:
+            img_name = img_custom_nam
+        else:
+            img_name = self.viewer.layers.selection.active.name
+
         self.curr_img_metadata = self.viewer.layers.selection.active.metadata.copy()
 
         key_name = "Processing_method"
