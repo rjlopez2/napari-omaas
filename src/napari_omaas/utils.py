@@ -60,10 +60,10 @@ def local_normal_fun(
         The image with inverted fluorescence values
     """
     return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
-    
+
 
 def split_channels_fun(
-    image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
+    data: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
 
     """Split the stack every other images. 
     This is needed when doing Calcium and Voltage membrane recording.
@@ -78,11 +78,10 @@ def split_channels_fun(
     ch_1, ch_2 : list 
         two np.ndarray images for Calcim and Voltage signals respectively?"""
     
-    data = image.active.data
     ch_1 = data[::2,:,:]
     ch_2 = data[1::2,:,:]
-    print(f'applying "split_channels" to image {image.active}')
     return [ch_1, ch_2]
+
 
 def segment_heart_func( 
     image: "napari.types.ImageData",

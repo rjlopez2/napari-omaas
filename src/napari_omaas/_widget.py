@@ -444,6 +444,7 @@ class OMAAS(QWidget):
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
+
     def _on_click_norm_data_btn(self):
         current_selection = self.viewer.layers.selection.active
 
@@ -461,14 +462,20 @@ class OMAAS(QWidget):
 
 
     def _on_click_splt_chann(self):
-        if self.viewer.layers.selection.active._type_string == "image":
+        current_selection = self.viewer.layers.selection.active
 
-            my_splitted_images = split_channels_fun(self.viewer.layers.selection)
-            curr_img_name = self.viewer.layers.selection.active
+        if current_selection._type_string == "image":
+            print(f'applying "split_channels" to image {current_selection}')
+            my_splitted_images = split_channels_fun(current_selection.data)
+            curr_img_name = current_selection.name
+
             for channel in range(len(my_splitted_images)):
-                self.viewer.add_image(my_splitted_images[channel], 
+                self.viewer.add_image(my_splitted_images[channel],
                 colormap= "turbo", 
                 name= f"{curr_img_name}_ch{channel + 1}")
+                # self.add_result_img(result_img=channel, )
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
     
     def get_rois_list(self):
