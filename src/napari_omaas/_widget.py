@@ -274,7 +274,7 @@ class OMAAS(QWidget):
         
         self.n_warps = QSpinBox()
         self.n_warps.setSingleStep(1)
-        self.n_warps.setValue(20)
+        self.n_warps.setValue(8)
         self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
 
         self.apply_mot_correct_btn = QPushButton("apply")
@@ -642,12 +642,28 @@ class OMAAS(QWidget):
         foot_print = self.footprint_size.value()
         radius_size = self.radius_size.value()
         n_warps = self.n_warps.value()
+        gpu_use = True # put this in the GUI 
+        ref_frame_indx = 1 # put this in the GUI
+        current_selection = self.viewer.layers.selection.active
+        raw_data = current_selection.data
 
-        results = motion_correction_func(self.viewer.layers.selection, 
-                                        foot_print_size=foot_print, 
-                                        radius_size=radius_size, num_warp=n_warps)
+        if current_selection._type_string == "image":
+            if gpu_use == True:
+                raw_data = cp.asarray(raw_data)
+                
+            scaled_img = scaled_img_func(raw_data, 
+                                        foot_print_size=foot_print)
+                
+            results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indxs)
 
-        self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+            self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+
+
+            
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+
+        
         
     def _on_click_transform_to_uint16_btn(self):
         
