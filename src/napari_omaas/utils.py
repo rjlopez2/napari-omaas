@@ -23,7 +23,7 @@ import pandas as pd
 # ) -> "napari.types.LayerDataTuple":
 
 def invert_signal(
-    image: "napari.types.ImageData"
+    data: "napari.types.ImageData"
     )-> "napari.types.LayerDataTuple":
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
@@ -39,33 +39,12 @@ def invert_signal(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    data = image.active.data
-    # processed_data = data.max(axis = 0) - data
-    # processed_data = np.nanmax(data, axis=0) - data
-    # processed_data = paralele_inv_signal(data)
-    
-    print(f'computing "invert_signal" to image {image.active}')
-    # print (f'computing "invert_signal" to image colormap='magma' ndim: {image.active.data.ndim}')
-    # return(inverted_data, dict(name= "lalala"), "image") 
-    # return(layer_data)
-    # norm_data = np.nanmax(data, axis=0) - data
 
-    # layer_data  = (
-    #     norm_data,
-    #     {
-    #         'name': 'My Image', 
-    #         'colormap': 'red'
-    #     },
-    #     "image"
-        
-    # )
-    # return layer_data
     return np.nanmax(data) - data
-    # return Image(image.active.data.max(axis = 0) - image.active.data)
-
+   
 
 def local_normal_fun(
-    image: "napari.types.ImageData")-> "napari.types.ImageData":
+    data: "napari.types.ImageData")-> "napari.types.ImageData":
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
     AP signals from inverted traces.
@@ -80,14 +59,11 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    data = image.active.data
-
-    print(f'computing "local_normal_fun" to image {image.active}')
-
     return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
 
+
 def split_channels_fun(
-    image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
+    data: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
 
     """Split the stack every other images. 
     This is needed when doing Calcium and Voltage membrane recording.
@@ -102,11 +78,10 @@ def split_channels_fun(
     ch_1, ch_2 : list 
         two np.ndarray images for Calcim and Voltage signals respectively?"""
     
-    data = image.active.data
     ch_1 = data[::2,:,:]
     ch_2 = data[1::2,:,:]
-    print(f'applying "split_channels" to image {image.active}')
     return [ch_1, ch_2]
+
 
 def segment_heart_func( 
     image: "napari.types.ImageData",
@@ -173,7 +148,7 @@ def segment_heart_func(
     # return raw_img_stack_nobg
     return mask
 
-def apply_gaussian_func (image: "napari.types.ImageData",
+def apply_gaussian_func (data: "napari.types.ImageData",
     sigma, kernel_size = 3)-> "Image":
 
     """
@@ -195,12 +170,12 @@ def apply_gaussian_func (image: "napari.types.ImageData",
 
     """
 
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
     gauss_kernel1d = signal.windows.gaussian(M= kernel_size, std=sigma)
     gauss_kernel2d = gauss_kernel1d[:, None] @ gauss_kernel1d[None]
 
-    print(f'applying "apply_gaussian_func" to image {image.active}')
+    # print(f'applying "apply_gaussian_func" to image {image.active}')
 
     for plane, img in enumerate(data):
         # out_img[plane] = gaussian(img, sigma, preserve_range = True)
@@ -209,7 +184,7 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     # return (gaussian(data, sigma))
     return out_img
 
-def apply_median_filt_func (image: "napari.types.ImageData",
+def apply_median_filt_func (data: "napari.types.ImageData",
     param)-> "Image":
 
     """
@@ -231,11 +206,11 @@ def apply_median_filt_func (image: "napari.types.ImageData",
 
     """
     param = int(param)
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
     footprint = disk(int(param))
 
-    print(f'applying "apply_median_filt_func" to image {image.active}')
+    # print(f'applying "apply_median_filt_func" to image {image.active}')
 
     # for plane, img in enumerate(data):
         # out_img[plane] = median(img, footprint = footprint)
@@ -432,7 +407,7 @@ def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
     return image.active.data.astype(np.uint16)
 
 
-def apply_butterworth_filt_func(image: "napari.types.ImageData",
+def apply_butterworth_filt_func(data: "napari.types.ImageData",
         ac_freq, cf_freq, fil_ord )-> "Image":
         
         """
@@ -465,15 +440,15 @@ def apply_butterworth_filt_func(image: "napari.types.ImageData",
         
         a, b = signal.butter(fil_ord, normal_freq, btype='low')
 
-        print(f"Applying 'apply_butterworth_filt_func'  to image {image.active}'")
-        filt_image = signal.filtfilt(a, b, image.active.data, 0)
+        # print(f"Applying 'apply_butterworth_filt_func'  to image {image.active}'")
+        filt_image = signal.filtfilt(a, b, data, 0)
         
         return filt_image
 
 
-def apply_box_filter(image: "napari.types.ImageData", kernel_size):
+def apply_box_filter(data: "napari.types.ImageData", kernel_size):
 
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
 
     box_kernel2d = np.ones((kernel_size, kernel_size))/kernel_size**2
@@ -481,14 +456,14 @@ def apply_box_filter(image: "napari.types.ImageData", kernel_size):
     for plane, img in enumerate(data):
         out_img[plane] = signal.oaconvolve(img, box_kernel2d, mode="same")
 
-    print(f'applying "apply_box_filter" to image {image.active}')
+    # print(f'applying "apply_box_filter" to image {image.active}')
 
     return (out_img)
 
 
-def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
+def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
     
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
 
     mex_hat_kernel1d = signal.ricker(kernel_size, sigma)
@@ -497,7 +472,7 @@ def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
     for plane, img in enumerate(data):
         out_img[plane] = signal.oaconvolve(img, mex_hat_kernel2d, mode="same")
 
-    print(f'applying "apply_laplace_filter" to image {image.active}')
+    # print(f'applying "apply_laplace_filter" to image {image.active}')
 
     return (out_img)
 
