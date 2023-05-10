@@ -541,31 +541,38 @@ class OMAAS(QWidget):
 
 
     def _on_click_apply_spat_filt_btn(self):
-        # self.gaus_filt_value.value()
-        if self.viewer.layers.selection.active._type_string == "image":
+        current_selection = self.viewer.layers.selection.active
+        if current_selection._type_string == "image":
         
             filter_type = self.spat_filter_types.currentText()
             sigma = self.sigma_filt_param.value()
             kernel_size = self.filt_kernel_value.value()
-
+            
             if filter_type == "Gaussian":
-                results = apply_gaussian_func(self.viewer.layers.selection, 
+                print(f'applying "apply_gaussian_func" to image {current_selection}')
+                results = apply_gaussian_func(current_selection.data, 
                                             sigma= sigma, 
                                             kernel_size=kernel_size)
                 self.add_result_img(results, KrnlSiz = kernel_size, Sgma = sigma)
 
             
             if filter_type == "Median":
-                results = apply_median_filt_func(self.viewer.layers.selection, kernel_size)
+                print(f'applying "apply_median_filt_func" to image {current_selection}')
+                results = apply_median_filt_func(current_selection.data, kernel_size)
                 self.add_result_img(results, MednFilt = kernel_size)
 
             if filter_type == "Box Filter":
-                results = apply_box_filter(self.viewer.layers.selection, kernel_size)
+                print(f'applying "apply_box_filter" to image {current_selection}')
+                results = apply_box_filter(current_selection.data, kernel_size)
                 self.add_result_img(results, BoxFilt = kernel_size)
             
             if filter_type == "Laplace Filter":
-                results = apply_laplace_filter(self.viewer.layers.selection, kernel_size=kernel_size, sigma=sigma)
+                print(f'applying "apply_laplace_filter" to image {current_selection}')
+                results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
                 self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
+
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
     
     
@@ -653,18 +660,21 @@ class OMAAS(QWidget):
             name= f"{self.viewer.layers.selection.active}_uint16")
 
     def _on_click_apply_temp_filt_btn(self):
+        current_selection = self.viewer.layers.selection.active
         if self.viewer.layers.selection.active._type_string == "image":
 
             cutoff_freq_value = self.butter_cutoff_freq_val.value()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
 
-            results = apply_butterworth_filt_func(self.viewer.layers.selection, 
+            results = apply_butterworth_filt_func(current_selection.data, 
                                                 ac_freq=fps_val, 
                                                 cf_freq= cutoff_freq_value, 
                                                 fil_ord=order_value)
 
             self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
 
         # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")

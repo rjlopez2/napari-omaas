@@ -148,7 +148,7 @@ def segment_heart_func(
     # return raw_img_stack_nobg
     return mask
 
-def apply_gaussian_func (image: "napari.types.ImageData",
+def apply_gaussian_func (data: "napari.types.ImageData",
     sigma, kernel_size = 3)-> "Image":
 
     """
@@ -170,12 +170,12 @@ def apply_gaussian_func (image: "napari.types.ImageData",
 
     """
 
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
     gauss_kernel1d = signal.windows.gaussian(M= kernel_size, std=sigma)
     gauss_kernel2d = gauss_kernel1d[:, None] @ gauss_kernel1d[None]
 
-    print(f'applying "apply_gaussian_func" to image {image.active}')
+    # print(f'applying "apply_gaussian_func" to image {image.active}')
 
     for plane, img in enumerate(data):
         # out_img[plane] = gaussian(img, sigma, preserve_range = True)
@@ -184,7 +184,7 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     # return (gaussian(data, sigma))
     return out_img
 
-def apply_median_filt_func (image: "napari.types.ImageData",
+def apply_median_filt_func (data: "napari.types.ImageData",
     param)-> "Image":
 
     """
@@ -206,11 +206,11 @@ def apply_median_filt_func (image: "napari.types.ImageData",
 
     """
     param = int(param)
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
     footprint = disk(int(param))
 
-    print(f'applying "apply_median_filt_func" to image {image.active}')
+    # print(f'applying "apply_median_filt_func" to image {image.active}')
 
     # for plane, img in enumerate(data):
         # out_img[plane] = median(img, footprint = footprint)
@@ -407,7 +407,7 @@ def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
     return image.active.data.astype(np.uint16)
 
 
-def apply_butterworth_filt_func(image: "napari.types.ImageData",
+def apply_butterworth_filt_func(data: "napari.types.ImageData",
         ac_freq, cf_freq, fil_ord )-> "Image":
         
         """
@@ -440,15 +440,15 @@ def apply_butterworth_filt_func(image: "napari.types.ImageData",
         
         a, b = signal.butter(fil_ord, normal_freq, btype='low')
 
-        print(f"Applying 'apply_butterworth_filt_func'  to image {image.active}'")
-        filt_image = signal.filtfilt(a, b, image.active.data, 0)
+        # print(f"Applying 'apply_butterworth_filt_func'  to image {image.active}'")
+        filt_image = signal.filtfilt(a, b, data, 0)
         
         return filt_image
 
 
-def apply_box_filter(image: "napari.types.ImageData", kernel_size):
+def apply_box_filter(data: "napari.types.ImageData", kernel_size):
 
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
 
     box_kernel2d = np.ones((kernel_size, kernel_size))/kernel_size**2
@@ -456,14 +456,14 @@ def apply_box_filter(image: "napari.types.ImageData", kernel_size):
     for plane, img in enumerate(data):
         out_img[plane] = signal.oaconvolve(img, box_kernel2d, mode="same")
 
-    print(f'applying "apply_box_filter" to image {image.active}')
+    # print(f'applying "apply_box_filter" to image {image.active}')
 
     return (out_img)
 
 
-def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
+def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
     
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
 
     mex_hat_kernel1d = signal.ricker(kernel_size, sigma)
@@ -472,7 +472,7 @@ def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
     for plane, img in enumerate(data):
         out_img[plane] = signal.oaconvolve(img, mex_hat_kernel2d, mode="same")
 
-    print(f'applying "apply_laplace_filter" to image {image.active}')
+    # print(f'applying "apply_laplace_filter" to image {image.active}')
 
     return (out_img)
 
