@@ -425,7 +425,7 @@ def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp 
         register_func = registration
         transform_func = transform
         
-    print (f'using devie: {device_type}')
+    print (f'using device: {device_type}')
     
     ref_frame_data = data[ref_frame, ...]
     nr, nc = ref_frame_data.shape
@@ -443,7 +443,7 @@ def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp 
         registered_img[plane, ...] = transform_func.warp(orig_data[plane], xp.array([row_coords + v, col_coords + u]),
                                                          mode='edge', preserve_range=True)
     
-    return registered_img.get()
+    return registered_img
 
 
 def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
