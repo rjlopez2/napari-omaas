@@ -255,8 +255,9 @@ class OMAAS(QWidget):
         self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
 
-        self.inv_and_norm_label = QLabel("Foot print size")
-        self.mot_correction_group.glayout.addWidget(self.inv_and_norm_label, 3, 0, 1, 1)
+        self.fottprint_size_label = QLabel("Foot print size")
+        self.fottprint_size_label.setToolTip(("Footprint size for local normalization"))
+        self.mot_correction_group.glayout.addWidget(self.fottprint_size_label, 3, 0, 1, 1)
         
         self.footprint_size = QSpinBox()
         self.footprint_size.setSingleStep(1)
@@ -264,6 +265,7 @@ class OMAAS(QWidget):
         self.mot_correction_group.glayout.addWidget(self.footprint_size, 3, 1, 1, 1)
 
         self.radius_size_label = QLabel("Radius size")
+        self.radius_size_label.setToolTip(("Radius of the window considered around each pixel for image registration"))
         self.mot_correction_group.glayout.addWidget(self.radius_size_label, 4, 0, 1, 1)
         
         self.radius_size = QSpinBox()
