@@ -19,8 +19,10 @@ from qtpy.QtCore import Qt
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import NapariMPLWidget
+import copy
 
 from .utils import *
+
 
 if TYPE_CHECKING:
     import napari
@@ -579,13 +581,12 @@ class OMAAS(QWidget):
     
     def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_nam = None, **label_and_value_sufix):
         
-        # NOTE: Bug: it always change the iriginal dict even if I make a copy
         if img_custom_nam is not None:
             img_name = img_custom_nam
         else:
             img_name = self.viewer.layers.selection.active.name
 
-        self.curr_img_metadata = self.viewer.layers.selection.active.metadata.copy()
+        self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
 
         key_name = "Processing_method"
         if key_name not in self.curr_img_metadata:
