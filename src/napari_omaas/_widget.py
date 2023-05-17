@@ -12,13 +12,17 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
-    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QTreeWidget, QTreeWidgetItem,
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, 
+    QTreeWidget, QTreeWidgetItem, QCheckBox
     )
 from warnings import warn
 from qtpy.QtCore import Qt
+from PyQt5.QtGui import QIntValidator
+from numpy import ndarray as numpy_ndarray
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import NapariMPLWidget
+import subprocess
 
 from .utils import *
 
@@ -243,15 +247,29 @@ class OMAAS(QWidget):
         self._motion_correction_layout.addWidget(self.transform_group.gbox)
 
         ######## Transform btns ########
-        self.inv_img_label = QLabel("Transform data to integer")
-        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
-        self.transform_to_uint16_btn = QPushButton("Apply")
-        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
-        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+        # self.inv_img_label = QLabel("Transform data to integer")
+        # self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        # self.transform_to_uint16_btn = QPushButton("Apply")
+        # self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
+        # self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
 
         ######## Mot-Correction group ########
         self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
+
+        self.use_GPU_label = QLabel("Use GPU")
+        self.mot_correction_group.glayout.addWidget(self.use_GPU_label, 3, 2, 1, 1)
+        
+        self.use_GPU = QCheckBox()
+        try:
+            subprocess.check_output('nvidia-smi')
+            warn('Nvidia GPU detected!, setting to default GPU use.\nSet GPU use as default')
+            self.use_GPU.setChecked(True)
+        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+            warn('No Nvidia GPU in system!, setting to default CPU use')
+            self.use_GPU.setChecked(False)
+        
+        self.mot_correction_group.glayout.addWidget(self.use_GPU,  3, 3, 1, 1)
 
         self.inv_and_norm_label = QLabel("Foot print size")
         self.mot_correction_group.glayout.addWidget(self.inv_and_norm_label, 3, 0, 1, 1)
@@ -274,12 +292,20 @@ class OMAAS(QWidget):
         
         self.n_warps = QSpinBox()
         self.n_warps.setSingleStep(1)
-        self.n_warps.setValue(20)
+        self.n_warps.setValue(8)
         self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
+
+        self.ref_frame_label = QLabel("Reference frame")
+        self.mot_correction_group.glayout.addWidget(self.ref_frame_label, 4, 2, 1, 1)
+        
+        self.ref_frame_val = QLineEdit()
+        self.ref_frame_val.setValidator(QIntValidator()) 
+        self.ref_frame_val.setText("0")
+        self.mot_correction_group.glayout.addWidget(self.ref_frame_val, 4, 3, 1, 1)
 
         self.apply_mot_correct_btn = QPushButton("apply")
         self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
-        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 2)
+        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
 
 
         ######## APD-analysis tab ########
@@ -420,7 +446,7 @@ class OMAAS(QWidget):
         self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
-        self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
+        # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         self.plot_APD_btn.clicked.connect(self._get_traces_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
@@ -642,12 +668,37 @@ class OMAAS(QWidget):
         foot_print = self.footprint_size.value()
         radius_size = self.radius_size.value()
         n_warps = self.n_warps.value()
+        try:
+            subprocess.check_output('nvidia-smi')
+            print('Nvidia GPU detected!')
+        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+            warn('No Nvidia GPU in system!, setting to default CPU use')
+            self.use_GPU.setChecked(False)
+        
+        gpu_use = self.use_GPU.isChecked() # put this in the GUI         
+        ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
+        current_selection = self.viewer.layers.selection.active
+        raw_data = current_selection.data
+        if gpu_use == True:
+            raw_data = cp.asarray(raw_data)
 
-        results = motion_correction_func(self.viewer.layers.selection, 
-                                        foot_print_size=foot_print, 
-                                        radius_size=radius_size, num_warp=n_warps)
+        if current_selection._type_string == "image":
+                
+            scaled_img = scaled_img_func(raw_data, 
+                                        foot_print_size=foot_print)
+                
+            results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx)
+            
+            if not isinstance(results, numpy_ndarray):
+                results =  results.get()    
 
-        self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+            self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+
+            
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+
+        
         
     def _on_click_transform_to_uint16_btn(self):
         
