@@ -66,7 +66,9 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
+    results = (data - np.min(data, axis = 0)) / np.max(data, axis=0)
+    results = np.nan_to_num(results, nan=0)
+    return results
 
 
 
@@ -539,7 +541,7 @@ def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
 
     return (out_img)
 
-def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_method = "bcl_to_bcl", apd_perc = 75):
+def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -569,7 +571,7 @@ def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_
     
     time = np.arange(0, np_1Darray.shape[-1]) * cycle_length_ms 
 
-    AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=0.18) # use Solaiy filter as Callum
+    AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
 
 
     peaks_times = time[AP_peaks_indx]

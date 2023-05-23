@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, 
-    QTreeWidget, QTreeWidgetItem, QCheckBox
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider
     )
 from warnings import warn
 from qtpy.QtCore import Qt
@@ -325,9 +325,20 @@ class OMAAS(QWidget):
         self.plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
         self.APD_plot_group.glayout.addWidget(self.plot_APD_btn, 4, 1, 1, 1)
 
+        self.slider_APD_detection = QSlider(Qt.Orientation.Horizontal)
+        self.slider_max_range = 100000
+        self.slider_APD_detection.setRange(1, 2 * self.slider_max_range)
+        self.slider_APD_detection.setSingleStep(1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection, 5, 1, 1, 1)
+        
+        self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection.value() / (self.slider_max_range * 10)}")
+        self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
+        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 6, 1, 1, 1)
+        
+
         self.clear_plot_APD_btn = QPushButton("Clear traces")
         self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 5, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 7, 1, 1, 1)
                
         
 
@@ -450,6 +461,7 @@ class OMAAS(QWidget):
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         self.plot_APD_btn.clicked.connect(self._get_APD_params_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
+        self.slider_APD_detection.valueChanged.connect(self._get_slider_vlaue_func)
         
         
         
@@ -827,6 +839,7 @@ class OMAAS(QWidget):
             lname = self.viewer.layers.selection.active.name
             rmp_method = "bcl_to_bcl"
             apd_percentage = 75
+            prominence = self.slider_APD_detection.value() / (self.slider_max_range * 10)
             # self.viewer.layers.select_previous()
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
 
@@ -845,12 +858,16 @@ class OMAAS(QWidget):
                 #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
                 #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
 
-                apd_props = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage)
+                apd_props = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence)
 
-                self.APD_axes.vlines(time[apd_props.indx_at_AP_upstroke], ymin=0.1, ymax=0.4, 
+                self.APD_axes.vlines(time[apd_props.indx_at_AP_upstroke], 
+                                    ymin=traces[trace][apd_props.indx_at_AP_end], 
+                                    ymax=traces[trace][apd_props.indx_at_AP_peak], 
                                     linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
 
-                self.APD_axes.vlines(time[apd_props.indx_at_AP_end], ymin=0.1, ymax=0.4, 
+                self.APD_axes.vlines(time[apd_props.indx_at_AP_end], 
+                                    ymin=traces[trace][apd_props.indx_at_AP_end], 
+                                    ymax=traces[trace][apd_props.indx_at_AP_peak],  
                                     linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
 
                 # for indx in ini_ap_indx:
@@ -879,6 +896,11 @@ class OMAAS(QWidget):
 
         # ---->>>> this return the data currently pltting -> self._graphics_widget_TSP.plotter.data
         # ----->>>>> this retrn the new cavas to plot on to -> self._APD_TSP.canvas.figure.subplots
+
+    def _get_slider_vlaue_func(self, value):
+
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {value / (self.slider_max_range * 10)}')
+
 
 @magic_factory
 def example_magic_widget(img_layer: "napari.layers.Image"):
