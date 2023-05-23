@@ -21,10 +21,10 @@ import pandas as pd
 #     spot_threshold: float = 0.01,
 #     blob_sigma: float = 2
 # ) -> "napari.types.LayerDataTuple":
-import cupy as cp
-import cupyx
-from cucim.skimage import registration as registration_gpu
-from cucim.skimage import transform as transform_gpu
+# import cupy as cp
+# import cupyx
+# from cucim.skimage import registration as registration_gpu
+# from cucim.skimage import transform as transform_gpu
 
 
 
