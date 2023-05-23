@@ -12,13 +12,17 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
-    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QTreeWidget, QTreeWidgetItem,
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, 
+    QTreeWidget, QTreeWidgetItem, QCheckBox
     )
-
+from warnings import warn
 from qtpy.QtCore import Qt
+from PyQt5.QtGui import QIntValidator
+from numpy import ndarray as numpy_ndarray
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import NapariMPLWidget
+import subprocess
 
 from .utils import *
 
@@ -243,15 +247,29 @@ class OMAAS(QWidget):
         self._motion_correction_layout.addWidget(self.transform_group.gbox)
 
         ######## Transform btns ########
-        self.inv_img_label = QLabel("Transform data to integer")
-        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
-        self.transform_to_uint16_btn = QPushButton("Apply")
-        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
-        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+        # self.inv_img_label = QLabel("Transform data to integer")
+        # self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        # self.transform_to_uint16_btn = QPushButton("Apply")
+        # self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
+        # self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
 
         ######## Mot-Correction group ########
         self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
+
+        self.use_GPU_label = QLabel("Use GPU")
+        self.mot_correction_group.glayout.addWidget(self.use_GPU_label, 3, 2, 1, 1)
+        
+        self.use_GPU = QCheckBox()
+        try:
+            subprocess.check_output('nvidia-smi')
+            warn('Nvidia GPU detected!, setting to default GPU use.\nSet GPU use as default')
+            self.use_GPU.setChecked(True)
+        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+            warn('No Nvidia GPU in system!, setting to default CPU use')
+            self.use_GPU.setChecked(False)
+        
+        self.mot_correction_group.glayout.addWidget(self.use_GPU,  3, 3, 1, 1)
 
         self.inv_and_norm_label = QLabel("Foot print size")
         self.mot_correction_group.glayout.addWidget(self.inv_and_norm_label, 3, 0, 1, 1)
@@ -274,12 +292,20 @@ class OMAAS(QWidget):
         
         self.n_warps = QSpinBox()
         self.n_warps.setSingleStep(1)
-        self.n_warps.setValue(20)
+        self.n_warps.setValue(8)
         self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
+
+        self.ref_frame_label = QLabel("Reference frame")
+        self.mot_correction_group.glayout.addWidget(self.ref_frame_label, 4, 2, 1, 1)
+        
+        self.ref_frame_val = QLineEdit()
+        self.ref_frame_val.setValidator(QIntValidator()) 
+        self.ref_frame_val.setText("0")
+        self.mot_correction_group.glayout.addWidget(self.ref_frame_val, 4, 3, 1, 1)
 
         self.apply_mot_correct_btn = QPushButton("apply")
         self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
-        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 2)
+        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
 
 
         ######## APD-analysis tab ########
@@ -420,7 +446,7 @@ class OMAAS(QWidget):
         self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
-        self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
+        # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         self.plot_APD_btn.clicked.connect(self._get_APD_params_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
@@ -435,17 +461,25 @@ class OMAAS(QWidget):
         
 
     def _on_click_inv_data_btn(self):
+        current_selection = self.viewer.layers.selection.active
 
-        if self.viewer.layers.selection.active._type_string == "image":
-            results =invert_signal(self.viewer.layers.selection)
+        if current_selection._type_string == "image":
+            print(f'computing "invert_signal" to image {current_selection}')
+            results =invert_signal(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_norm_data_btn(self):
+        current_selection = self.viewer.layers.selection.active
 
-        if self.viewer.layers.selection.active._type_string == "image":
-            results = local_normal_fun(self.viewer.layers.selection)
+        if current_selection._type_string == "image":
+            print(f'computing "local_normal_fun" to image {current_selection}')
+            results = local_normal_fun(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_inv_and_norm_data_btn(self):
@@ -454,14 +488,20 @@ class OMAAS(QWidget):
 
 
     def _on_click_splt_chann(self):
-        if self.viewer.layers.selection.active._type_string == "image":
+        current_selection = self.viewer.layers.selection.active
 
-            my_splitted_images = split_channels_fun(self.viewer.layers.selection)
-            curr_img_name = self.viewer.layers.selection.active
+        if current_selection._type_string == "image":
+            print(f'applying "split_channels" to image {current_selection}')
+            my_splitted_images = split_channels_fun(current_selection.data)
+            curr_img_name = current_selection.name
+
             for channel in range(len(my_splitted_images)):
-                self.viewer.add_image(my_splitted_images[channel], 
-                colormap= "turbo", 
-                name= f"{curr_img_name}_ch{channel + 1}")
+                # self.viewer.add_image(my_splitted_images[channel],
+                # colormap= "turbo", 
+                # name= f"{curr_img_name}_ch{channel + 1}")
+                self.add_result_img(result_img=my_splitted_images[channel], img_custom_nam=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
     
     def get_rois_list(self):
@@ -527,39 +567,50 @@ class OMAAS(QWidget):
 
 
     def _on_click_apply_spat_filt_btn(self):
-        # self.gaus_filt_value.value()
-        if self.viewer.layers.selection.active._type_string == "image":
+        current_selection = self.viewer.layers.selection.active
+        if current_selection._type_string == "image":
         
             filter_type = self.spat_filter_types.currentText()
             sigma = self.sigma_filt_param.value()
             kernel_size = self.filt_kernel_value.value()
-
+            
             if filter_type == "Gaussian":
-                results = apply_gaussian_func(self.viewer.layers.selection, 
+                print(f'applying "apply_gaussian_func" to image {current_selection}')
+                results = apply_gaussian_func(current_selection.data, 
                                             sigma= sigma, 
                                             kernel_size=kernel_size)
                 self.add_result_img(results, KrnlSiz = kernel_size, Sgma = sigma)
 
             
             if filter_type == "Median":
-                results = apply_median_filt_func(self.viewer.layers.selection, kernel_size)
+                print(f'applying "apply_median_filt_func" to image {current_selection}')
+                results = apply_median_filt_func(current_selection.data, kernel_size)
                 self.add_result_img(results, MednFilt = kernel_size)
 
             if filter_type == "Box Filter":
-                results = apply_box_filter(self.viewer.layers.selection, kernel_size)
+                print(f'applying "apply_box_filter" to image {current_selection}')
+                results = apply_box_filter(current_selection.data, kernel_size)
                 self.add_result_img(results, BoxFilt = kernel_size)
             
             if filter_type == "Laplace Filter":
-                results = apply_laplace_filter(self.viewer.layers.selection, kernel_size=kernel_size, sigma=sigma)
+                print(f'applying "apply_laplace_filter" to image {current_selection}')
+                results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
                 self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
+
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
     
     
     
-    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", **label_and_value_sufix):
+    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_nam = None, **label_and_value_sufix):
         
         # NOTE: Bug: it always change the iriginal dict even if I make a copy
-        img_name = self.viewer.layers.selection.active.name
+        if img_custom_nam is not None:
+            img_name = img_custom_nam
+        else:
+            img_name = self.viewer.layers.selection.active.name
+
         self.curr_img_metadata = self.viewer.layers.selection.active.metadata.copy()
 
         key_name = "Processing_method"
@@ -617,12 +668,37 @@ class OMAAS(QWidget):
         foot_print = self.footprint_size.value()
         radius_size = self.radius_size.value()
         n_warps = self.n_warps.value()
+        try:
+            subprocess.check_output('nvidia-smi')
+            print('Nvidia GPU detected!')
+        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+            warn('No Nvidia GPU in system!, setting to default CPU use')
+            self.use_GPU.setChecked(False)
+        
+        gpu_use = self.use_GPU.isChecked() # put this in the GUI         
+        ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
+        current_selection = self.viewer.layers.selection.active
+        raw_data = current_selection.data
+        if gpu_use == True:
+            raw_data = cp.asarray(raw_data)
 
-        results = motion_correction_func(self.viewer.layers.selection, 
-                                        foot_print_size=foot_print, 
-                                        radius_size=radius_size, num_warp=n_warps)
+        if current_selection._type_string == "image":
+                
+            scaled_img = scaled_img_func(raw_data, 
+                                        foot_print_size=foot_print)
+                
+            results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx)
+            
+            if not isinstance(results, numpy_ndarray):
+                results =  results.get()    
 
-        self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+            self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+
+            
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+
+        
         
     def _on_click_transform_to_uint16_btn(self):
         
@@ -635,18 +711,21 @@ class OMAAS(QWidget):
             name= f"{self.viewer.layers.selection.active}_uint16")
 
     def _on_click_apply_temp_filt_btn(self):
+        current_selection = self.viewer.layers.selection.active
         if self.viewer.layers.selection.active._type_string == "image":
 
             cutoff_freq_value = self.butter_cutoff_freq_val.value()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
 
-            results = apply_butterworth_filt_func(self.viewer.layers.selection, 
+            results = apply_butterworth_filt_func(current_selection.data, 
                                                 ac_freq=fps_val, 
                                                 cf_freq= cutoff_freq_value, 
                                                 fil_ord=order_value)
 
             self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
 
         # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")

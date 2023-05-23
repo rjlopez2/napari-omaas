@@ -3,9 +3,8 @@ import numpy as np
 from skimage.filters import gaussian, threshold_triangle, median, rank
 from skimage.morphology import disk
 from skimage.registration import optical_flow_ilk
-from skimage.transform import warp
-from skimage import morphology
-from skimage import segmentation
+from skimage import transform
+from skimage import morphology, registration, segmentation
 import warnings
 from napari.layers import Image
 
@@ -22,9 +21,16 @@ import pandas as pd
 #     spot_threshold: float = 0.01,
 #     blob_sigma: float = 2
 # ) -> "napari.types.LayerDataTuple":
+import cupy as cp
+import cupyx
+from cucim.skimage import registration as registration_gpu
+from cucim.skimage import transform as transform_gpu
+
+
+
 
 def invert_signal(
-    image: "napari.types.ImageData"
+    data: "napari.types.ImageData"
     )-> "napari.types.LayerDataTuple":
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
@@ -40,33 +46,12 @@ def invert_signal(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    data = image.active.data
-    # processed_data = data.max(axis = 0) - data
-    # processed_data = np.nanmax(data, axis=0) - data
-    # processed_data = paralele_inv_signal(data)
-    
-    print(f'computing "invert_signal" to image {image.active}')
-    # print (f'computing "invert_signal" to image colormap='magma' ndim: {image.active.data.ndim}')
-    # return(inverted_data, dict(name= "lalala"), "image") 
-    # return(layer_data)
-    # norm_data = np.nanmax(data, axis=0) - data
 
-    # layer_data  = (
-    #     norm_data,
-    #     {
-    #         'name': 'My Image', 
-    #         'colormap': 'red'
-    #     },
-    #     "image"
-        
-    # )
-    # return layer_data
     return np.nanmax(data) - data
-    # return Image(image.active.data.max(axis = 0) - image.active.data)
-
+   
 
 def local_normal_fun(
-    image: "napari.types.ImageData")-> "napari.types.ImageData":
+    data: "napari.types.ImageData")-> "napari.types.ImageData":
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
     AP signals from inverted traces.
@@ -81,14 +66,18 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
+
     data = image.active.data
 
     print(f'computing "local_normal_fun" to image {image.active}')
 
-    return np.divide( data - np.nanmin(data, axis = 0),  np.nanmax(data, axis=0), dtype = np.int32)
+
+    return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
+
+
 
 def split_channels_fun(
-    image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
+    data: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
 
     """Split the stack every other images. 
     This is needed when doing Calcium and Voltage membrane recording.
@@ -103,11 +92,10 @@ def split_channels_fun(
     ch_1, ch_2 : list 
         two np.ndarray images for Calcim and Voltage signals respectively?"""
     
-    data = image.active.data
     ch_1 = data[::2,:,:]
     ch_2 = data[1::2,:,:]
-    print(f'applying "split_channels" to image {image.active}')
     return [ch_1, ch_2]
+
 
 def segment_heart_func( 
     image: "napari.types.ImageData",
@@ -174,7 +162,7 @@ def segment_heart_func(
     # return raw_img_stack_nobg
     return mask
 
-def apply_gaussian_func (image: "napari.types.ImageData",
+def apply_gaussian_func (data: "napari.types.ImageData",
     sigma, kernel_size = 3)-> "Image":
 
     """
@@ -196,12 +184,12 @@ def apply_gaussian_func (image: "napari.types.ImageData",
 
     """
 
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
     gauss_kernel1d = signal.windows.gaussian(M= kernel_size, std=sigma)
     gauss_kernel2d = gauss_kernel1d[:, None] @ gauss_kernel1d[None]
 
-    print(f'applying "apply_gaussian_func" to image {image.active}')
+    # print(f'applying "apply_gaussian_func" to image {image.active}')
 
     for plane, img in enumerate(data):
         # out_img[plane] = gaussian(img, sigma, preserve_range = True)
@@ -210,7 +198,7 @@ def apply_gaussian_func (image: "napari.types.ImageData",
     # return (gaussian(data, sigma))
     return out_img
 
-def apply_median_filt_func (image: "napari.types.ImageData",
+def apply_median_filt_func (data: "napari.types.ImageData",
     param)-> "Image":
 
     """
@@ -232,11 +220,11 @@ def apply_median_filt_func (image: "napari.types.ImageData",
 
     """
     param = int(param)
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
     footprint = disk(int(param))
 
-    print(f'applying "apply_median_filt_func" to image {image.active}')
+    # print(f'applying "apply_median_filt_func" to image {image.active}')
 
     # for plane, img in enumerate(data):
         # out_img[plane] = median(img, footprint = footprint)
@@ -343,70 +331,125 @@ def pick_frames_fun(
     return(subset[indx, ...])
 
 
-def motion_correction_func(image: "napari.types.ImageData",
-        foot_print_size = 10, radius_size = 7, num_warp = 20)-> "Image":
+# def motion_correction_func(image: "napari.types.ImageData",
+#         foot_print_size = 10, radius_size = 7, num_warp = 20)-> "Image":
 
-    """
-    Apply Registration (motion correction) to selected image.
+#     """
+#     Apply Registration (motion correction) to selected image.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        The image to be processed.
+#     Parameters
+#     ----------
+#     image : np.ndarray
+#         The image to be processed.
     
-    foot_print_size: int
-        Magintud of footprint for local normalization, default to 10.
+#     foot_print_size: int
+#         Magintud of footprint for local normalization, default to 10.
 
-    radius_size: int
-        Magintud of footprint for local normalization, default to 7.
+#     radius_size: int
+#         Magintud of footprint for local normalization, default to 7.
     
-    num_warp: int
-         Magintud of footprint for local normalization, default to 7.
+#     num_warp: int
+#          Magintud of footprint for local normalization, default to 7.
 
     
     
-    Returns
-    -------
-        registered_img : np.ndarray of type np.uint16
-        Corrected Image after registration filter.
+#     Returns
+#     -------
+#         registered_img : np.ndarray of type np.uint16
+#         Corrected Image after registration filter.
 
-    """
-    foot_print = disk(foot_print_size)
-    data = image.active.data
-    # imgae must be converted to integer for the method `skimage.filters.rank.minimum`
-    data = data.astype(np.uint16)
+#     """
+#     foot_print = disk(foot_print_size)
+#     data = image.active.data
+#     # imgae must be converted to integer for the method `skimage.filters.rank.minimum`
+#     data = data.astype(np.uint16)
     
-    # out_img = np.zeros_like(my_3d_image)
+#     # out_img = np.zeros_like(my_3d_image)
     
-    # apply local scaling
-    scaled_img = []
-    # print(type(data))
+#     # apply local scaling
+#     scaled_img = []
+#     # print(type(data))
     
-    for plane, img in enumerate(data):
+#     for plane, img in enumerate(data):
 
-        im_min = rank.minimum(img, footprint=foot_print)
-        im_max = rank.maximum(img, footprint=foot_print)
-        im_local_scaled = (img - im_min) / (im_max- im_min)
-        scaled_img.append( im_local_scaled)
+#         im_min = rank.minimum(img, footprint=foot_print)
+#         im_max = rank.maximum(img, footprint=foot_print)
+#         im_local_scaled = (img - im_min) / (im_max- im_min)
+#         scaled_img.append( im_local_scaled)
     
-    scaled_img = np.asanyarray(scaled_img)
+#     scaled_img = np.asanyarray(scaled_img)
     
-    ref_frame = scaled_img[0, ...] # take 1st frame as reference? (only works on averaged traces)
-    nr, nc = ref_frame.shape
+#     ref_frame = scaled_img[0, ...] # take 1st frame as reference? (only works on averaged traces)
+#     nr, nc = ref_frame.shape
     
-    # apply registration
-    registered_img = []
+#     # apply registration
+#     registered_img = []
     
-    for plane2, img2 in enumerate(scaled_img):
-        v, u = optical_flow_ilk(ref_frame, img2, radius = radius_size, num_warp=num_warp)
-        row_coords, col_coords = np.meshgrid(np.arange(nr), np.arange(nc),
-                                     indexing='ij')
-        image1_warp = warp(data[plane2], np.array([row_coords + v, col_coords + u]),
-                   mode='edge', preserve_range=True)
-        registered_img.append(image1_warp)
+#     for plane2, img2 in enumerate(scaled_img):
+#         v, u = optical_flow_ilk(ref_frame, img2, radius = radius_size, num_warp=num_warp)
+#         row_coords, col_coords = np.meshgrid(np.arange(nr), np.arange(nc),
+#                                      indexing='ij')
+#         image1_warp = warp(data[plane2], np.array([row_coords + v, col_coords + u]),
+#                    mode='edge', preserve_range=True)
+#         registered_img.append(image1_warp)
         
     
-    registered_img = np.asanyarray(registered_img, dtype=np.uint16).copy()
+#     registered_img = np.asanyarray(registered_img, dtype=np.uint16).copy()
+    
+#     return registered_img
+
+def scaled_img_func(data, foot_print_size = 10):
+    foot_print = disk(foot_print_size)
+    
+    xp = cp.get_array_module(data)
+    xpx = cupyx.scipy.get_array_module(data)
+    
+    # data = xp.asarray(img)
+    print(f"Using: {xp.__name__} in scaled_img_func")
+    
+    scaled_img = xp.empty_like(data, dtype= (xp.float64))
+    
+    
+    for plane, img in enumerate(data):
+        # if plane % 50 == 0:
+        #     print(f"normalizing plane: {plane}")
+            
+        im_min = xpx.ndimage.minimum_filter(img, footprint=foot_print)
+        im_max =xpx.ndimage.maximum_filter(img, footprint=foot_print)
+        scaled_img[plane,...] = xp.divide(xp.subtract(img, im_min),  xp.subtract(im_max, im_min))
+        
+    
+    return scaled_img
+
+def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp = 8):
+    xp, xpx = cp.get_array_module(data), cupyx.scipy.get_array_module(data)
+    
+    if type(data) == cp.ndarray:
+        device_type = "GPU"
+        register_func = registration_gpu
+        transform_func = transform_gpu
+    else:
+        device_type = "CPU"
+        register_func = registration
+        transform_func = transform
+        
+    print (f'using device: {device_type}')
+    
+    ref_frame_data = data[ref_frame, ...]
+    nr, nc = ref_frame_data.shape
+    registered_img = xp.empty_like(data)
+    # print(type(registered_img))
+        
+    for plane, img in enumerate(data):
+        # if plane % 50 == 0:
+            # print(f"Registering plane: {plane}")
+        
+        v, u = register_func.optical_flow_ilk(ref_frame_data, img, 
+                                              radius = radius_size, num_warp=num_warp)
+        row_coords, col_coords = xp.meshgrid(xp.arange(nr), xp.arange(nc),
+                                             indexing='ij')
+        registered_img[plane, ...] = transform_func.warp(orig_data[plane], xp.array([row_coords + v, col_coords + u]),
+                                                         mode='edge', preserve_range=True)
     
     return registered_img
 
@@ -433,7 +476,7 @@ def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
     return image.active.data.astype(np.uint16)
 
 
-def apply_butterworth_filt_func(image: "napari.types.ImageData",
+def apply_butterworth_filt_func(data: "napari.types.ImageData",
         ac_freq, cf_freq, fil_ord )-> "Image":
         
         """
@@ -466,15 +509,15 @@ def apply_butterworth_filt_func(image: "napari.types.ImageData",
         
         a, b = signal.butter(fil_ord, normal_freq, btype='low')
 
-        print(f"Applying 'apply_butterworth_filt_func'  to image {image.active}'")
-        filt_image = signal.filtfilt(a, b, image.active.data, 0)
+        # print(f"Applying 'apply_butterworth_filt_func'  to image {image.active}'")
+        filt_image = signal.filtfilt(a, b, data, 0)
         
         return filt_image
 
 
-def apply_box_filter(image: "napari.types.ImageData", kernel_size):
+def apply_box_filter(data: "napari.types.ImageData", kernel_size):
 
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
 
     box_kernel2d = np.ones((kernel_size, kernel_size))/kernel_size**2
@@ -482,14 +525,14 @@ def apply_box_filter(image: "napari.types.ImageData", kernel_size):
     for plane, img in enumerate(data):
         out_img[plane] = signal.oaconvolve(img, box_kernel2d, mode="same")
 
-    print(f'applying "apply_box_filter" to image {image.active}')
+    # print(f'applying "apply_box_filter" to image {image.active}')
 
     return (out_img)
 
 
-def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
+def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
     
-    data = image.active.data
+    # data = image.active.data
     out_img = np.empty_like(data)
 
     mex_hat_kernel1d = signal.ricker(kernel_size, sigma)
@@ -498,7 +541,7 @@ def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
     for plane, img in enumerate(data):
         out_img[plane] = signal.oaconvolve(img, mex_hat_kernel2d, mode="same")
 
-    print(f'applying "apply_laplace_filter" to image {image.active}')
+    # print(f'applying "apply_laplace_filter" to image {image.active}')
 
     return (out_img)
 
