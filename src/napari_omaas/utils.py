@@ -66,12 +66,6 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-
-    data = image.active.data
-
-    print(f'computing "local_normal_fun" to image {image.active}')
-
-
     return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
 
 
