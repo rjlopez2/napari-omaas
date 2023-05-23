@@ -11,6 +11,7 @@ from napari.layers import Image
 
 # from numba import jit, prange
 from scipy import signal, ndimage
+from scipy.interpolate import CubicSpline
 # functions
 
 from napari.types import ImageData, ShapesData
@@ -84,7 +85,7 @@ def local_normal_fun(
 
     print(f'computing "local_normal_fun" to image {image.active}')
 
-    return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
+    return np.divide( data - np.nanmin(data, axis = 0),  np.nanmax(data, axis=0), dtype = np.int32)
 
 def split_channels_fun(
     image: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
@@ -501,7 +502,7 @@ def apply_laplace_filter(image: "napari.types.ImageData", kernel_size, sigma):
 
     return (out_img)
 
-def compute_APD_props_func(np_1Darray, diff_n = 1, filter_size = 5, prominence= 0.6, cycle_length_ms = 0.004):
+def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_method = "bcl_to_bcl", apd_perc = 75):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -529,32 +530,149 @@ def compute_APD_props_func(np_1Darray, diff_n = 1, filter_size = 5, prominence= 
 
         """
     
-    dff = np.diff(np_1Darray, n = diff_n, prepend = np_1Darray[:diff_n])
+    time = np.arange(0, np_1Darray.shape[-1]) * cycle_length_ms 
+
+    AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=0.18) # use Solaiy filter as Callum
+
+
+    peaks_times = time[AP_peaks_indx]
+
+    # compute first approximation of BCL based on the peaks
+
+    bcl_list = np.diff(peaks_times) 
+
+    # add a last bcl value for the last AP if the last AP could not have an associated BCL
+    if len(bcl_list) < len(peaks_times):
+        # bcl_list = [bcl_list, time(end) - times(end)]
+        bcl_list = np.append(bcl_list, time[-1] - peaks_times[-1])
+
+
+    APD = np.zeros_like(peaks_times)
+    activation_time = np.zeros_like(peaks_times)
+    repol_time = np.zeros_like(peaks_times)
+    dVdtmax =  np.zeros_like(peaks_times)
+    resting_V = np.zeros_like(peaks_times)
+
+    # compute dfdt and normalize it
+
+    dfdt = np.diff(np_1Darray, n = diff_n, prepend = np_1Darray[:diff_n])
     
-    dff =  (dff - dff.min()) /  dff.max()
-    dff_filt = signal.savgol_filter(dff, filter_size, 2)
+    dfdt =  (dfdt - dfdt.min()) /  dfdt.max()
+    # dff_filt = signal.savgol_filter(dff, filter_size, 2)
     
-    # find Activation time
-    acttime_peaks_indx, acttime_peaks_props = signal.find_peaks(dff_filt, prominence=prominence)
-    dft_max = dff[acttime_peaks_indx] * cycle_length_ms
-    del dff_filt
-    
-    # find AP start
-    dff_filt = signal.savgol_filter(dff, round(filter_size*1.6), 2, deriv=1)
-    ini_peaks_indx, ini_peaks_props = signal.find_peaks(dff_filt, prominence=prominence * 0.2)
-    
-    
-    row_names = [f'AP_{i}' for i in range(dft_max.shape[-1])]
-    # rslt_df = pd.DataFrame([dft_max, ini_peaks_indx], columns= ["dvdt_max", "indx_AP_start"], index= row_names)
-    # rslt_df = pd.DataFrame({
-    #                         "dvdt_max": dft_max,
-    #                         "indx_AP_start": ini_peaks_indx,
-    #                         "indx_dft_max": acttime_peaks_indx
-    #                         }, index= row_names)
-    
-    
-    return acttime_peaks_indx, ini_peaks_indx
+    AP_ini = []
+    AP_peak = []
+    AP_end = [] 
+
+    for peak in range(len(peaks_times)):
+        #  Find RMP and APD
+        # RMP is mean V of BCL/2 to 5ms before AP upstroke to when this value is crossed to BCL/2 (or end) 
+
+        bcl = bcl_list[peak]
+        # Find interval of AP in indices
+        ini_indx = np.max(np.append(np.argwhere(time >= peaks_times[peak] - bcl/1.5)[0], 0))
+        
+        if peak + 1 == len(peaks_times):
+            end_indx = np.argmax(time)
+            # end_index_for_upstroke = end_indx - 1
+        else:
+            end_indx = np.min(np.append(np.argwhere(time >= peaks_times[peak] + bcl/1.5)[0], time.shape[-1] -2))
+        
+        end_index_for_upstroke = np.append(np.argwhere(time >= peaks_times[peak] + bcl/2)[0], time.shape[-1] -1).min()
+            
+        # Find upstroke index within the interval
+        upstroke_indx = ini_indx + np.argwhere( dfdt[ini_indx:end_index_for_upstroke] >=  dfdt[ini_indx:end_index_for_upstroke].max())[0][0]
+
+        # interpolation to find accurate activation time
+        interp_points = 1000;
+        delta = 10;
+        if upstroke_indx - delta <= 0:
+            lower_bound_interp = 1;
+        else:
+            lower_bound_interp = upstroke_indx - delta;
+        
+        if upstroke_indx + delta > time.shape[-1]:
+            upper_bound_interp = time.shape[-1]
+        else:
+            upper_bound_interp = upstroke_indx + delta;
+        
+
+        time_fine_grid = np.linspace(time[lower_bound_interp], time[upper_bound_interp], interp_points)
+        interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True)
+        dfdt_interpolated = interpolation_f(time_fine_grid) 
+        # find new dfdt max
+        dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
+        activation_time[peak] = time_fine_grid[dfdt_max_indx]
+        dVdtmax[peak] = dfdt_max * cycle_length_ms
+
+        # compute RMP from before and after upstroke
+        end_rmp_indx = upstroke_indx - np.ceil(np.divide(0.005 , cycle_length_ms)).astype(np.int64) # take mean from init_Ap indx until 5 ms before upstroke
+        init_RMP = np.nanmedian(np_1Darray[ini_indx:end_rmp_indx]) # using median isntead of mean
+
+        cross_indx = np.minimum(upstroke_indx + np.argwhere(np_1Darray[upstroke_indx:end_indx] <= init_RMP)[0] -1, end_indx)[0]
+        end_RMP = np.nanmedian(np_1Darray[cross_indx:end_indx]) # using median isntead of mean
+
+        
+
+        #  insert here a conditional to set the method for rmp computation 
+        if rmp_method == "bcl_to_bcl":
+            # use mean of RMP previous and after AP
+            resting_V[peak] = np.mean(np.array(init_RMP, end_RMP))
+            # use minimum value pre upstroke
+        if rmp_method == "pre_upstroke_min":
+            resting_V[peak] = np.min(np_1Darray[ini_indx:upstroke_indx])
+            # use minimum value after AP
+        if rmp_method == "post_AP_min":
+            next_peak_index = np.minimum(np.argwhere(time >= peaks_times[peak] + bcl )[0], time.shape[-1] -1)[0]
+            resting_V[peak] = np.min(np_1Darray[upstroke_indx:next_peak_index])
+            # take the average of min before upstroke and min after AP
+        if rmp_method == "ave_pre_post_min":
+            pre_min = np.min(np_1Darray[ini_indx:upstroke_indx])
+            next_peak_index = np.minimum(np.argwhere(time >= peaks_times[peak] + bcl )[0], time.shape[-1] -1)[0]
+            post_min = np.min(np_1Darray[upstroke_indx:next_peak_index])
+            resting_V[peak] = np.mean(np.array(pre_min, post_min))
+
+        
+        # compute APD
+        #################### the bug is here ###################
+        V_max = np.max(np_1Darray[ini_indx:end_indx])        
+        # amp_apd_perc = (100 - apd_perc) / 100
+        amp_V = (((100 - apd_perc) / 100) * (V_max - resting_V[peak])) + resting_V[peak]
+        # Find index where the AP has recovered the given percentage (or if it didnt, take the last index)
+        current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
+        # repol_index = AP_peaks_indx[peak] + np.minimum( current_APD_segment.size -1 , np.argwhere(current_APD_segment <= amp_V).min()  )
+        # repol_index = AP_peaks_indx[peak] + min(np.argwhere(current_APD_segment[current_APD_segment <= amp_V].min() == current_APD_segment)[0][0], current_APD_segment.size -1)
+        repol_index =  AP_peaks_indx[peak] + np.minimum(np.argwhere(current_APD_segment <= amp_V)[0][0] , current_APD_segment.shape[-1] -1)
+        # repol_index = AP_peaks_indx[peak] + np.minimum(np.argwhere(np_1Darray[AP_peaks_indx[peak] + 1 : end_indx] <= amp_V)[0], np_1Darray[AP_peaks_indx[peak] : end_indx].size)[0]
+        pre_repol_index = repol_index - 2
+        # enerate fine grid for interpolation in ms
+        time_fine_grid = np.linspace(time[pre_repol_index], time[repol_index], interp_points)
+        Vm_interpolated = np.interp(time_fine_grid, time[pre_repol_index:repol_index], np_1Darray[pre_repol_index:repol_index])
+        # repol_index_interpolated = np.nanmin( np.append(np.array(time_fine_grid.size -1 ), np.argwhere(Vm_interpolated <= amp_V)))
+        repol_index_interpolated = np.append(np.argwhere(Vm_interpolated <= amp_V), time_fine_grid.size -1 ).min()
+
+        repol_time[peak] = time_fine_grid[repol_index_interpolated] #* 1000
+        APD[peak] = repol_time[peak] - activation_time[peak]
+
+        AP_ini.append(upstroke_indx) 
+        AP_peak.append(AP_peaks_indx[peak]) 
+        AP_end.append(repol_index ) 
 
 
 
-    
+    row_names = [f'AP_{i}' for i in range(peaks_times.shape[-1])]
+    rslt_df = pd.DataFrame({
+                            f"APD_perc" : apd_perc,
+                            f"APD" : APD,
+                            "AcTime_dVdtmax": dVdtmax,
+                            "BasCycLength_bcl": bcl_list,
+                            "time_at_AP_upstroke": time[AP_ini],
+                            f"time_at_AP_peak": time[AP_peak],
+                            "time_at_AP_end": time[AP_end],
+                            "indx_at_AP_upstroke": AP_ini,
+                            f"indx_at_AP_peak": AP_peak,
+                            "indx_at_AP_end":AP_end,
+                            }, index= row_names)
+     
+       
+    return (rslt_df)

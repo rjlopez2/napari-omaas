@@ -295,7 +295,7 @@ class OMAAS(QWidget):
         self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 6, 6, 1)
         self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
-        self.plot_APD_btn = QPushButton("Plot traces")
+        self.plot_APD_btn = QPushButton("Get APDs")
         self.plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
         self.APD_plot_group.glayout.addWidget(self.plot_APD_btn, 4, 1, 1, 1)
 
@@ -746,27 +746,45 @@ class OMAAS(QWidget):
             traces = self._graphics_widget_TSP.plotter.data[1::2]
             time = self._graphics_widget_TSP.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
+            rmp_method = "bcl_to_bcl"
+            apd_percentage = 75
             # self.viewer.layers.select_previous()
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
 
             for trace in range(len(traces)):
-                acttime_peaks_indx, ini_peaks_indx = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
+                # acttime_peaks_indx, ini_peaks_indx = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
                 # print(rslts)
                 self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5)
-                # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
-                for indx in acttime_peaks_indx:
-                    # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
-                    # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
-                    self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
+                # # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
+                # for indx in acttime_peaks_indx:
+                #     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
+                #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
+                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
                 
-                for indx in ini_peaks_indx:
-                    # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
-                    # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
-                    self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
+                # for indx in ini_peaks_indx:
+                #     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
+                #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
+                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
+
+                apd_props = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage)
+
+                self.APD_axes.vlines(time[apd_props.indx_at_AP_upstroke], ymin=0.1, ymax=0.4, 
+                                    linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
+
+                self.APD_axes.vlines(time[apd_props.indx_at_AP_end], ymin=0.1, ymax=0.4, 
+                                    linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
+
+                # for indx in ini_ap_indx:
+
+                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
+
+                # for indx in end_ap_indx:
+
+                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
 
 
 
-            print(acttime_peaks_indx, ini_peaks_indx )
+            # print(acttime_peaks_indx, ini_peaks_indx )
 
             
             self._APD_TSP._draw()
