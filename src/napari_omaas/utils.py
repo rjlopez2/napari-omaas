@@ -647,8 +647,13 @@ def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_
         # compute RMP from before and after upstroke
         end_rmp_indx = upstroke_indx - np.ceil(np.divide(0.005 , cycle_length_ms)).astype(np.int64) # take mean from init_Ap indx until 5 ms before upstroke
         init_RMP = np.nanmedian(np_1Darray[ini_indx:end_rmp_indx]) # using median isntead of mean
+        min_indx = np.argwhere(np_1Darray[upstroke_indx:end_indx] <= init_RMP)
 
-        cross_indx = np.minimum(upstroke_indx + np.argwhere(np_1Darray[upstroke_indx:end_indx] <= init_RMP)[0] -1, end_indx)[0]
+        if not np.any(min_indx):
+            cross_indx = np.minimum(upstroke_indx, end_indx)
+        else:
+            cross_indx = np.minimum(upstroke_indx + min_indx[0], end_indx)[0]
+        
         end_RMP = np.nanmedian(np_1Darray[cross_indx:end_indx]) # using median isntead of mean
 
         
