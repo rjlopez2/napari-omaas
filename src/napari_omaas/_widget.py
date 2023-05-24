@@ -325,20 +325,29 @@ class OMAAS(QWidget):
         self.plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
         self.APD_plot_group.glayout.addWidget(self.plot_APD_btn, 4, 1, 1, 1)
 
-        self.slider_APD_detection = QSlider(Qt.Orientation.Horizontal)
-        self.slider_max_range = 100000
-        self.slider_APD_detection.setRange(1, 2 * self.slider_max_range)
-        self.slider_APD_detection.setSingleStep(1)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection, 5, 1, 1, 1)
+        self.slider_APD_detection_threshold = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_thres_max_range = 100000
+        self.slider_APD_detection_threshold.setRange(1, 2 * self.slider_APD_thres_max_range)
+        self.slider_APD_detection_threshold.setSingleStep(1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 5, 1, 1, 1)
         
-        self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection.value() / (self.slider_max_range * 10)}")
+        self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range * 10)}")
         self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
         self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 6, 1, 1, 1)
-        
+
+        self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_percentage.setRange(10, 100)
+        self.slider_APD_percentage.setValue(75)
+        self.slider_APD_percentage.setSingleStep(5)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 7, 1, 1, 1)
+
+        self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
+        self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 8, 1, 1, 1)
 
         self.clear_plot_APD_btn = QPushButton("Clear traces")
         self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 7, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn,98, 1, 1, 1)
                
         
 
@@ -461,7 +470,8 @@ class OMAAS(QWidget):
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         self.plot_APD_btn.clicked.connect(self._get_APD_params_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
-        self.slider_APD_detection.valueChanged.connect(self._get_slider_vlaue_func)
+        self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
+        self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         
         
         
@@ -838,8 +848,8 @@ class OMAAS(QWidget):
             time = self._graphics_widget_TSP.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
             rmp_method = "bcl_to_bcl"
-            apd_percentage = 75
-            prominence = self.slider_APD_detection.value() / (self.slider_max_range * 10)
+            apd_percentage = self.slider_APD_percentage.value()
+            prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range * 10)
             # self.viewer.layers.select_previous()
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
 
@@ -897,9 +907,13 @@ class OMAAS(QWidget):
         # ---->>>> this return the data currently pltting -> self._graphics_widget_TSP.plotter.data
         # ----->>>>> this retrn the new cavas to plot on to -> self._APD_TSP.canvas.figure.subplots
 
-    def _get_slider_vlaue_func(self, value):
+    def _get_APD_thre_slider_vlaue_func(self, value):
 
-        self.slider_label_current_value.setText(f'Sensitivity threshold: {value / (self.slider_max_range * 10)}')
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {value / (self.slider_APD_thres_max_range * 10)}')
+
+    def _get_APD_percent_slider_vlaue_func(self, value):
+        self.slider_APD_perc_label.setText(f'APD percentage: {value}')
+        
 
 
 @magic_factory
