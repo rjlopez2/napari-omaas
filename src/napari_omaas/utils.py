@@ -718,5 +718,5 @@ def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_
                             "indx_at_AP_end":AP_end,
                             }, index= row_names)
      
-       
+    rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
     return (rslt_df)
