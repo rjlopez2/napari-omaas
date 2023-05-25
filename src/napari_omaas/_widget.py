@@ -358,20 +358,29 @@ class OMAAS(QWidget):
         self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
         self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 6, 1, 1)
-
-        # df = pd.DataFrame({'a': ['Mary', 'Jim', 'John'],
-        #            'b': [100, 200, 300],
-        #            'c': ['a', 'b', 'c']})
-        df = pd.read_csv("/Users/rubencito/Desktop/Iris.csv")
-
+        values = []
+        self.AP_df_default_val = pd.DataFrame({
+                            f"APD_perc" : values,
+                            f"APD" : values,
+                            "AcTime_dVdtmax": values,
+                            "BasCycLength_bcl": values,
+                            "time_at_AP_upstroke": values,
+                            f"time_at_AP_peak": values,
+                            "time_at_AP_end": values,
+                            "indx_at_AP_upstroke": values,
+                            f"indx_at_AP_peak": values,
+                            "indx_at_AP_end": values,
+                            }, index= values)
+        # df = pd.read_csv("/Users/rubencito/Desktop/Iris.csv")
+        
+        model = PandasModel(self.AP_df_default_val)
         self.APD_propert_table = QTableView()
+        self.APD_propert_table.setModel(model)
+
         self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
         self.APD_propert_table.setAlternatingRowColors(True)
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
-        
-        model = PandasModel(df)
-        self.APD_propert_table.setModel(model)
-        # self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 10, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
 
                
         
@@ -895,6 +904,10 @@ class OMAAS(QWidget):
 
                 apd_props = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence)
 
+                model = PandasModel(apd_props)
+                # self.APD_propert_table = QTableView()
+                self.APD_propert_table.setModel(model)
+
                 self.APD_axes.vlines(time[apd_props.indx_at_AP_upstroke], 
                                     ymin=traces[trace][apd_props.indx_at_AP_end], 
                                     ymax=traces[trace][apd_props.indx_at_AP_peak], 
@@ -928,6 +941,9 @@ class OMAAS(QWidget):
         """
         self.APD_axes.clear()
         self._APD_TSP._draw()
+
+        model = PandasModel(self.AP_df_default_val)
+        self.APD_propert_table.setModel(model)
 
         # ---->>>> this return the data currently pltting -> self._graphics_widget_TSP.plotter.data
         # ----->>>>> this retrn the new cavas to plot on to -> self._APD_TSP.canvas.figure.subplots
@@ -981,50 +997,57 @@ class VHGroup():
         self.gbox.setLayout(self.glayout)
 
 class PandasModel(QAbstractTableModel):
+    """A model to interface a Qt view with pandas dataframe """
 
-    def __init__(self, data_frame: pd.DataFrame, parent=None ):
-       QAbstractTableModel.__init__(self, parent)
-       self._data = data_frame
+    def __init__(self, dataframe: pd.DataFrame, parent=None):
+        QAbstractTableModel.__init__(self, parent)
+        self._dataframe = dataframe
 
-    def rowCount(self, parent = QModelIndex()) -> int:
-        
+    def rowCount(self, parent=QModelIndex()) -> int:
+        """ Override method from QAbstractTableModel
+
+        Return row count of the pandas DataFrame
+        """
         if parent == QModelIndex():
-            return len(self._data)
-        
-        return 0
-            
-    
-    def colCount(self, parent = QModelIndex()) -> int:
+            return len(self._dataframe)
 
-        if parent == QModelIndex():
-            return self._data.shape[1] 
-        
         return 0
-            
-    
-    def data(self, index = QModelIndex, role=Qt.ItemDataRole):
-        
+
+    def columnCount(self, parent=QModelIndex()) -> int:
+        """Override method from QAbstractTableModel
+
+        Return column count of the pandas DataFrame
+        """
+        if parent == QModelIndex():
+            return len(self._dataframe.columns)
+        return 0
+
+    def data(self, index: QModelIndex, role=Qt.ItemDataRole):
+        """Override method from QAbstractTableModel
+
+        Return data cell from the pandas DataFrame
+        """
         if not index.isValid():
             return None
-        
+
         if role == Qt.DisplayRole:
-            return str(self._data.iloc[index.row(), index.colum()])
-            
-        if role == Qt.ItemDataRole:
-                return str(self._data.iloc[index.row(), index.colum()])
-        
+            return str(self._dataframe.iloc[index.row(), index.column()])
+
         return None
 
-    def headerData(self, col: int, orientation: Qt.Orientation, role: Qt.ItemDataRole):
+    def headerData(
+        self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole
+    ):
+        """Override method from QAbstractTableModel
 
+        Return dataframe index as vertical header data and columns as horizontal header data.
+        """
         if role == Qt.DisplayRole:
             if orientation == Qt.Horizontal:
-                return str(self._data.columns[col])
-            if orientation == Qt.Vertical:
-                return str(self._data.index[col])
-        # if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole:
+                return str(self._dataframe.columns[section])
 
-            return self._data.columns[col]
-        
-        return None 
+            if orientation == Qt.Vertical:
+                return str(self._dataframe.index[section])
+
+        return None
 
