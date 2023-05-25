@@ -13,16 +13,18 @@ from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, 
-    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView
     )
 from warnings import warn
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
 from PyQt5.QtGui import QIntValidator
 from numpy import ndarray as numpy_ndarray
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import NapariMPLWidget
 import subprocess
+
+import pandas as pd
 
 from .utils import *
 
@@ -318,36 +320,59 @@ class OMAAS(QWidget):
         # self.APD_plot_group.glayout.addWidget(self._APD_widget_TSP, 3, 0, 1, 1)
         
         self._APD_TSP = NapariMPLWidget(self.viewer)
-        self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 6, 6, 1)
+        self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
         self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
-        self.plot_APD_btn = QPushButton("Get APDs")
-        self.plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.plot_APD_btn, 4, 1, 1, 1)
+        self.compute_APD_btn = QPushButton("Compute APDs")
+        self.compute_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
+        self.APD_plot_group.glayout.addWidget(self.compute_APD_btn, 4, 0, 1, 1)
 
-        self.slider_APD_detection_threshold = QSlider(Qt.Orientation.Horizontal)
-        self.slider_APD_thres_max_range = 100000
-        self.slider_APD_detection_threshold.setRange(1, 2 * self.slider_APD_thres_max_range)
-        self.slider_APD_detection_threshold.setSingleStep(1)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 5, 1, 1, 1)
+        self.clear_plot_APD_btn = QPushButton("Clear traces")
+        self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
+        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 4, 1, 1, 1)
+
+        self.APD_computing_method_label = QLabel("AP baseline method")
+        self.APD_computing_method_label.setToolTip(("Select method to compute the resting AP. Methods are : bcl_to_bcl, pre_upstroke_min, post_AP_min and ave_pre_post_min "))
+        self.APD_plot_group.glayout.addWidget(self.APD_computing_method_label, 4, 2, 1, 1)
         
-        self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range * 10)}")
+        self.APD_computing_method = QComboBox()
+        self.APD_computing_method.addItems(["bcl_to_bcl", "pre_upstroke_min", "post_AP_min", "ave_pre_post_min"])
+        self.APD_plot_group.glayout.addWidget(self.APD_computing_method, 4, 3, 1, 1)
+        
+        self.slider_APD_detection_threshold = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_thres_max_range = 10000
+        self.slider_APD_detection_threshold.setRange(1, 300)
+        self.slider_APD_detection_threshold.setValue(100)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 5, 1, 1)
+        
+        self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
         self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
-        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 6, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 4, 4, 1, 1)
 
         self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_percentage.setRange(10, 100)
         self.slider_APD_percentage.setValue(75)
         self.slider_APD_percentage.setSingleStep(5)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 7, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 7, 1, 1)
 
         self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 8, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 6, 1, 1)
 
-        self.clear_plot_APD_btn = QPushButton("Clear traces")
-        self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn,98, 1, 1, 1)
+        # df = pd.DataFrame({'a': ['Mary', 'Jim', 'John'],
+        #            'b': [100, 200, 300],
+        #            'c': ['a', 'b', 'c']})
+        df = pd.read_csv("/Users/rubencito/Desktop/Iris.csv")
+
+        self.APD_propert_table = QTableView()
+        self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
+        self.APD_propert_table.setAlternatingRowColors(True)
+        self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
+        
+        model = PandasModel(df)
+        self.APD_propert_table.setModel(model)
+        # self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 10, 1, 1, 1)
+
                
         
 
@@ -376,7 +401,7 @@ class OMAAS(QWidget):
         self.metadata_tree.setColumnCount(2)
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree)
-        self.layout().addWidget(self.metadata_display_group.gbox)
+        # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
 
         ######################
@@ -468,7 +493,7 @@ class OMAAS(QWidget):
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
-        self.plot_APD_btn.clicked.connect(self._get_APD_params_call_back)
+        self.compute_APD_btn.clicked.connect(self._get_APD_params_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
@@ -849,7 +874,7 @@ class OMAAS(QWidget):
             lname = self.viewer.layers.selection.active.name
             rmp_method = "bcl_to_bcl"
             apd_percentage = self.slider_APD_percentage.value()
-            prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range * 10)
+            prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             # self.viewer.layers.select_previous()
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
 
@@ -909,7 +934,7 @@ class OMAAS(QWidget):
 
     def _get_APD_thre_slider_vlaue_func(self, value):
 
-        self.slider_label_current_value.setText(f'Sensitivity threshold: {value / (self.slider_APD_thres_max_range * 10)}')
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {value / (self.slider_APD_thres_max_range )}')
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
@@ -954,3 +979,52 @@ class VHGroup():
             raise Exception(f"Unknown orientation {orientation}") 
 
         self.gbox.setLayout(self.glayout)
+
+class PandasModel(QAbstractTableModel):
+
+    def __init__(self, data_frame: pd.DataFrame, parent=None ):
+       QAbstractTableModel.__init__(self, parent)
+       self._data = data_frame
+
+    def rowCount(self, parent = QModelIndex()) -> int:
+        
+        if parent == QModelIndex():
+            return len(self._data)
+        
+        return 0
+            
+    
+    def colCount(self, parent = QModelIndex()) -> int:
+
+        if parent == QModelIndex():
+            return self._data.shape[1] 
+        
+        return 0
+            
+    
+    def data(self, index = QModelIndex, role=Qt.ItemDataRole):
+        
+        if not index.isValid():
+            return None
+        
+        if role == Qt.DisplayRole:
+            return str(self._data.iloc[index.row(), index.colum()])
+            
+        if role == Qt.ItemDataRole:
+                return str(self._data.iloc[index.row(), index.colum()])
+        
+        return None
+
+    def headerData(self, col: int, orientation: Qt.Orientation, role: Qt.ItemDataRole):
+
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return str(self._data.columns[col])
+            if orientation == Qt.Vertical:
+                return str(self._data.index[col])
+        # if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole:
+
+            return self._data.columns[col]
+        
+        return None 
+
