@@ -872,7 +872,7 @@ class OMAAS(QWidget):
             traces = self._graphics_widget_TSP.plotter.data[1::2]
             time = self._graphics_widget_TSP.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
-            rmp_method = "bcl_to_bcl"
+            rmp_method = self.APD_computing_method.currentText()
             apd_percentage = self.slider_APD_percentage.value()
             prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             # self.viewer.layers.select_previous()
