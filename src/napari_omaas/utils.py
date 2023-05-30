@@ -3,14 +3,14 @@ import numpy as np
 from skimage.filters import gaussian, threshold_triangle, median, rank
 from skimage.morphology import disk
 from skimage.registration import optical_flow_ilk
-from skimage.transform import warp
-from skimage import morphology
-from skimage import segmentation
+from skimage import transform
+from skimage import morphology, registration, segmentation
 import warnings
 from napari.layers import Image
 
 # from numba import jit, prange
 from scipy import signal, ndimage
+from scipy.interpolate import CubicSpline
 # functions
 
 from napari.types import ImageData, ShapesData
@@ -21,6 +21,13 @@ import pandas as pd
 #     spot_threshold: float = 0.01,
 #     blob_sigma: float = 2
 # ) -> "napari.types.LayerDataTuple":
+# import cupy as cp
+# import cupyx
+# from cucim.skimage import registration as registration_gpu
+# from cucim.skimage import transform as transform_gpu
+
+
+
 
 def invert_signal(
     data: "napari.types.ImageData"
@@ -59,7 +66,10 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    return (data - np.nanmin(data, axis = 0)) / np.nanmax(data, axis=0)
+    results = (data - np.min(data, axis = 0)) / np.max(data, axis=0)
+    results = np.nan_to_num(results, nan=0)
+    return results
+
 
 
 def split_channels_fun(
@@ -317,70 +327,125 @@ def pick_frames_fun(
     return(subset[indx, ...])
 
 
-def motion_correction_func(image: "napari.types.ImageData",
-        foot_print_size = 10, radius_size = 7, num_warp = 20)-> "Image":
+# def motion_correction_func(image: "napari.types.ImageData",
+#         foot_print_size = 10, radius_size = 7, num_warp = 20)-> "Image":
 
-    """
-    Apply Registration (motion correction) to selected image.
+#     """
+#     Apply Registration (motion correction) to selected image.
 
-    Parameters
-    ----------
-    image : np.ndarray
-        The image to be processed.
+#     Parameters
+#     ----------
+#     image : np.ndarray
+#         The image to be processed.
     
-    foot_print_size: int
-        Magintud of footprint for local normalization, default to 10.
+#     foot_print_size: int
+#         Magintud of footprint for local normalization, default to 10.
 
-    radius_size: int
-        Magintud of footprint for local normalization, default to 7.
+#     radius_size: int
+#         Magintud of footprint for local normalization, default to 7.
     
-    num_warp: int
-         Magintud of footprint for local normalization, default to 7.
+#     num_warp: int
+#          Magintud of footprint for local normalization, default to 7.
 
     
     
-    Returns
-    -------
-        registered_img : np.ndarray of type np.uint16
-        Corrected Image after registration filter.
+#     Returns
+#     -------
+#         registered_img : np.ndarray of type np.uint16
+#         Corrected Image after registration filter.
 
-    """
-    foot_print = disk(foot_print_size)
-    data = image.active.data
-    # imgae must be converted to integer for the method `skimage.filters.rank.minimum`
-    data = data.astype(np.uint16)
+#     """
+#     foot_print = disk(foot_print_size)
+#     data = image.active.data
+#     # imgae must be converted to integer for the method `skimage.filters.rank.minimum`
+#     data = data.astype(np.uint16)
     
-    # out_img = np.zeros_like(my_3d_image)
+#     # out_img = np.zeros_like(my_3d_image)
     
-    # apply local scaling
-    scaled_img = []
-    # print(type(data))
+#     # apply local scaling
+#     scaled_img = []
+#     # print(type(data))
     
-    for plane, img in enumerate(data):
+#     for plane, img in enumerate(data):
 
-        im_min = rank.minimum(img, footprint=foot_print)
-        im_max = rank.maximum(img, footprint=foot_print)
-        im_local_scaled = (img - im_min) / (im_max- im_min)
-        scaled_img.append( im_local_scaled)
+#         im_min = rank.minimum(img, footprint=foot_print)
+#         im_max = rank.maximum(img, footprint=foot_print)
+#         im_local_scaled = (img - im_min) / (im_max- im_min)
+#         scaled_img.append( im_local_scaled)
     
-    scaled_img = np.asanyarray(scaled_img)
+#     scaled_img = np.asanyarray(scaled_img)
     
-    ref_frame = scaled_img[0, ...] # take 1st frame as reference? (only works on averaged traces)
-    nr, nc = ref_frame.shape
+#     ref_frame = scaled_img[0, ...] # take 1st frame as reference? (only works on averaged traces)
+#     nr, nc = ref_frame.shape
     
-    # apply registration
-    registered_img = []
+#     # apply registration
+#     registered_img = []
     
-    for plane2, img2 in enumerate(scaled_img):
-        v, u = optical_flow_ilk(ref_frame, img2, radius = radius_size, num_warp=num_warp)
-        row_coords, col_coords = np.meshgrid(np.arange(nr), np.arange(nc),
-                                     indexing='ij')
-        image1_warp = warp(data[plane2], np.array([row_coords + v, col_coords + u]),
-                   mode='edge', preserve_range=True)
-        registered_img.append(image1_warp)
+#     for plane2, img2 in enumerate(scaled_img):
+#         v, u = optical_flow_ilk(ref_frame, img2, radius = radius_size, num_warp=num_warp)
+#         row_coords, col_coords = np.meshgrid(np.arange(nr), np.arange(nc),
+#                                      indexing='ij')
+#         image1_warp = warp(data[plane2], np.array([row_coords + v, col_coords + u]),
+#                    mode='edge', preserve_range=True)
+#         registered_img.append(image1_warp)
         
     
-    registered_img = np.asanyarray(registered_img, dtype=np.uint16).copy()
+#     registered_img = np.asanyarray(registered_img, dtype=np.uint16).copy()
+    
+#     return registered_img
+
+def scaled_img_func(data, foot_print_size = 10):
+    foot_print = disk(foot_print_size)
+    
+    xp = cp.get_array_module(data)
+    xpx = cupyx.scipy.get_array_module(data)
+    
+    # data = xp.asarray(img)
+    print(f"Using: {xp.__name__} in scaled_img_func")
+    
+    scaled_img = xp.empty_like(data, dtype= (xp.float64))
+    
+    
+    for plane, img in enumerate(data):
+        # if plane % 50 == 0:
+        #     print(f"normalizing plane: {plane}")
+            
+        im_min = xpx.ndimage.minimum_filter(img, footprint=foot_print)
+        im_max =xpx.ndimage.maximum_filter(img, footprint=foot_print)
+        scaled_img[plane,...] = xp.divide(xp.subtract(img, im_min),  xp.subtract(im_max, im_min))
+        
+    
+    return scaled_img
+
+def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp = 8):
+    xp, xpx = cp.get_array_module(data), cupyx.scipy.get_array_module(data)
+    
+    if type(data) == cp.ndarray:
+        device_type = "GPU"
+        register_func = registration_gpu
+        transform_func = transform_gpu
+    else:
+        device_type = "CPU"
+        register_func = registration
+        transform_func = transform
+        
+    print (f'using device: {device_type}')
+    
+    ref_frame_data = data[ref_frame, ...]
+    nr, nc = ref_frame_data.shape
+    registered_img = xp.empty_like(data)
+    # print(type(registered_img))
+        
+    for plane, img in enumerate(data):
+        # if plane % 50 == 0:
+            # print(f"Registering plane: {plane}")
+        
+        v, u = register_func.optical_flow_ilk(ref_frame_data, img, 
+                                              radius = radius_size, num_warp=num_warp)
+        row_coords, col_coords = xp.meshgrid(xp.arange(nr), xp.arange(nc),
+                                             indexing='ij')
+        registered_img[plane, ...] = transform_func.warp(orig_data[plane], xp.array([row_coords + v, col_coords + u]),
+                                                         mode='edge', preserve_range=True)
     
     return registered_img
 
@@ -476,7 +541,7 @@ def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
 
     return (out_img)
 
-def find_dvdt_max(np_1Darray, diff_n = 1, filter_size = 5, prominence= 0.6, cycle_length_ms = 0.004):
+def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -504,20 +569,154 @@ def find_dvdt_max(np_1Darray, diff_n = 1, filter_size = 5, prominence= 0.6, cycl
 
         """
     
-    dff = np.diff(np_1Darray, n = diff_n, prepend = np_1Darray[:diff_n])
+    time = np.arange(0, np_1Darray.shape[-1]) * cycle_length_ms 
+
+    AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
+
+
+    peaks_times = time[AP_peaks_indx]
+
+    # compute first approximation of BCL based on the peaks
+
+    bcl_list = np.diff(peaks_times) 
+
+    # add a last bcl value for the last AP if the last AP could not have an associated BCL
+    if len(bcl_list) < len(peaks_times):
+        # bcl_list = [bcl_list, time(end) - times(end)]
+        bcl_list = np.append(bcl_list, time[-1] - peaks_times[-1])
+
+
+    APD = np.zeros_like(peaks_times)
+    activation_time = np.zeros_like(peaks_times)
+    repol_time = np.zeros_like(peaks_times)
+    dVdtmax =  np.zeros_like(peaks_times)
+    resting_V = np.zeros_like(peaks_times)
+
+    # compute dfdt and normalize it
+
+    dfdt = np.diff(np_1Darray, n = diff_n, prepend = np_1Darray[:diff_n])
     
-    dff =  (dff - dff.min()) /  dff.max()
-    dff = signal.savgol_filter(dff, filter_size, 2)
-    peaks_indx, peaks_props = signal.find_peaks(dff, prominence=prominence)
+    dfdt =  (dfdt - dfdt.min()) /  dfdt.max()
+    # dff_filt = signal.savgol_filter(dff, filter_size, 2)
     
-    dft_max = dff[peaks_indx] * cycle_length_ms
-    
-    row_names = [f'Beat_{i}' for i in range(dft_max.shape[-1])]
-    dft_max_df = pd.DataFrame(dft_max, columns= ["dvdt_max"], index= row_names)
-    
-    
-    return dft_max_df, peaks_indx
+    AP_ini = []
+    AP_peak = []
+    AP_end = [] 
+
+    for peak in range(len(peaks_times)):
+        #  Find RMP and APD
+        # RMP is mean V of BCL/2 to 5ms before AP upstroke to when this value is crossed to BCL/2 (or end) 
+
+        bcl = bcl_list[peak]
+        # Find interval of AP in indices
+        ini_indx = np.max(np.append(np.argwhere(time >= peaks_times[peak] - bcl/1.5)[0], 0))
+        
+        if peak + 1 == len(peaks_times):
+            end_indx = np.argmax(time)
+            # end_index_for_upstroke = end_indx - 1
+        else:
+            end_indx = np.min(np.append(np.argwhere(time >= peaks_times[peak] + bcl/1.5)[0], time.shape[-1] -2))
+        
+        end_index_for_upstroke = np.append(np.argwhere(time >= peaks_times[peak] + bcl/2)[0], time.shape[-1] -1).min()
+            
+        # Find upstroke index within the interval
+        upstroke_indx = ini_indx + np.argwhere( dfdt[ini_indx:end_index_for_upstroke] >=  dfdt[ini_indx:end_index_for_upstroke].max())[0][0]
+
+        # interpolation to find accurate activation time
+        interp_points = 1000;
+        delta = 10;
+        if upstroke_indx - delta <= 0:
+            lower_bound_interp = 1;
+        else:
+            lower_bound_interp = upstroke_indx - delta;
+        
+        if upstroke_indx + delta > time.shape[-1]:
+            upper_bound_interp = time.shape[-1]
+        else:
+            upper_bound_interp = upstroke_indx + delta;
+        
+
+        time_fine_grid = np.linspace(time[lower_bound_interp], time[upper_bound_interp], interp_points)
+        interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True)
+        dfdt_interpolated = interpolation_f(time_fine_grid) 
+        # find new dfdt max
+        dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
+        activation_time[peak] = time_fine_grid[dfdt_max_indx]
+        dVdtmax[peak] = dfdt_max * cycle_length_ms
+
+        # compute RMP from before and after upstroke
+        end_rmp_indx = upstroke_indx - np.ceil(np.divide(0.005 , cycle_length_ms)).astype(np.int64) # take mean from init_Ap indx until 5 ms before upstroke
+        init_RMP = np.nanmedian(np_1Darray[ini_indx:end_rmp_indx]) # using median isntead of mean
+        min_indx = np.argwhere(np_1Darray[upstroke_indx:end_indx] <= init_RMP)
+
+        if not np.any(min_indx):
+            cross_indx = np.minimum(upstroke_indx, end_indx)
+        else:
+            cross_indx = np.minimum(upstroke_indx + min_indx[0], end_indx)[0]
+        
+        end_RMP = np.nanmedian(np_1Darray[cross_indx:end_indx]) # using median isntead of mean
+
+        
+
+        #  insert here a conditional to set the method for rmp computation 
+        if rmp_method == "bcl_to_bcl":
+            # use mean of RMP previous and after AP
+            resting_V[peak] = np.mean(np.array(init_RMP, end_RMP))
+            # use minimum value pre upstroke
+        if rmp_method == "pre_upstroke_min":
+            resting_V[peak] = np.min(np_1Darray[ini_indx:upstroke_indx])
+            # use minimum value after AP
+        if rmp_method == "post_AP_min":
+            next_peak_index = np.minimum(np.argwhere(time >= peaks_times[peak] + bcl )[0], time.shape[-1] -1)[0]
+            resting_V[peak] = np.min(np_1Darray[upstroke_indx:next_peak_index])
+            # take the average of min before upstroke and min after AP
+        if rmp_method == "ave_pre_post_min":
+            pre_min = np.min(np_1Darray[ini_indx:upstroke_indx])
+            next_peak_index = np.minimum(np.argwhere(time >= peaks_times[peak] + bcl )[0], time.shape[-1] -1)[0]
+            post_min = np.min(np_1Darray[upstroke_indx:next_peak_index])
+            resting_V[peak] = np.mean(np.array(pre_min, post_min))
+
+        
+        # compute APD
+        #################### the bug is here ###################
+        V_max = np.max(np_1Darray[ini_indx:end_indx])        
+        # amp_apd_perc = (100 - apd_perc) / 100
+        amp_V = (((100 - apd_perc) / 100) * (V_max - resting_V[peak])) + resting_V[peak]
+        # Find index where the AP has recovered the given percentage (or if it didnt, take the last index)
+        current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
+        # repol_index = AP_peaks_indx[peak] + np.minimum( current_APD_segment.size -1 , np.argwhere(current_APD_segment <= amp_V).min()  )
+        # repol_index = AP_peaks_indx[peak] + min(np.argwhere(current_APD_segment[current_APD_segment <= amp_V].min() == current_APD_segment)[0][0], current_APD_segment.size -1)
+        repol_index =  AP_peaks_indx[peak] + np.minimum(np.argwhere(current_APD_segment <= amp_V)[0][0] , current_APD_segment.shape[-1] -1)
+        # repol_index = AP_peaks_indx[peak] + np.minimum(np.argwhere(np_1Darray[AP_peaks_indx[peak] + 1 : end_indx] <= amp_V)[0], np_1Darray[AP_peaks_indx[peak] : end_indx].size)[0]
+        pre_repol_index = repol_index - 2
+        # enerate fine grid for interpolation in ms
+        time_fine_grid = np.linspace(time[pre_repol_index], time[repol_index], interp_points)
+        Vm_interpolated = np.interp(time_fine_grid, time[pre_repol_index:repol_index], np_1Darray[pre_repol_index:repol_index])
+        # repol_index_interpolated = np.nanmin( np.append(np.array(time_fine_grid.size -1 ), np.argwhere(Vm_interpolated <= amp_V)))
+        repol_index_interpolated = np.append(np.argwhere(Vm_interpolated <= amp_V), time_fine_grid.size -1 ).min()
+
+        repol_time[peak] = time_fine_grid[repol_index_interpolated] #* 1000
+        APD[peak] = repol_time[peak] - activation_time[peak]
+
+        AP_ini.append(upstroke_indx) 
+        AP_peak.append(AP_peaks_indx[peak]) 
+        AP_end.append(repol_index ) 
 
 
 
-    
+    row_names = [f'AP_{i}' for i in range(peaks_times.shape[-1])]
+    rslt_df = pd.DataFrame({
+                            f"APD_perc" : apd_perc,
+                            f"APD" : APD,
+                            "AcTime_dVdtmax": dVdtmax,
+                            "BasCycLength_bcl": bcl_list,
+                            "time_at_AP_upstroke": time[AP_ini],
+                            f"time_at_AP_peak": time[AP_peak],
+                            "time_at_AP_end": time[AP_end],
+                            "indx_at_AP_upstroke": AP_ini,
+                            f"indx_at_AP_peak": AP_peak,
+                            "indx_at_AP_end":AP_end,
+                            }, index= row_names)
+     
+    rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
+    return (rslt_df)

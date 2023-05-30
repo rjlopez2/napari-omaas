@@ -12,14 +12,20 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
-    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QTreeWidget, QTreeWidgetItem,
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, 
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView
     )
 from warnings import warn
-from qtpy.QtCore import Qt
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PyQt5.QtGui import QIntValidator
+from numpy import ndarray as numpy_ndarray
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import NapariMPLWidget
+
 import copy
+import subprocess
+import pandas as pd
 
 from .utils import *
 
@@ -245,19 +251,37 @@ class OMAAS(QWidget):
         self._motion_correction_layout.addWidget(self.transform_group.gbox)
 
         ######## Transform btns ########
-        self.inv_img_label = QLabel("Transform data to integer")
-        self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
-        self.transform_to_uint16_btn = QPushButton("Apply")
-        self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
-        self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
+        # self.inv_img_label = QLabel("Transform data to integer")
+        # self.transform_group.glayout.addWidget(self.inv_img_label, 3, 0, 1, 1)
+        # self.transform_to_uint16_btn = QPushButton("Apply")
+        # self.transform_to_uint16_btn.setToolTip(("Transform numpy array data to type integer np.uint16"))
+        # self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
 
         ######## Mot-Correction group ########
         self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
 
+
         self.fottprint_size_label = QLabel("Foot print size")
         self.fottprint_size_label.setToolTip(("Footprint size for local normalization"))
         self.mot_correction_group.glayout.addWidget(self.fottprint_size_label, 3, 0, 1, 1)
+
+        self.use_GPU_label = QLabel("Use GPU")
+        self.mot_correction_group.glayout.addWidget(self.use_GPU_label, 3, 2, 1, 1)
+        
+        self.use_GPU = QCheckBox()
+        try:
+            subprocess.check_output('nvidia-smi')
+            warn('Nvidia GPU detected!, setting to default GPU use.\nSet GPU use as default')
+            self.use_GPU.setChecked(True)
+        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+            warn('No Nvidia GPU in system!, setting to default CPU use')
+            self.use_GPU.setChecked(False)
+        
+        self.mot_correction_group.glayout.addWidget(self.use_GPU,  3, 3, 1, 1)
+
+
+
         
         self.footprint_size = QSpinBox()
         self.footprint_size.setSingleStep(1)
@@ -278,12 +302,20 @@ class OMAAS(QWidget):
         
         self.n_warps = QSpinBox()
         self.n_warps.setSingleStep(1)
-        self.n_warps.setValue(20)
+        self.n_warps.setValue(8)
         self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
+
+        self.ref_frame_label = QLabel("Reference frame")
+        self.mot_correction_group.glayout.addWidget(self.ref_frame_label, 4, 2, 1, 1)
+        
+        self.ref_frame_val = QLineEdit()
+        self.ref_frame_val.setValidator(QIntValidator()) 
+        self.ref_frame_val.setText("0")
+        self.mot_correction_group.glayout.addWidget(self.ref_frame_val, 4, 3, 1, 1)
 
         self.apply_mot_correct_btn = QPushButton("apply")
         self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
-        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 2)
+        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
 
 
         ######## APD-analysis tab ########
@@ -296,16 +328,68 @@ class OMAAS(QWidget):
         # self.APD_plot_group.glayout.addWidget(self._APD_widget_TSP, 3, 0, 1, 1)
         
         self._APD_TSP = NapariMPLWidget(self.viewer)
-        self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 6, 6, 1)
+        self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
         self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
-        self.plot_APD_btn = QPushButton("Plot traces")
-        self.plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.plot_APD_btn, 4, 1, 1, 1)
+        self.compute_APD_btn = QPushButton("Compute APDs")
+        self.compute_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
+        self.APD_plot_group.glayout.addWidget(self.compute_APD_btn, 4, 0, 1, 1)
 
         self.clear_plot_APD_btn = QPushButton("Clear traces")
         self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 5, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 4, 1, 1, 1)
+
+        self.APD_computing_method_label = QLabel("AP baseline method")
+        self.APD_computing_method_label.setToolTip(("Select method to compute the resting AP. Methods are : bcl_to_bcl, pre_upstroke_min, post_AP_min and ave_pre_post_min "))
+        self.APD_plot_group.glayout.addWidget(self.APD_computing_method_label, 4, 2, 1, 1)
+        
+        self.APD_computing_method = QComboBox()
+        self.APD_computing_method.addItems(["bcl_to_bcl", "pre_upstroke_min", "post_AP_min", "ave_pre_post_min"])
+        self.APD_plot_group.glayout.addWidget(self.APD_computing_method, 4, 3, 1, 1)
+        
+        self.slider_APD_detection_threshold = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_thres_max_range = 10000
+        self.slider_APD_detection_threshold.setRange(1, 300)
+        self.slider_APD_detection_threshold.setValue(100)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 5, 1, 1)
+        
+        self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
+        self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
+        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 4, 4, 1, 1)
+
+        self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_percentage.setRange(10, 100)
+        self.slider_APD_percentage.setValue(75)
+        self.slider_APD_percentage.setSingleStep(5)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 7, 1, 1)
+
+        self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
+        self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 6, 1, 1)
+        values = []
+        self.AP_df_default_val = pd.DataFrame({
+                            f"APD_perc" : values,
+                            f"APD" : values,
+                            "AcTime_dVdtmax": values,
+                            "BasCycLength_bcl": values,
+                            "time_at_AP_upstroke": values,
+                            f"time_at_AP_peak": values,
+                            "time_at_AP_end": values,
+                            "indx_at_AP_upstroke": values,
+                            f"indx_at_AP_peak": values,
+                            "indx_at_AP_end": values,
+                            }, index= values)
+        # df = pd.read_csv("/Users/rubencito/Desktop/Iris.csv")
+        
+        model = PandasModel(self.AP_df_default_val)
+        self.APD_propert_table = QTableView()
+        self.APD_propert_table.setModel(model)
+
+        self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
+        self.APD_propert_table.setAlternatingRowColors(True)
+        self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
+        self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
+
                
         
 
@@ -334,7 +418,7 @@ class OMAAS(QWidget):
         self.metadata_tree.setColumnCount(2)
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree)
-        self.layout().addWidget(self.metadata_display_group.gbox)
+        # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
 
         ######################
@@ -424,10 +508,12 @@ class OMAAS(QWidget):
         self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
-        self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
+        # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
-        self.plot_APD_btn.clicked.connect(self._get_traces_call_back)
+        self.compute_APD_btn.clicked.connect(self._get_APD_params_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
+        self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
+        self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         
         
         
@@ -645,12 +731,37 @@ class OMAAS(QWidget):
         foot_print = self.footprint_size.value()
         radius_size = self.radius_size.value()
         n_warps = self.n_warps.value()
+        try:
+            subprocess.check_output('nvidia-smi')
+            print('Nvidia GPU detected!')
+        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+            warn('No Nvidia GPU in system!, setting to default CPU use')
+            self.use_GPU.setChecked(False)
+        
+        gpu_use = self.use_GPU.isChecked() # put this in the GUI         
+        ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
+        current_selection = self.viewer.layers.selection.active
+        raw_data = current_selection.data
+        if gpu_use == True:
+            raw_data = cp.asarray(raw_data)
 
-        results = motion_correction_func(self.viewer.layers.selection, 
-                                        foot_print_size=foot_print, 
-                                        radius_size=radius_size, num_warp=n_warps)
+        if current_selection._type_string == "image":
+                
+            scaled_img = scaled_img_func(raw_data, 
+                                        foot_print_size=foot_print)
+                
+            results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx)
+            
+            if not isinstance(results, numpy_ndarray):
+                results =  results.get()    
 
-        self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+            self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+
+            
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+
+        
         
     def _on_click_transform_to_uint16_btn(self):
         
@@ -741,7 +852,7 @@ class OMAAS(QWidget):
             if value is not None and value._type_string == 'image' :
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
                 if "CycleTime" in self.img_metadata_dict:
-                    print(f"getting image: '{self.viewer.layers.selection.active.name}'")
+                    # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
                     self.metadata_tree.clear()
                     metadata = self.img_metadata_dict
                     items = []
@@ -767,7 +878,7 @@ class OMAAS(QWidget):
 
 
 
-    def _get_traces_call_back(self, event):
+    def _get_APD_params_call_back(self, event):
         if len(self._graphics_widget_TSP.plotter.data) > 0 :
             # clear APD on every instance of plot
             self._clear_APD_plot(self)
@@ -777,20 +888,54 @@ class OMAAS(QWidget):
             traces = self._graphics_widget_TSP.plotter.data[1::2]
             time = self._graphics_widget_TSP.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
+            rmp_method = self.APD_computing_method.currentText()
+            apd_percentage = self.slider_APD_percentage.value()
+            prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             # self.viewer.layers.select_previous()
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
 
             for trace in range(len(traces)):
-                dft_max_df,  dft_max_indx = find_dvdt_max(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
+                # acttime_peaks_indx, ini_peaks_indx = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
                 # print(rslts)
                 self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5)
-                # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
-                for indx in dft_max_indx:
-                    # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
-                    # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
-                    self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
+                # # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
+                # for indx in acttime_peaks_indx:
+                #     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
+                #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
+                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
+                
+                # for indx in ini_peaks_indx:
+                #     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
+                #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
+                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
 
-            print(dft_max_df)
+                apd_props = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence)
+
+                model = PandasModel(apd_props)
+                # self.APD_propert_table = QTableView()
+                self.APD_propert_table.setModel(model)
+
+                self.APD_axes.vlines(time[apd_props.indx_at_AP_upstroke], 
+                                    ymin=traces[trace][apd_props.indx_at_AP_end], 
+                                    ymax=traces[trace][apd_props.indx_at_AP_peak], 
+                                    linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
+
+                self.APD_axes.vlines(time[apd_props.indx_at_AP_end], 
+                                    ymin=traces[trace][apd_props.indx_at_AP_end], 
+                                    ymax=traces[trace][apd_props.indx_at_AP_peak],  
+                                    linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
+
+                # for indx in ini_ap_indx:
+
+                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
+
+                # for indx in end_ap_indx:
+
+                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
+
+
+
+            # print(acttime_peaks_indx, ini_peaks_indx )
 
             
             self._APD_TSP._draw()
@@ -804,8 +949,20 @@ class OMAAS(QWidget):
         self.APD_axes.clear()
         self._APD_TSP._draw()
 
+        model = PandasModel(self.AP_df_default_val)
+        self.APD_propert_table.setModel(model)
+
         # ---->>>> this return the data currently pltting -> self._graphics_widget_TSP.plotter.data
         # ----->>>>> this retrn the new cavas to plot on to -> self._APD_TSP.canvas.figure.subplots
+
+    def _get_APD_thre_slider_vlaue_func(self, value):
+
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {value / (self.slider_APD_thres_max_range )}')
+
+    def _get_APD_percent_slider_vlaue_func(self, value):
+        self.slider_APD_perc_label.setText(f'APD percentage: {value}')
+        
+
 
 @magic_factory
 def example_magic_widget(img_layer: "napari.layers.Image"):
@@ -845,3 +1002,59 @@ class VHGroup():
             raise Exception(f"Unknown orientation {orientation}") 
 
         self.gbox.setLayout(self.glayout)
+
+class PandasModel(QAbstractTableModel):
+    """A model to interface a Qt view with pandas dataframe """
+
+    def __init__(self, dataframe: pd.DataFrame, parent=None):
+        QAbstractTableModel.__init__(self, parent)
+        self._dataframe = dataframe
+
+    def rowCount(self, parent=QModelIndex()) -> int:
+        """ Override method from QAbstractTableModel
+
+        Return row count of the pandas DataFrame
+        """
+        if parent == QModelIndex():
+            return len(self._dataframe)
+
+        return 0
+
+    def columnCount(self, parent=QModelIndex()) -> int:
+        """Override method from QAbstractTableModel
+
+        Return column count of the pandas DataFrame
+        """
+        if parent == QModelIndex():
+            return len(self._dataframe.columns)
+        return 0
+
+    def data(self, index: QModelIndex, role=Qt.ItemDataRole):
+        """Override method from QAbstractTableModel
+
+        Return data cell from the pandas DataFrame
+        """
+        if not index.isValid():
+            return None
+
+        if role == Qt.DisplayRole:
+            return str(self._dataframe.iloc[index.row(), index.column()])
+
+        return None
+
+    def headerData(
+        self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole
+    ):
+        """Override method from QAbstractTableModel
+
+        Return dataframe index as vertical header data and columns as horizontal header data.
+        """
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return str(self._dataframe.columns[section])
+
+            if orientation == Qt.Vertical:
+                return str(self._dataframe.index[section])
+
+        return None
+
