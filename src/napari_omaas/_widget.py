@@ -22,11 +22,13 @@ from numpy import ndarray as numpy_ndarray
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import NapariMPLWidget
-import subprocess
 
+import copy
+import subprocess
 import pandas as pd
 
 from .utils import *
+
 
 if TYPE_CHECKING:
     import napari
@@ -259,6 +261,11 @@ class OMAAS(QWidget):
         self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
 
+
+        self.fottprint_size_label = QLabel("Foot print size")
+        self.fottprint_size_label.setToolTip(("Footprint size for local normalization"))
+        self.mot_correction_group.glayout.addWidget(self.fottprint_size_label, 3, 0, 1, 1)
+
         self.use_GPU_label = QLabel("Use GPU")
         self.mot_correction_group.glayout.addWidget(self.use_GPU_label, 3, 2, 1, 1)
         
@@ -273,8 +280,8 @@ class OMAAS(QWidget):
         
         self.mot_correction_group.glayout.addWidget(self.use_GPU,  3, 3, 1, 1)
 
-        self.inv_and_norm_label = QLabel("Foot print size")
-        self.mot_correction_group.glayout.addWidget(self.inv_and_norm_label, 3, 0, 1, 1)
+
+
         
         self.footprint_size = QSpinBox()
         self.footprint_size.setSingleStep(1)
@@ -282,6 +289,7 @@ class OMAAS(QWidget):
         self.mot_correction_group.glayout.addWidget(self.footprint_size, 3, 1, 1, 1)
 
         self.radius_size_label = QLabel("Radius size")
+        self.radius_size_label.setToolTip(("Radius of the window considered around each pixel for image registration"))
         self.mot_correction_group.glayout.addWidget(self.radius_size_label, 4, 0, 1, 1)
         
         self.radius_size = QSpinBox()
@@ -661,13 +669,12 @@ class OMAAS(QWidget):
     
     def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_nam = None, **label_and_value_sufix):
         
-        # NOTE: Bug: it always change the iriginal dict even if I make a copy
         if img_custom_nam is not None:
             img_name = img_custom_nam
         else:
             img_name = self.viewer.layers.selection.active.name
 
-        self.curr_img_metadata = self.viewer.layers.selection.active.metadata.copy()
+        self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
 
         key_name = "Processing_method"
         if key_name not in self.curr_img_metadata:
