@@ -367,18 +367,13 @@ class OMAAS(QWidget):
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
         self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 6, 1, 1)
         values = []
-        self.AP_df_default_val = pd.DataFrame({
-                            f"APD_perc" : values,
-                            f"APD" : values,
-                            "AcTime_dVdtmax": values,
-                            "BasCycLength_bcl": values,
-                            "time_at_AP_upstroke": values,
-                            f"time_at_AP_peak": values,
-                            "time_at_AP_end": values,
-                            "indx_at_AP_upstroke": values,
-                            f"indx_at_AP_peak": values,
-                            "indx_at_AP_end": values,
-                            }, index= values)
+        self.AP_df_default_val = pd.DataFrame({"ROIS_id" : values, 
+                                               "APD_perc" : values,
+                                               "APD_perc" : values, 
+                                               "APD" : values, 
+                                               "AcTime_dVdtmax": values, 
+                                               "BasCycLength_bcl": values})
+
         # df = pd.read_csv("/Users/rubencito/Desktop/Iris.csv")
         
         model = PandasModel(self.AP_df_default_val)
@@ -893,52 +888,64 @@ class OMAAS(QWidget):
             prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             # self.viewer.layers.select_previous()
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
+            APD_props = []
 
-            for trace in range(len(traces)):
-                # acttime_peaks_indx, ini_peaks_indx = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
-                # print(rslts)
-                self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5)
-                # # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
-                # for indx in acttime_peaks_indx:
-                #     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
-                #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
-                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
-                
-                # for indx in ini_peaks_indx:
-                #     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
-                #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
-                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
+            for indx, trace in enumerate(traces):
 
-                apd_props = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence)
+                self.APD_axes.plot(time, trace, label=f'{lname}_ROI-{indx}', alpha=0.5)
 
-                model = PandasModel(apd_props)
-                # self.APD_propert_table = QTableView()
-                self.APD_propert_table.setModel(model)
+                props = compute_APD_props_func(trace, cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence, roi_indx=indx)
+                # props.extend([f'ROI-{indx}'])
+                ini_indx = [props[val][-3] for val in range(len(props))]
+                peak_indx = [props[val][-2] for val in range(len(props))]
+                end_indx = [props[val][-1] for val in range(len(props))]               
 
-                self.APD_axes.vlines(time[apd_props.indx_at_AP_upstroke], 
-                                    ymin=traces[trace][apd_props.indx_at_AP_end], 
-                                    ymax=traces[trace][apd_props.indx_at_AP_peak], 
+
+                self.APD_axes.vlines(time[ini_indx], 
+                                    ymin=trace[end_indx], 
+                                    ymax=trace[peak_indx], 
                                     linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
 
-                self.APD_axes.vlines(time[apd_props.indx_at_AP_end], 
-                                    ymin=traces[trace][apd_props.indx_at_AP_end], 
-                                    ymax=traces[trace][apd_props.indx_at_AP_peak],  
+                self.APD_axes.vlines(time[end_indx], 
+                                    ymin=trace[end_indx], 
+                                    ymax=trace[peak_indx],  
                                     linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
 
-                # for indx in ini_ap_indx:
-
-                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
-
-                # for indx in end_ap_indx:
-
-                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
+                APD_props.extend(props)
 
 
+
+            self._APD_TSP._draw()
 
             # print(acttime_peaks_indx, ini_peaks_indx )
+            colnames = [ "ROIS_id",
+                         "AP_id" ,
+                         "APD_perc" ,
+                         "APD",
+                         "AcTime_dVdtmax",
+                         "BasCycLength_bcl",
+                         "time_at_AP_upstroke",
+                         "time_at_AP_peak",
+                         "time_at_AP_end",
+                         "indx_at_AP_upstroke",
+                         "indx_at_AP_peak",
+                         "indx_at_AP_end"
+                         ]
+
+            APD_props_df = pd.DataFrame(APD_props, columns=colnames)
+             # convert to ms and round values
+            APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
 
             
-            self._APD_TSP._draw()
+            model = PandasModel(APD_props_df[["ROIS_id", 
+                                            "AP_id" ,
+                                            "APD_perc" ,
+                                            "APD",
+                                            "AcTime_dVdtmax",
+                                            "BasCycLength_bcl"]])
+                # self.APD_propert_table = QTableView()
+            self.APD_propert_table.setModel(model)
+
                 
 
     

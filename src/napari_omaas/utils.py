@@ -541,7 +541,7 @@ def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
 
     return (out_img)
 
-def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18):
+def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -704,19 +704,36 @@ def compute_APD_props_func(np_1Darray, diff_n = 1, cycle_length_ms = 0.004, rmp_
 
 
 
-    row_names = [f'AP_{i}' for i in range(peaks_times.shape[-1])]
-    rslt_df = pd.DataFrame({
-                            f"APD_perc" : apd_perc,
-                            f"APD" : APD,
-                            "AcTime_dVdtmax": dVdtmax,
-                            "BasCycLength_bcl": bcl_list,
-                            "time_at_AP_upstroke": time[AP_ini],
-                            f"time_at_AP_peak": time[AP_peak],
-                            "time_at_AP_end": time[AP_end],
-                            "indx_at_AP_upstroke": AP_ini,
-                            f"indx_at_AP_peak": AP_peak,
-                            "indx_at_AP_end":AP_end,
-                            }, index= row_names)
+    AP_ids = [f'AP_{i}' for i in range(peaks_times.shape[-1])]
+    ROI_ids = [f'ROI_{roi_indx}' for i in range(peaks_times.shape[-1])]
+    apd_perc = [apd_perc for x in range(peaks_times.shape[-1])]
+    # rslt_df = pd.DataFrame({
+    #                         f"APD_perc" : AP_ids,
+    #                         f"APD" : APD,
+    #                         "AcTime_dVdtmax": dVdtmax,
+    #                         "BasCycLength_bcl": bcl_list,
+    #                         "time_at_AP_upstroke": time[AP_ini],
+    #                         f"time_at_AP_peak": time[AP_peak],
+    #                         "time_at_AP_end": time[AP_end],
+    #                         "indx_at_AP_upstroke": AP_ini,
+    #                         f"indx_at_AP_peak": AP_peak,
+    #                         "indx_at_AP_end":AP_end,
+    #                         }, index= row_names)
+
+    # rslt_df = { "AP_id" : AP_ids,
+    #             "APD_perc" : apd_perc,
+    #             "APD" : APD,
+    #             "AcTime_dVdtmax": dVdtmax,
+    #              "BasCycLength_bcl": bcl_list,
+    #              "time_at_AP_upstroke": time[AP_ini],
+    #             "time_at_AP_peak": time[AP_peak],
+    #             "time_at_AP_end": time[AP_end],
+    #             "indx_at_AP_upstroke": AP_ini,
+    #             "indx_at_AP_peak": AP_peak,
+    #             "indx_at_AP_end":AP_end,
+    #             }
+
+    rslt_df = list(zip(ROI_ids, AP_ids, apd_perc, APD, dVdtmax, bcl_list, time[AP_ini], time[AP_peak], time[AP_end], AP_ini, AP_peak, AP_end))
      
-    rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
+    # rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
     return (rslt_df)
