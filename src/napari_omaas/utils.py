@@ -734,7 +734,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     #             "indx_at_AP_end":AP_end,
     #             }
 
-    rslt_df = list(zip(img_name, ROI_ids, AP_ids, apd_perc, APD, dVdtmax, bcl_list, time[AP_ini], time[AP_peak], time[AP_end], AP_ini, AP_peak, AP_end))
+    rslt_df = zip(img_name, ROI_ids, AP_ids, apd_perc, APD, dVdtmax, bcl_list, time[AP_ini], time[AP_peak], time[AP_end], AP_ini, AP_peak, AP_end)
      
     # rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
     return (rslt_df)

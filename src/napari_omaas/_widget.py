@@ -901,6 +901,7 @@ class OMAAS(QWidget):
                     self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
 
                     props = compute_APD_props_func(traces[img_indx + shpae_indx], curr_img_name = img_name, cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence, roi_indx=shpae_indx)
+                    props = list(props)
                     # props.extend([f'ROI-{indx}'])
                     ini_indx = [props[val][-3] for val in range(len(props))]
                     peak_indx = [props[val][-2] for val in range(len(props))]
