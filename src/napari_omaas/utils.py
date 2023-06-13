@@ -21,7 +21,7 @@ import pandas as pd
 #     spot_threshold: float = 0.01,
 #     blob_sigma: float = 2
 # ) -> "napari.types.LayerDataTuple":
-# import cupy as cp
+import cupy as cp
 # import cupyx
 # from cucim.skimage import registration as registration_gpu
 # from cucim.skimage import transform as transform_gpu
@@ -47,7 +47,12 @@ def invert_signal(
         The image with inverted fluorescence values
     """
 
-    return np.nanmax(data) - data
+    xp = cp.get_array_module(data)
+        
+    print (f'using : {xp.__name__}')
+
+
+    return xp.nanmax(data) - data
    
 
 def local_normal_fun(
@@ -66,8 +71,13 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    results = (data - np.min(data, axis = 0)) / np.max(data, axis=0)
-    results = np.nan_to_num(results, nan=0)
+
+    xp = cp.get_array_module(data)
+    print (f'using : {xp.__name__}')
+    
+    results = (data - xp.min(data, axis = 0)) / xp.max(data, axis=0)
+    results = xp.nan_to_num(results, nan=0)
+    
     return results
 
 

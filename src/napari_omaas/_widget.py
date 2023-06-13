@@ -516,8 +516,23 @@ class OMAAS(QWidget):
         current_selection = self.viewer.layers.selection.active
 
         if current_selection._type_string == "image":
-            print(f'computing "invert_signal" to image {current_selection}')
-            results =invert_signal(current_selection.data)
+            
+            raw_data = current_selection.data
+           
+            if self.use_GPU.isChecked():
+                 
+                 raw_data = cp.asarray(raw_data)
+                 print(f'computing "invert_signal" to image {current_selection}')
+                 results_gpu = invert_signal(raw_data)
+                 results = results_gpu.get()
+                 del results_gpu, raw_data
+                 cp._default_memory_pool.free_all_blocks()
+
+            else:
+                 
+                 print(f'computing "invert_signal" to image {current_selection}')
+                 results =invert_signal(raw_data)
+                 
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -527,16 +542,59 @@ class OMAAS(QWidget):
         current_selection = self.viewer.layers.selection.active
 
         if current_selection._type_string == "image":
-            print(f'computing "local_normal_fun" to image {current_selection}')
-            results = local_normal_fun(current_selection.data)
+            
+            raw_data = current_selection.data
+
+            if self.use_GPU.isChecked():
+                
+                raw_data = cp.asarray(raw_data)
+                print(f'computing "local_normal_fun" to image {current_selection}')
+                results_gpu = local_normal_fun(raw_data)
+                results = results_gpu.get()
+                del results_gpu, raw_data
+                cp._default_memory_pool.free_all_blocks()
+
+            else:
+
+                print(f'computing "local_normal_fun" to image {current_selection}')
+                results = local_normal_fun(raw_data)
+
             self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_inv_and_norm_data_btn(self):
-        self._on_click_inv_data_btn()
-        self._on_click_norm_data_btn()
+
+        current_selection = self.viewer.layers.selection.active
+
+        if current_selection._type_string == "image":
+            
+            raw_data = current_selection.data
+
+            if self.use_GPU.isChecked():
+
+                raw_data = cp.asarray(raw_data)
+                print(f'computing "invert_signal" to image {current_selection}')
+                results_inv = invert_signal(raw_data)
+                del raw_data
+                cp._default_memory_pool.free_all_blocks()
+                print(f'computing "local_normal_fun" to image {current_selection}')
+                results_norm = local_normal_fun(results_inv)
+                del results_inv
+                cp._default_memory_pool.free_all_blocks()
+                results = results_norm.get()
+                del results_norm
+                cp._default_memory_pool.free_all_blocks()
+
+                self.add_result_img(result_img=results, single_label_sufix="Inv_Nor", add_to_metadata = ["inv_signal", "norm_signal"])
+
+            else:
+
+                print(f'computing "invert_signal" to image {current_selection}')
+                self._on_click_inv_data_btn()
+                print(f'computing "local_normal_fun" to image {current_selection}')
+                self._on_click_norm_data_btn()
 
 
     def _on_click_splt_chann(self):
