@@ -313,6 +313,15 @@ class OMAAS(QWidget):
         self.ref_frame_val.setText("0")
         self.mot_correction_group.glayout.addWidget(self.ref_frame_val, 4, 3, 1, 1)
 
+        self.MotCorr_method_label = QLabel("Method")
+        self.mot_correction_group.glayout.addWidget(self.MotCorr_method_label, 5, 2, 1, 1)
+
+        self.MotCorr_method = QComboBox()
+        self.MotCorr_method.addItems(["Lukas-Kanade (skimage)", "Lukas-Kanade (cv2)", "Farnebäck (cv2)"])
+        self.mot_correction_group.glayout.addWidget(self.MotCorr_method, 5, 3, 1, 1)
+        
+
+
         self.apply_mot_correct_btn = QPushButton("apply")
         self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
         self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
