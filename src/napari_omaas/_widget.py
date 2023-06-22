@@ -12,7 +12,7 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
-    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, 
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
     QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView
     )
 from warnings import warn
@@ -77,6 +77,12 @@ class OMAAS(QWidget):
         self._APD_analysis_layout = QVBoxLayout()
         self.APD_analysis.setLayout(self._APD_analysis_layout)
         self.tabs.addTab(self.APD_analysis, 'APD analysis')
+
+        ######## Settings tab ########
+        self.settings = QWidget()
+        self._settings_layout = QVBoxLayout()
+        self.settings.setLayout(self._settings_layout)
+        self.tabs.addTab(self.settings, 'Settings')
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -386,7 +392,31 @@ class OMAAS(QWidget):
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
         self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
 
-               
+        ######## Settings tab ########
+        ####################################
+
+        ######## Macro record group ########
+        self._settings_layout.setAlignment(Qt.AlignTop)
+        self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
+        self._settings_layout.addWidget(self.macro_group.gbox)
+
+        self.record_script_label = QLabel("Macro")
+        self.record_script_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
+        self.macro_group.glayout.addWidget(self.record_script_label, 3, 2, 1, 1)
+        
+        self.record_macro_check = QCheckBox()
+        self.record_macro_check.setChecked(True) 
+        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 3, 1, 1)
+
+        self.clear_last_step_macro_btn = QPushButton("Delete last step")
+        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 4, 1, 1)
+        
+        self.clear_macro_btn = QPushButton("Clear Macro")
+        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 5, 1, 1)       
+       
+        self.macro_box_text = QPlainTextEdit()
+        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
+        self.macro_group.glayout.addWidget(self.macro_box_text, 4, 2, 1, 1)
         
 
         # sub_backg_btn = QPushButton("Subtract Background")
@@ -510,6 +540,8 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
+        self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
+        self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
         
         
         
@@ -527,6 +559,7 @@ class OMAAS(QWidget):
             print(f'computing "invert_signal" to image {current_selection}')
             results =invert_signal(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -538,6 +571,7 @@ class OMAAS(QWidget):
             print(f'computing "local_normal_fun" to image {current_selection}')
             results = local_normal_fun(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -560,6 +594,7 @@ class OMAAS(QWidget):
                 # colormap= "turbo", 
                 # name= f"{curr_img_name}_ch{channel + 1}")
                 self.add_result_img(result_img=my_splitted_images[channel], img_custom_nam=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+                self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -656,6 +691,8 @@ class OMAAS(QWidget):
                 print(f'applying "apply_laplace_filter" to image {current_selection}')
                 results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
                 self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
+            
+            self.add_record_fun()
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -752,6 +789,8 @@ class OMAAS(QWidget):
                 results =  results.get()    
 
             self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+        
+            self.add_record_fun()
 
             
         else:
@@ -783,6 +822,7 @@ class OMAAS(QWidget):
                                                 fil_ord=order_value)
 
             self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
@@ -969,6 +1009,8 @@ class OMAAS(QWidget):
                 # self.APD_propert_table = QTableView()
             self.APD_propert_table.setModel(model)
 
+            self.add_record_fun()
+
                 
 
     
@@ -991,6 +1033,21 @@ class OMAAS(QWidget):
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
+
+
+    def _on_click_clear_macro_btn(self, event):
+        self.macro_box_text.clear()
+        macro.clear()
+
+    def add_record_fun(self):
+        self.macro_box_text.clear()
+        self.macro_box_text.insertPlainText(repr(macro))
+    
+    def _on_click_clear_last_step_macro_btn(self):
+        macro.pop()
+        self.add_record_fun()
+        
+
         
 
 
