@@ -7,6 +7,8 @@ from skimage import transform
 from skimage import morphology, registration, segmentation
 import warnings
 from napari.layers import Image
+from tqdm import tqdm
+import cv2 as cv
 
 # from numba import jit, prange
 from scipy import signal, ndimage
@@ -396,31 +398,57 @@ def pick_frames_fun(
 
 def scaled_img_func(data, foot_print_size = 10):
     foot_print = disk(foot_print_size)
-    
-    xp = cp.get_array_module(data)
-    xpx = cupyx.scipy.get_array_module(data)
-    
-    # data = xp.asarray(img)
-    print(f"Using: {xp.__name__} in scaled_img_func")
-    
-    scaled_img = xp.empty_like(data, dtype= (xp.float64))
-    
-    
-    for plane, img in enumerate(data):
+
+    if not isinstance(data, np.ndarray):
+
+        xp = cp.get_array_module(data)
+        xpx = cupyx.scipy.get_array_module(data)
+        print(f"Using: {xp.__name__} in scaled_img_func")
+        scaled_img = xp.empty_like(data, dtype= (xp.float64))
+
+        for plane, img in enumerate(data):
         # if plane % 50 == 0:
         #     print(f"normalizing plane: {plane}")
             
-        im_min = xpx.ndimage.minimum_filter(img, footprint=foot_print)
-        im_max =xpx.ndimage.maximum_filter(img, footprint=foot_print)
-        scaled_img[plane,...] = xp.divide(xp.subtract(img, im_min),  xp.subtract(im_max, im_min))
+            im_min = xpx.ndimage.minimum_filter(img, footprint=foot_print)
+            im_max =xpx.ndimage.maximum_filter(img, footprint=foot_print)
+            scaled_img[plane,...] = xp.divide(xp.subtract(img, im_min),  xp.subtract(im_max, im_min))
+
+    else:
+        print(f"Using: np in scaled_img_func")
+        # data = data.astype(np.uint16)
+        scaled_img = np.empty_like(data)
+        for plane, img in enumerate(tqdm(data, desc= f"Contrast scaling image stack")):
+            # if plane % 50 == 0:
+            #     print(f"normalizing plane: {plane}")
+                
+                im_min = ndimage.minimum_filter(img, footprint=foot_print)
+                im_max =ndimage.maximum_filter(img, footprint=foot_print)
+                scaled_img[plane,...] = np.divide(np.subtract(img, im_min),  np.subtract(im_max, im_min))
+
+    # data = xp.asarray(img)
+
+    
+    
+    
+    
+
         
     
     return scaled_img
 
-def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp = 8):
-    xp, xpx = cp.get_array_module(data), cupyx.scipy.get_array_module(data)
-    
-    if type(data) == cp.ndarray:
+def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp = 8, method = "Lukas-Kanade (skimage)"):
+
+    # if type(data) == cp.ndarray:
+    #     device_type = "GPU"
+    #     register_func = registration_gpu
+    #     transform_func = transform_gpu
+    # else:
+    #     device_type = "CPU"
+    #     register_func = registration
+    #     transform_func = transform
+
+    if not isinstance(data, np.ndarray):
         device_type = "GPU"
         register_func = registration_gpu
         transform_func = transform_gpu
@@ -429,23 +457,90 @@ def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp 
         register_func = registration
         transform_func = transform
         
+        
     print (f'using device: {device_type}')
     
+    
+    
+
+    # Parameters for lucas kanade optical flow
+    lk_params = dict( winSize = (15, 15), maxLevel = 2,criteria = (cv.TERM_CRITERIA_EPS | cv.TERM_CRITERIA_COUNT, 10, 0.03))
+    # params for ShiTomasi corner detection
+    feature_params = dict( maxCorners = 100,
+    qualityLevel = 0.3,
+    minDistance = 7,
+    blockSize = 7 )
+
+    # Take first frame and find corners in it
     ref_frame_data = data[ref_frame, ...]
     nr, nc = ref_frame_data.shape
-    registered_img = xp.empty_like(data)
+    p0 = cv.goodFeaturesToTrack(np.uint8(ref_frame_data), mask = None, **feature_params)
+
+    row_coords, col_coords = np.meshgrid(np.arange(nr), np.arange(nc),
+                                                indexing='ij')
+
+    if not isinstance(data, np.ndarray):
+
+        xp, xpx = cp.get_array_module(data), cupyx.scipy.get_array_module(data)
+        registered_img = xp.empty_like(data)
+
+        
+
+
+
+    else:
+        registered_img = np.empty_like(data)
+    
+    # if method == "Lukas-Kanade (skimage)":
+
     # print(type(registered_img))
         
-    for plane, img in enumerate(data):
-        # if plane % 50 == 0:
-            # print(f"Registering plane: {plane}")
+    for plane, img in enumerate(tqdm(data, desc = "Registering and warping image stack")):
         
-        v, u = register_func.optical_flow_ilk(ref_frame_data, img, 
-                                              radius = radius_size, num_warp=num_warp)
-        row_coords, col_coords = xp.meshgrid(xp.arange(nr), xp.arange(nc),
-                                             indexing='ij')
-        registered_img[plane, ...] = transform_func.warp(orig_data[plane], xp.array([row_coords + v, col_coords + u]),
-                                                         mode='edge', preserve_range=True)
+        if method == "Lukas-Kanade (skimage)":
+            # if plane % 50 == 0:
+                # print(f"Registering plane: {plane}")
+            
+            v, u = register_func.optical_flow_ilk(ref_frame_data, img, 
+                                                radius = radius_size, num_warp=num_warp)
+            
+            registered_img[plane, ...] = transform_func.warp(orig_data[plane], np.array([row_coords + v, col_coords + u]),
+                                                            mode='edge', preserve_range=True)
+
+        elif method == "Lukas-Kanade (cv2)":
+            
+            flow = cv.calcOpticalFlowPyrLK(
+                np.uint8(ref_frame_data), 
+                np.uint8(img), 
+                p0,
+                None,
+                **lk_params) # need to recheck the meaning of theseparameters
+            v, u  = flow[:, :, 0],  flow[:, :, 1]
+            registered_img[plane, ...] = transform_func.warp(orig_data[plane], np.array([row_coords + v, col_coords + u]),
+                                                            mode='edge', preserve_range=True)
+
+        
+        
+        
+        elif method == "Farnebäck (cv2)": 
+        # NOTE: the Farnebäck algorith does not show any eviden registriation?, --->>> must check in notebook
+
+            flow = cv.calcOpticalFlowFarneback(
+                prev = ref_frame_data, 
+                next = img, 
+                flow = None,
+                pyr_scale = 0.5,
+                levels= 3,
+                winsize = radius_size,
+                iterations = num_warp,
+                poly_n = 5,
+                poly_sigma = 1.2,
+                flags= 0) # need to recheck the meaning of theseparameters
+            v, u  = flow[:, :, 0],  flow[:, :, 1]
+            registered_img[plane, ...] = transform_func.warp(orig_data[plane], np.array([row_coords + v, col_coords + u]),
+                                                            mode='edge', preserve_range=True)
+            # print("Farnebäack done")
+
     
     return registered_img
 

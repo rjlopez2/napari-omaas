@@ -747,6 +747,8 @@ class OMAAS(QWidget):
         ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
         current_selection = self.viewer.layers.selection.active
         raw_data = current_selection.data
+        method = self.MotCorr_method.currentText()
+
         if gpu_use == True:
             raw_data = cp.asarray(raw_data)
 
@@ -755,7 +757,7 @@ class OMAAS(QWidget):
             scaled_img = scaled_img_func(raw_data, 
                                         foot_print_size=foot_print)
                 
-            results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx)
+            results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx, method=method)
             
             if not isinstance(results, numpy_ndarray):
                 results =  results.get()    
