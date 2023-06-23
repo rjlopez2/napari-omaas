@@ -8,6 +8,8 @@ from skimage import morphology, registration, segmentation
 import warnings
 from napari.layers import Image
 
+from napari_macrokit import get_macro
+
 # from numba import jit, prange
 from scipy import signal, ndimage
 from scipy.interpolate import CubicSpline
@@ -27,8 +29,10 @@ import pandas as pd
 # from cucim.skimage import transform as transform_gpu
 
 
+# instanciate a macro object
+macro = get_macro("OMAAS_analysis")
 
-
+@macro.record
 def invert_signal(
     data: "napari.types.ImageData"
     )-> "napari.types.LayerDataTuple":
@@ -49,7 +53,7 @@ def invert_signal(
 
     return np.nanmax(data) - data
    
-
+@macro.record
 def local_normal_fun(
     data: "napari.types.ImageData")-> "napari.types.ImageData":
 
@@ -71,7 +75,7 @@ def local_normal_fun(
     return results
 
 
-
+@macro.record
 def split_channels_fun(
     data: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
 
@@ -92,7 +96,7 @@ def split_channels_fun(
     ch_2 = data[1::2,:,:]
     return [ch_1, ch_2]
 
-
+@macro.record
 def segment_heart_func( 
     image: "napari.types.ImageData",
     sigma = 2, 
@@ -158,6 +162,7 @@ def segment_heart_func(
     # return raw_img_stack_nobg
     return mask
 
+@macro.record
 def apply_gaussian_func (data: "napari.types.ImageData",
     sigma, kernel_size = 3)-> "Image":
 
@@ -194,6 +199,7 @@ def apply_gaussian_func (data: "napari.types.ImageData",
     # return (gaussian(data, sigma))
     return out_img
 
+@macro.record
 def apply_median_filt_func (data: "napari.types.ImageData",
     param)-> "Image":
 
@@ -238,6 +244,7 @@ def apply_median_filt_func (data: "napari.types.ImageData",
     return out_img
 
 
+@macro.record
 def pick_frames_fun(
     image: "napari.types.ImageData",
     n_frames = 5,
@@ -394,6 +401,7 @@ def pick_frames_fun(
     
 #     return registered_img
 
+@macro.record
 def scaled_img_func(data, foot_print_size = 10):
     foot_print = disk(foot_print_size)
     
@@ -417,6 +425,7 @@ def scaled_img_func(data, foot_print_size = 10):
     
     return scaled_img
 
+@macro.record
 def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp = 8):
     xp, xpx = cp.get_array_module(data), cupyx.scipy.get_array_module(data)
     
@@ -450,6 +459,7 @@ def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp 
     return registered_img
 
 
+@macro.record
 def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
 
     """
@@ -472,6 +482,7 @@ def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
     return image.active.data.astype(np.uint16)
 
 
+@macro.record
 def apply_butterworth_filt_func(data: "napari.types.ImageData",
         ac_freq, cf_freq, fil_ord )-> "Image":
         
@@ -511,6 +522,7 @@ def apply_butterworth_filt_func(data: "napari.types.ImageData",
         return filt_image
 
 
+@macro.record
 def apply_box_filter(data: "napari.types.ImageData", kernel_size):
 
     # data = image.active.data
@@ -526,6 +538,7 @@ def apply_box_filter(data: "napari.types.ImageData", kernel_size):
     return (out_img)
 
 
+@macro.record
 def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
     
     # data = image.active.data
@@ -541,6 +554,7 @@ def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
 
     return (out_img)
 
+@macro.record
 def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_ms = 0.004, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0):
     
     """
