@@ -602,7 +602,7 @@ class OMAAS(QWidget):
                 # self.viewer.add_image(my_splitted_images[channel],
                 # colormap= "turbo", 
                 # name= f"{curr_img_name}_ch{channel + 1}")
-                self.add_result_img(result_img=my_splitted_images[channel], img_custom_nam=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+                self.add_result_img(result_img=my_splitted_images[channel], img_custom_name=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -709,10 +709,10 @@ class OMAAS(QWidget):
     
     
     
-    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_nam = None, **label_and_value_sufix):
+    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_name = None, **label_and_value_sufix):
         
-        if img_custom_nam is not None:
-            img_name = img_custom_nam
+        if img_custom_name is not None:
+            img_name = img_custom_name
         else:
             img_name = self.viewer.layers.selection.active.name
 
@@ -1060,8 +1060,10 @@ class OMAAS(QWidget):
         if filename is None: 
             self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", ".")
         data, info = return_spool_img_fun(self.spool_dir)
-        self.add_result_img(result_img=data, img_custom_nam=os.path.basename(self.spool_dir), add_to_metadata = info)
-        # self.viewer.open(filename, plugin='napari_jroireader')
+        self.viewer.add_image(data,
+                        colormap = "turbo",
+                        name = os.path.basename(self.spool_dir),
+                         metadata = info)
 
         
 
