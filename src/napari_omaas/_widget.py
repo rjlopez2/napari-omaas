@@ -28,6 +28,7 @@ import subprocess
 import pandas as pd
 
 from .utils import *
+import os
 
 
 if TYPE_CHECKING:
@@ -1059,7 +1060,7 @@ class OMAAS(QWidget):
         if filename is None: 
             self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", ".")
         data, info = return_spool_img_fun(self.spool_dir)
-        self.add_result_img(result_img=data, single_label_sufix="lalala", add_to_metadata = "loading_spool")
+        self.add_result_img(result_img=data, img_custom_nam=os.path.basename(self.spool_dir), add_to_metadata = info)
         # self.viewer.open(filename, plugin='napari_jroireader')
 
         
