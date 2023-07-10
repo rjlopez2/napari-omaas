@@ -193,6 +193,13 @@ class OMAAS(QWidget):
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
         self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 6, 1, 2)
 
+        ######## Load spool data btns ########
+        self.load_spool_group = VHGroup('Load Spool data', orientation='G')
+        self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
+
+        self.load_spool_dir_btn = QPushButton("Load spool directory")
+        self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 1, 1, 1)
+
 
         ######## Segmentation group ########
         self.segmentation_group = VHGroup('Segmentation', orientation='G')
@@ -542,6 +549,7 @@ class OMAAS(QWidget):
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
+        self.load_spool_dir_btn.clicked.connect(self._on_click_load_spool_dir_btn)
         
         
         
@@ -1046,6 +1054,14 @@ class OMAAS(QWidget):
     def _on_click_clear_last_step_macro_btn(self):
         macro.pop()
         self.add_record_fun()
+    
+    def _on_click_load_spool_dir_btn(self, event=None, filename=None):
+        if filename is None: 
+            self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", ".")
+        data, info = return_spool_img_fun(self.spool_dir)
+        self.add_result_img(result_img=data, single_label_sufix="lalala", add_to_metadata = "loading_spool")
+        # self.viewer.open(filename, plugin='napari_jroireader')
+
         
 
         

@@ -7,6 +7,7 @@ from skimage import transform
 from skimage import morphology, registration, segmentation
 import warnings
 from napari.layers import Image
+import sif_parser
 
 from napari_macrokit import get_macro
 
@@ -752,3 +753,8 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
      
     # rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
     return (rslt_df)
+
+def return_spool_img_fun(path):
+    data, info = sif_parser.np_spool_open(path)
+
+    return (data, info)
