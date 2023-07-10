@@ -756,5 +756,5 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
 
 def return_spool_img_fun(path):
     data, info = sif_parser.np_spool_open(path)
-
+    info = {key: val for key, val in info.items() if (not key.startswith("timestamp") and (not key.startswith("tile"))) }
     return (np.flip(data, axis=(1)), info)
