@@ -28,6 +28,7 @@ import subprocess
 import pandas as pd
 
 from .utils import *
+import os
 
 
 if TYPE_CHECKING:
@@ -192,6 +193,13 @@ class OMAAS(QWidget):
         self.apply_spat_filt_btn = QPushButton("apply")
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
         self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 6, 1, 2)
+
+        ######## Load spool data btns ########
+        self.load_spool_group = VHGroup('Load Spool data', orientation='G')
+        self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
+
+        self.load_spool_dir_btn = QPushButton("Load spool directory")
+        self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 1, 1, 1)
 
 
         ######## Segmentation group ########
@@ -542,6 +550,7 @@ class OMAAS(QWidget):
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
+        self.load_spool_dir_btn.clicked.connect(self._on_click_load_spool_dir_btn)
         
         
         
@@ -593,7 +602,7 @@ class OMAAS(QWidget):
                 # self.viewer.add_image(my_splitted_images[channel],
                 # colormap= "turbo", 
                 # name= f"{curr_img_name}_ch{channel + 1}")
-                self.add_result_img(result_img=my_splitted_images[channel], img_custom_nam=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+                self.add_result_img(result_img=my_splitted_images[channel], img_custom_name=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -700,10 +709,10 @@ class OMAAS(QWidget):
     
     
     
-    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_nam = None, **label_and_value_sufix):
+    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_name = None, **label_and_value_sufix):
         
-        if img_custom_nam is not None:
-            img_name = img_custom_nam
+        if img_custom_name is not None:
+            img_name = img_custom_name
         else:
             img_name = self.viewer.layers.selection.active.name
 
@@ -1046,6 +1055,16 @@ class OMAAS(QWidget):
     def _on_click_clear_last_step_macro_btn(self):
         macro.pop()
         self.add_record_fun()
+    
+    def _on_click_load_spool_dir_btn(self, event=None, filename=None):
+        if filename is None: 
+            self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", ".")
+        data, info = return_spool_img_fun(self.spool_dir)
+        self.viewer.add_image(data,
+                        colormap = "turbo",
+                        name = os.path.basename(self.spool_dir),
+                         metadata = info)
+
         
 
         
