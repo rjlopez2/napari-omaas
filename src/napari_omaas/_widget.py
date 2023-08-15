@@ -1064,15 +1064,18 @@ class OMAAS(QWidget):
         macro.pop()
         self.add_record_fun()
     
-    def _on_click_load_spool_dir_btn(self, event=None, filename=None):
-        if filename is None: 
-            self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", ".")
-        data, info = return_spool_img_fun(self.spool_dir)
-        self.dir_box_text.setText(self.spool_dir)   
-        self.viewer.add_image(data,
+    def _on_click_load_spool_dir_btn(self, event=None):
+        # if filename is None: 
+        self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", self.dir_box_text.text())
+        if os.path.isdir(self.spool_dir):
+            data, info = return_spool_img_fun(self.spool_dir)
+            self.dir_box_text.setText(self.spool_dir)   
+            self.viewer.add_image(data,
                         colormap = "turbo",
                         name = os.path.basename(self.spool_dir),
                          metadata = info)
+        else:
+            return
 
         
 
