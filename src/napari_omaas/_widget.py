@@ -462,6 +462,10 @@ class OMAAS(QWidget):
         self.metadata_display_group.glayout.addWidget(self.metadata_tree)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
+        # self._settings_layout.setAlignment(Qt.AlignTop)
+        # self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
+        self._settings_layout.addWidget(self.metadata_display_group.gbox)
+
 
         ######################
         ##### Plotters ######
