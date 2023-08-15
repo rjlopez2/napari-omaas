@@ -198,8 +198,16 @@ class OMAAS(QWidget):
         self.load_spool_group = VHGroup('Load Spool data', orientation='G')
         self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
 
+        self.dir_btn_label = QLabel("Directory name")
+        self.load_spool_group.glayout.addWidget(self.dir_btn_label, 3, 1, 1, 1)
+
+        self.dir_box_text = QLineEdit()
+        # self.dir_box_text = QPlainTextEdit()
+        self.dir_box_text.setPlaceholderText(os.getcwd())
+        self.load_spool_group.glayout.addWidget(self.dir_box_text, 3, 2, 1, 1)
+
         self.load_spool_dir_btn = QPushButton("Load spool directory")
-        self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 1, 1, 1)
+        self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 3, 1, 1)
 
 
         ######## Segmentation group ########
@@ -1060,6 +1068,7 @@ class OMAAS(QWidget):
         if filename is None: 
             self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", ".")
         data, info = return_spool_img_fun(self.spool_dir)
+        self.dir_box_text.setText(self.spool_dir)   
         self.viewer.add_image(data,
                         colormap = "turbo",
                         name = os.path.basename(self.spool_dir),
