@@ -12,7 +12,7 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
-    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, 
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
     QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView
     )
 from warnings import warn
@@ -28,6 +28,7 @@ import subprocess
 import pandas as pd
 
 from .utils import *
+import os
 
 
 if TYPE_CHECKING:
@@ -77,6 +78,12 @@ class OMAAS(QWidget):
         self._APD_analysis_layout = QVBoxLayout()
         self.APD_analysis.setLayout(self._APD_analysis_layout)
         self.tabs.addTab(self.APD_analysis, 'APD analysis')
+
+        ######## Settings tab ########
+        self.settings = QWidget()
+        self._settings_layout = QVBoxLayout()
+        self.settings.setLayout(self._settings_layout)
+        self.tabs.addTab(self.settings, 'Settings')
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -186,6 +193,21 @@ class OMAAS(QWidget):
         self.apply_spat_filt_btn = QPushButton("apply")
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
         self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 6, 1, 2)
+
+        ######## Load spool data btns ########
+        self.load_spool_group = VHGroup('Load Spool data', orientation='G')
+        self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
+
+        self.dir_btn_label = QLabel("Directory name")
+        self.load_spool_group.glayout.addWidget(self.dir_btn_label, 3, 1, 1, 1)
+
+        self.dir_box_text = QLineEdit()
+        # self.dir_box_text = QPlainTextEdit()
+        self.dir_box_text.setPlaceholderText(os.getcwd())
+        self.load_spool_group.glayout.addWidget(self.dir_box_text, 3, 2, 1, 1)
+
+        self.load_spool_dir_btn = QPushButton("Load spool directory")
+        self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 3, 1, 1)
 
 
         ######## Segmentation group ########
@@ -367,18 +389,14 @@ class OMAAS(QWidget):
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
         self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 6, 1, 1)
         values = []
-        self.AP_df_default_val = pd.DataFrame({
-                            f"APD_perc" : values,
-                            f"APD" : values,
-                            "AcTime_dVdtmax": values,
-                            "BasCycLength_bcl": values,
-                            "time_at_AP_upstroke": values,
-                            f"time_at_AP_peak": values,
-                            "time_at_AP_end": values,
-                            "indx_at_AP_upstroke": values,
-                            f"indx_at_AP_peak": values,
-                            "indx_at_AP_end": values,
-                            }, index= values)
+        self.AP_df_default_val = pd.DataFrame({"image_name": values,
+                                               "ROI_id" : values, 
+                                               "APD_perc" : values,
+                                               "APD_perc" : values, 
+                                               "APD" : values, 
+                                               "AcTime_dVdtmax": values, 
+                                               "BasCycLength_bcl": values})
+
         # df = pd.read_csv("/Users/rubencito/Desktop/Iris.csv")
         
         model = PandasModel(self.AP_df_default_val)
@@ -390,7 +408,31 @@ class OMAAS(QWidget):
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
         self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
 
-               
+        ######## Settings tab ########
+        ####################################
+
+        ######## Macro record group ########
+        self._settings_layout.setAlignment(Qt.AlignTop)
+        self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
+        self._settings_layout.addWidget(self.macro_group.gbox)
+
+        self.record_script_label = QLabel("Macro")
+        self.record_script_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
+        self.macro_group.glayout.addWidget(self.record_script_label, 3, 2, 1, 1)
+        
+        self.record_macro_check = QCheckBox()
+        self.record_macro_check.setChecked(True) 
+        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 3, 1, 1)
+
+        self.clear_last_step_macro_btn = QPushButton("Delete last step")
+        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 4, 1, 1)
+        
+        self.clear_macro_btn = QPushButton("Clear Macro")
+        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 5, 1, 1)       
+       
+        self.macro_box_text = QPlainTextEdit()
+        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
+        self.macro_group.glayout.addWidget(self.macro_box_text, 4, 2, 1, 1)
         
 
         # sub_backg_btn = QPushButton("Subtract Background")
@@ -419,6 +461,10 @@ class OMAAS(QWidget):
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
+
+        # self._settings_layout.setAlignment(Qt.AlignTop)
+        # self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
+        self._settings_layout.addWidget(self.metadata_display_group.gbox)
 
 
         ######################
@@ -514,6 +560,9 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
+        self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
+        self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
+        self.load_spool_dir_btn.clicked.connect(self._on_click_load_spool_dir_btn)
         
         
         
@@ -531,6 +580,7 @@ class OMAAS(QWidget):
             print(f'computing "invert_signal" to image {current_selection}')
             results =invert_signal(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -542,6 +592,7 @@ class OMAAS(QWidget):
             print(f'computing "local_normal_fun" to image {current_selection}')
             results = local_normal_fun(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -563,7 +614,8 @@ class OMAAS(QWidget):
                 # self.viewer.add_image(my_splitted_images[channel],
                 # colormap= "turbo", 
                 # name= f"{curr_img_name}_ch{channel + 1}")
-                self.add_result_img(result_img=my_splitted_images[channel], img_custom_nam=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+                self.add_result_img(result_img=my_splitted_images[channel], img_custom_name=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+                self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -660,6 +712,8 @@ class OMAAS(QWidget):
                 print(f'applying "apply_laplace_filter" to image {current_selection}')
                 results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
                 self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
+            
+            self.add_record_fun()
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -667,10 +721,10 @@ class OMAAS(QWidget):
     
     
     
-    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_nam = None, **label_and_value_sufix):
+    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_name = None, **label_and_value_sufix):
         
-        if img_custom_nam is not None:
-            img_name = img_custom_nam
+        if img_custom_name is not None:
+            img_name = img_custom_name
         else:
             img_name = self.viewer.layers.selection.active.name
 
@@ -756,6 +810,8 @@ class OMAAS(QWidget):
                 results =  results.get()    
 
             self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+        
+            self.add_record_fun()
 
             
         else:
@@ -787,6 +843,7 @@ class OMAAS(QWidget):
                                                 fil_ord=order_value)
 
             self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
@@ -886,6 +943,7 @@ class OMAAS(QWidget):
             # handles = []
             # print("lalala")
             traces = self._graphics_widget_TSP.plotter.data[1::2]
+            shapes = self._graphics_widget_TSP.plotter.selection_layer.data
             time = self._graphics_widget_TSP.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
             rmp_method = self.APD_computing_method.currentText()
@@ -893,52 +951,87 @@ class OMAAS(QWidget):
             prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             # self.viewer.layers.select_previous()
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
+            APD_props = []
+            selected_img_list = [img.name for img in  self._graphics_widget_TSP.plotter.selector.model().get_checked()]
 
-            for trace in range(len(traces)):
-                # acttime_peaks_indx, ini_peaks_indx = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"])
-                # print(rslts)
-                self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5)
-                # # handles.extend(self.APD_axes.plot(time, traces[trace], label=f'{lname}_ROI-{trace}', alpha=0.5))
-                # for indx in acttime_peaks_indx:
-                #     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
-                #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
-                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
-                
-                # for indx in ini_peaks_indx:
-                #     # handles.extend(self.APD_axes.axvline(time[indx], alpha=0.5, ls = '-'))
-                #     # self.APD_axes.axvline(time[indx], alpha=0.2, ls = '--', c = 'w', lw = 0.5)
-                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
-
-                apd_props = compute_APD_props_func(traces[trace], cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence)
-
-                model = PandasModel(apd_props)
-                # self.APD_propert_table = QTableView()
-                self.APD_propert_table.setModel(model)
-
-                self.APD_axes.vlines(time[apd_props.indx_at_AP_upstroke], 
-                                    ymin=traces[trace][apd_props.indx_at_AP_end], 
-                                    ymax=traces[trace][apd_props.indx_at_AP_peak], 
-                                    linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
-
-                self.APD_axes.vlines(time[apd_props.indx_at_AP_end], 
-                                    ymin=traces[trace][apd_props.indx_at_AP_end], 
-                                    ymax=traces[trace][apd_props.indx_at_AP_peak],  
-                                    linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
-
-                # for indx in ini_ap_indx:
-
-                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'x', c = 'grey', lw = 0.5)
-
-                # for indx in end_ap_indx:
-
-                #     self.APD_axes.plot(time[indx], traces[trace][indx], 'o', c = 'grey', lw = 0.5)
+            for img_indx, img_name in enumerate(selected_img_list):
 
 
+                for shpae_indx, trace in enumerate(shapes):
+
+                    self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+
+                    props = compute_APD_props_func(traces[img_indx + shpae_indx], curr_img_name = img_name, cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence, roi_indx=shpae_indx)
+                    
+                    ini_indx = props[-3]
+                    peak_indx = props[-2]
+                    end_indx = props[-1]
+                    # ini_indx = [props[val][-3] for val in range(len(props))]
+                    # peak_indx = [props[val][-2] for val in range(len(props))]
+                    # end_indx = [props[val][-1] for val in range(len(props))]               
+
+                    # text_lalala = ["lalala" for i in range(len(props[0]))]
+                    # props.append(text_lalala)                
+
+                    self.APD_axes.vlines(time[ini_indx], 
+                                        ymin=traces[img_indx + shpae_indx][end_indx], 
+                                        ymax=traces[img_indx + shpae_indx][peak_indx], 
+                                        linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
+
+                    self.APD_axes.vlines(time[end_indx], 
+                                        ymin=traces[img_indx + shpae_indx][end_indx], 
+                                        ymax=traces[img_indx + shpae_indx][peak_indx],  
+                                        linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
+
+                    APD_props.append(props)
+
+
+
+            self._APD_TSP._draw()
 
             # print(acttime_peaks_indx, ini_peaks_indx )
+            colnames = [ "image_name",
+                         "ROI_id",
+                         "AP_id" ,
+                         "APD_perc" ,
+                         "APD",
+                         "AcTime_dVdtmax",
+                         "BasCycLength_bcl",
+                         "time_at_AP_upstroke",
+                         "time_at_AP_peak",
+                         "time_at_AP_end",
+                         "indx_at_AP_upstroke",
+                         "indx_at_AP_peak",
+                         "indx_at_AP_end"]
+
+
+            APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
+
+            # convert back to the correct type the numeric columns
+            cols = [col for col in APD_props_df if col.startswith('indx')]
+            cols.append("APD_perc")
+            APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
+
+            cols = [col for col in APD_props_df if col.startswith('time')]
+            cols.extend(colnames[4:7])
+            APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
+
+             # convert to ms and round values
+            APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
 
             
-            self._APD_TSP._draw()
+            model = PandasModel(APD_props_df[["image_name",
+                                            "ROI_id", 
+                                            "AP_id" ,
+                                            "APD_perc" ,
+                                            "APD",
+                                            "AcTime_dVdtmax",
+                                            "BasCycLength_bcl"]])
+                # self.APD_propert_table = QTableView()
+            self.APD_propert_table.setModel(model)
+
+            self.add_record_fun()
+
                 
 
     
@@ -961,6 +1054,35 @@ class OMAAS(QWidget):
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
+
+
+    def _on_click_clear_macro_btn(self, event):
+        self.macro_box_text.clear()
+        macro.clear()
+
+    def add_record_fun(self):
+        self.macro_box_text.clear()
+        self.macro_box_text.insertPlainText(repr(macro))
+    
+    def _on_click_clear_last_step_macro_btn(self):
+        macro.pop()
+        self.add_record_fun()
+    
+    def _on_click_load_spool_dir_btn(self, event=None):
+        # if filename is None: 
+        self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", self.dir_box_text.text())
+        if os.path.isdir(self.spool_dir):
+            data, info = return_spool_img_fun(self.spool_dir)
+            self.dir_box_text.setText(self.spool_dir)   
+            self.viewer.add_image(data,
+                        colormap = "turbo",
+                        name = os.path.basename(self.spool_dir),
+                         metadata = info)
+        else:
+            return
+
+        
+
         
 
 
