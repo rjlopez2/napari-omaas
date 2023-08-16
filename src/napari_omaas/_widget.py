@@ -1111,7 +1111,7 @@ class OMAAS(QWidget):
             # print ('DragEnter')
             return True
         elif (event.type() == QtCore.QEvent.Drop): # and source is self.textedit):
-            dir_name = event.mimeData().text().replace("file://", "") # find a way here to normalize path
+            dir_name = event.mimeData().text().replace("file://", "")[:-1]  # find a way here to normalize path
             self.dir_box_text.setText(dir_name)
             # print ('Drop')
             return True
