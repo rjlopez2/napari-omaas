@@ -1131,7 +1131,7 @@ class OMAAS(QWidget):
                     
             # handel Unix path
             elif os.name == "posix":
-                dir_name = dir_name.replace("file://", "")[:-1]
+                dir_name = dir_name[:-1]
             
             else:
                 warn(f"your os with value os.name ='{os.name}' has not be normalized for directory paths yet. Please reach out with the package manteiner to discuss this feature.")
