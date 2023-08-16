@@ -29,6 +29,7 @@ import pandas as pd
 
 from .utils import *
 import os
+from pathlib import Path
 
 
 if TYPE_CHECKING:
@@ -1100,7 +1101,7 @@ class OMAAS(QWidget):
                         name = os.path.basename(self.spool_dir),
                          metadata = info)
         else:
-            print("the selected entry does not seem to be a valid directory")
+            warn(f"the selected item {self.spool_dir} does not seem to be a valid directory")
 
 
 
@@ -1119,7 +1120,19 @@ class OMAAS(QWidget):
             
             # handel windows path
             if os.name == "nt":
-                dir_name = dir_name[1:]
+                # print(dir_name)
+                # print(Path(dir_name))
+                dir_name = Path(dir_name)
+                last_part = dir_name.parts[0]
+                # this load files hosted locally
+                if last_part.startswith("\\"):
+                    # print("ozozozozozoz")
+                    dir_name = str(dir_name)[1:]
+                else:
+                    # this load files hosted in servers
+                    # print("lllalalalalalalala")
+                    dir_name = "//" + str(dir_name)
+                    
             # handel Unix path
             elif os.name == "posix":
                 dir_name = dir_name[:-1]
