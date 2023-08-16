@@ -1116,17 +1116,17 @@ class OMAAS(QWidget):
             
             # handel windows path
             if os.name == "nt":
-                print(dir_name)
-                print(Path(dir_name))
+                # print(dir_name)
+                # print(Path(dir_name))
                 dir_name = Path(dir_name)
                 last_part = dir_name.parts[0]
                 # this load files hosted locally
                 if last_part.startswith("\\"):
-                    print("ozozozozozoz")
+                    # print("ozozozozozoz")
                     dir_name = str(dir_name)[1:]
                 else:
                     # this load files hosted in servers
-                    print("lllalalalalalalala")
+                    # print("lllalalalalalalala")
                     dir_name = "//" + str(dir_name)
                     
             # handel Unix path
