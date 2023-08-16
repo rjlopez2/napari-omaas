@@ -586,7 +586,14 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     
     time = np.arange(0, np_1Darray.shape[-1]) * cycle_length_ms 
 
-    AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
+    try:
+        
+        AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
+    
+    except Exception as e:
+
+        print(f"ERROR: computing APD parameters fails witht error: {repr(e)}")
+
 
 
     peaks_times = time[AP_peaks_indx]
@@ -701,8 +708,14 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
         # repol_index = AP_peaks_indx[peak] + np.minimum( current_APD_segment.size -1 , np.argwhere(current_APD_segment <= amp_V).min()  )
         # repol_index = AP_peaks_indx[peak] + min(np.argwhere(current_APD_segment[current_APD_segment <= amp_V].min() == current_APD_segment)[0][0], current_APD_segment.size -1)
-        repol_index =  AP_peaks_indx[peak] + np.minimum(np.argwhere(current_APD_segment <= amp_V)[0][0] , current_APD_segment.shape[-1] -1)
+        try:
+
+            repol_index =  AP_peaks_indx[peak] + np.minimum(np.argwhere(current_APD_segment <= amp_V)[0][0] , current_APD_segment.shape[-1] -1)
+        
+        except Exception as e:
+            print(f"ERROR: computing APD parameters fails witht error: {repr(e)}. In addition len of 'AP_peaks_indx': {len(AP_peaks_indx)}. and len of 'peaks_times': {len(peaks_times)}")
         # repol_index = AP_peaks_indx[peak] + np.minimum(np.argwhere(np_1Darray[AP_peaks_indx[peak] + 1 : end_indx] <= amp_V)[0], np_1Darray[AP_peaks_indx[peak] : end_indx].size)[0]
+
         pre_repol_index = repol_index - 2
         # enerate fine grid for interpolation in ms
         time_fine_grid = np.linspace(time[pre_repol_index], time[repol_index], interp_points)
