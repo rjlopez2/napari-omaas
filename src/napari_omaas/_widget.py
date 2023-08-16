@@ -1111,7 +1111,19 @@ class OMAAS(QWidget):
             # print ('DragEnter')
             return True
         elif (event.type() == QtCore.QEvent.Drop): # and source is self.textedit):
-            dir_name = event.mimeData().text().replace("file://", "")[:-1]  # find a way here to normalize path
+            dir_name = event.mimeData().text().replace("file://", "")
+            
+            # handel windows path
+            if os.name == "nt":
+                dir_name = dir_name[1:]
+            # handel Unix path
+            elif os.name == "posix":
+                dir_name = dir_name.replace("file://", "")[:-1]
+            
+            else:
+                warn(f"your os with value os.name ='{os.name}' has not be normalized for directory paths yet. Please reach out with the package manteiner to discuss this feature.")
+            
+            dir_name = os.path.normpath(dir_name)  # find a way here to normalize path
             self.dir_box_text.setText(dir_name)
             # print ('Drop')
             return True
