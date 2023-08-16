@@ -194,21 +194,28 @@ class OMAAS(QWidget):
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
         self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 6, 1, 2)
 
-        ######## Load spool data btns ########
+       
+        ######## Load spool data btns Group ########
         self.load_spool_group = VHGroup('Load Spool data', orientation='G')
         self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
 
         self.dir_btn_label = QLabel("Directory name")
         self.load_spool_group.glayout.addWidget(self.dir_btn_label, 3, 1, 1, 1)
 
+        # self.dir_box_text = FileDropLineEdit()
         self.dir_box_text = QLineEdit()
-        # self.dir_box_text = QPlainTextEdit()
+        self.dir_box_text.installEventFilter(self)
+        # self.dir_box_text.setDragEnabled(True)
+        self.dir_box_text.setAcceptDrops(True)
+        # self.dir_box_text.set
         self.dir_box_text.setPlaceholderText(os.getcwd())
         self.load_spool_group.glayout.addWidget(self.dir_box_text, 3, 2, 1, 1)
 
-        self.load_spool_dir_btn = QPushButton("Load spool directory")
+        self.load_spool_dir_btn = QPushButton("Load")
         self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 3, 1, 1)
 
+        self.search_spool_dir_btn = QPushButton("Search Directory")
+        self.load_spool_group.glayout.addWidget(self.search_spool_dir_btn, 3, 4, 1, 1)
 
         ######## Segmentation group ########
         self.segmentation_group = VHGroup('Segmentation', orientation='G')
@@ -558,7 +565,8 @@ class OMAAS(QWidget):
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
-        self.load_spool_dir_btn.clicked.connect(self._on_click_load_spool_dir_btn)
+        self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
+        self.search_spool_dir_btn.clicked.connect(self._search_and_load_spool_dir_func)
         
         
         
@@ -1064,18 +1072,53 @@ class OMAAS(QWidget):
         macro.pop()
         self.add_record_fun()
     
-    def _on_click_load_spool_dir_btn(self, event=None):
-        # if filename is None: 
+    def _search_and_load_spool_dir_func(self, event=None):
         self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", self.dir_box_text.text())
+        self.dir_box_text.setText(self.spool_dir)
+        self.load_current_spool_dir()
+    
+    def _load_current_spool_dir_func(self):
+        spool_dir_name =self.dir_box_text.text()
+        if os.path.isdir(spool_dir_name):
+            self.load_current_spool_dir()
+        else:
+            print("the selected entry does not seem to be a valid directory")
+    
+
+
+    
+    def load_current_spool_dir(self):
+        self.spool_dir =self.dir_box_text.text()
         if os.path.isdir(self.spool_dir):
             data, info = return_spool_img_fun(self.spool_dir)
-            self.dir_box_text.setText(self.spool_dir)   
             self.viewer.add_image(data,
                         colormap = "turbo",
                         name = os.path.basename(self.spool_dir),
                          metadata = info)
         else:
-            return
+            print("the selected entry does not seem to be a valid directory")
+
+
+
+    def eventFilter(self, source, event):
+        """
+        #### NOTE: in order to allow drop events, you must allow to drag!!
+        found this solution here: https://stackoverflow.com/questions/25505922/dragdrop-from-qlistwidget-to-qplaintextedit 
+        and here:https://www.programcreek.com/python/?CodeExample=drop+event
+        """
+        if (event.type() == QtCore.QEvent.DragEnter): # and source is self.textedit):
+            event.accept()
+            # print ('DragEnter')
+            return True
+        elif (event.type() == QtCore.QEvent.Drop): # and source is self.textedit):
+            dir_name = event.mimeData().text().replace("file://", "") # find a way here to normalize path
+            self.dir_box_text.setText(dir_name)
+            # print ('Drop')
+            return True
+        else:
+            return super(OMAAS, self).eventFilter(source, event)
+    
+
 
         
 
