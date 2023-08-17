@@ -371,8 +371,8 @@ class OMAAS(QWidget):
         
         self.slider_APD_detection_threshold = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_thres_max_range = 10000
-        self.slider_APD_detection_threshold.setRange(1, 300)
-        self.slider_APD_detection_threshold.setValue(100)
+        self.slider_APD_detection_threshold.setRange(1, 1000)
+        self.slider_APD_detection_threshold.setValue(500)
         self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 5, 1, 1)
         
         self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
@@ -961,29 +961,43 @@ class OMAAS(QWidget):
 
                     self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
 
-                    props = compute_APD_props_func(traces[img_indx + shpae_indx], curr_img_name = img_name, cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence, roi_indx=shpae_indx)
-                    
-                    ini_indx = props[-3]
-                    peak_indx = props[-2]
-                    end_indx = props[-1]
-                    # ini_indx = [props[val][-3] for val in range(len(props))]
-                    # peak_indx = [props[val][-2] for val in range(len(props))]
-                    # end_indx = [props[val][-1] for val in range(len(props))]               
+                    # ##### catch error here and exit nicely for the user with a warning or so #####
+                    try:
 
-                    # text_lalala = ["lalala" for i in range(len(props[0]))]
-                    # props.append(text_lalala)                
+                        props = compute_APD_props_func(traces[img_indx + shpae_indx], 
+                                                        curr_img_name = img_name, 
+                                                        # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                        cycle_length_ms= self.img_metadata_dict["CycleTime"],
+                                                        rmp_method = rmp_method, 
+                                                        apd_perc = apd_percentage, 
+                                                        promi=prominence, 
+                                                        roi_indx=shpae_indx)
+                        
+                        ini_indx = props[-3]
+                        peak_indx = props[-2]
+                        end_indx = props[-1]
+                        # ini_indx = [props[val][-3] for val in range(len(props))]
+                        # peak_indx = [props[val][-2] for val in range(len(props))]
+                        # end_indx = [props[val][-1] for val in range(len(props))]               
 
-                    self.APD_axes.vlines(time[ini_indx], 
-                                        ymin=traces[img_indx + shpae_indx][end_indx], 
-                                        ymax=traces[img_indx + shpae_indx][peak_indx], 
-                                        linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
+                        # text_lalala = ["lalala" for i in range(len(props[0]))]
+                        # props.append(text_lalala)                
 
-                    self.APD_axes.vlines(time[end_indx], 
-                                        ymin=traces[img_indx + shpae_indx][end_indx], 
-                                        ymax=traces[img_indx + shpae_indx][peak_indx],  
-                                        linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
+                        self.APD_axes.vlines(time[ini_indx], 
+                                            ymin=traces[img_indx + shpae_indx][end_indx], 
+                                            ymax=traces[img_indx + shpae_indx][peak_indx], 
+                                            linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
 
-                    APD_props.append(props)
+                        self.APD_axes.vlines(time[end_indx], 
+                                            ymin=traces[img_indx + shpae_indx][end_indx], 
+                                            ymax=traces[img_indx + shpae_indx][peak_indx],  
+                                            linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
+
+                        APD_props.append(props)
+
+                    except Exception as e:
+                        # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                        raise e
 
 
 
