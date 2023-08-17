@@ -589,7 +589,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     # try:
         
     AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
-    
+    # peak_left_bases_indx = AP_peaks_props["left_bases"]
     # except Exception as e:
 
     #     print(f"ERROR: computing APD parameters fails witht error: {repr(e)}")
@@ -606,6 +606,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     if len(bcl_list) < len(peaks_times):
         # bcl_list = [bcl_list, time(end) - times(end)]
         bcl_list = np.append(bcl_list, time[-1] - peaks_times[-1])
+        # bcl_list = np.append(bcl_list, (peaks_times[-2] + peaks_times[-1]))
 
 
     APD = np.zeros_like(peaks_times)
@@ -733,3 +734,9 @@ def return_spool_img_fun(path):
     data, info = sif_parser.np_spool_open(path)
     info = {key: val for key, val in info.items() if (not key.startswith("timestamp") and (not key.startswith("tile"))) }
     return (np.flip(data, axis=(1)), info)
+
+
+def return_peaks_found_fun(promi, np_1Darray):
+    AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
+
+    return len(AP_peaks_indx)
