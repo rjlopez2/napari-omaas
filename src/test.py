@@ -1,6 +1,7 @@
 # from skimage import data
 import napari
 import napari_omaas
+from napari_omaas import utils
 
 # import myModule
 # import importlib
@@ -19,6 +20,13 @@ viewer.window.add_dock_widget(o, area='right')
 my_file  = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_APD/20230504_17h-01m-53.sif"
 # my_file = "/Users/rubencito/programming_stuff/p_experimental/image_analysis/napari_play/OMAAS/test_data/single_scan/test_ruben/20230413_11h-57m-31s.sif"
 viewer.open(my_file, plugin= "napari-sif-reader")
+###### invert data #####
+inv_data = utils.invert_signal(viewer.layers[-1].data)
+##### normalize data #####
+norm_data = utils.local_normal_fun(inv_data)
+viewer.add_image(norm_data, name=viewer.layers[-1].name  + "_Inv_Norm", colormap= "turbo", metadata= viewer.layers[-1].metadata)
+
+
 # viewer.open_sample("napari-omaas", "heartsample")
 
 napari.run()  # start the "event loop" and show the viewer
