@@ -586,13 +586,13 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     
     time = np.arange(0, np_1Darray.shape[-1]) * cycle_length_ms 
 
-    try:
+    # try:
         
-        AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
+    AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
     
-    except Exception as e:
+    # except Exception as e:
 
-        print(f"ERROR: computing APD parameters fails witht error: {repr(e)}")
+    #     print(f"ERROR: computing APD parameters fails witht error: {repr(e)}")
 
 
 
@@ -626,6 +626,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     AP_end = [] 
 
     for peak in range(len(peaks_times)):
+        print(f"start loop of n = {peak} iteration")
         #  Find RMP and APD
         # RMP is mean V of BCL/2 to 5ms before AP upstroke to when this value is crossed to BCL/2 (or end) 
 
@@ -708,12 +709,13 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
         # repol_index = AP_peaks_indx[peak] + np.minimum( current_APD_segment.size -1 , np.argwhere(current_APD_segment <= amp_V).min()  )
         # repol_index = AP_peaks_indx[peak] + min(np.argwhere(current_APD_segment[current_APD_segment <= amp_V].min() == current_APD_segment)[0][0], current_APD_segment.size -1)
-        try:
+        # try:
 
-            repol_index =  AP_peaks_indx[peak] + np.minimum(np.argwhere(current_APD_segment <= amp_V)[0][0] , current_APD_segment.shape[-1] -1)
+        # repol_index =  AP_peaks_indx[peak] + np.minimum(np.argwhere(current_APD_segment <= amp_V)[0][0] , current_APD_segment.shape[-1] -1)
+        repol_index =  AP_peaks_indx[peak] + np.minimum(np.argmax(current_APD_segment <= amp_V) , current_APD_segment.shape[-1] -1)
         
-        except Exception as e:
-            print(f"ERROR: computing APD parameters fails witht error: {repr(e)}. In addition len of 'AP_peaks_indx': {len(AP_peaks_indx)}. and len of 'peaks_times': {len(peaks_times)}")
+        # except Exception as e:
+        #     print(f"ERROR: computing APD parameters fails witht error: {repr(e)}. In addition len of 'AP_peaks_indx': {len(AP_peaks_indx)}. and len of 'peaks_times': {len(peaks_times)}")
         # repol_index = AP_peaks_indx[peak] + np.minimum(np.argwhere(np_1Darray[AP_peaks_indx[peak] + 1 : end_indx] <= amp_V)[0], np_1Darray[AP_peaks_indx[peak] : end_indx].size)[0]
 
         pre_repol_index = repol_index - 2
@@ -762,7 +764,9 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     #             "indx_at_AP_end":AP_end,
     #             }
 
+
     rslt_df = [img_name, ROI_ids, AP_ids, apd_perc, APD, dVdtmax, bcl_list, time[AP_ini], time[AP_peak], time[AP_end], AP_ini, AP_peak, AP_end]
+    print(rslt_df)
      
     # rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
     return (rslt_df)
