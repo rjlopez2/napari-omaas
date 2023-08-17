@@ -626,7 +626,6 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     AP_end = [] 
 
     for peak in range(len(peaks_times)):
-        print(f"start loop of n = {peak} iteration")
         #  Find RMP and APD
         # RMP is mean V of BCL/2 to 5ms before AP upstroke to when this value is crossed to BCL/2 (or end) 
 
@@ -658,7 +657,6 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
         else:
             upper_bound_interp = upstroke_indx + delta;
         
-
         time_fine_grid = np.linspace(time[lower_bound_interp], time[upper_bound_interp], interp_points)
         interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True)
         dfdt_interpolated = interpolation_f(time_fine_grid) 
@@ -677,9 +675,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
         else:
             cross_indx = np.minimum(upstroke_indx + min_indx[0], end_indx)[0]
         
-        end_RMP = np.nanmedian(np_1Darray[cross_indx:end_indx]) # using median isntead of mean
-
-        
+        end_RMP = np.nanmedian(np_1Darray[cross_indx:end_indx]) # using median instead of mean
 
         #  insert here a conditional to set the method for rmp computation 
         if rmp_method == "bcl_to_bcl":
@@ -701,23 +697,11 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
 
         
         # compute APD
-        #################### the bug is here ###################
         V_max = np.max(np_1Darray[ini_indx:end_indx])        
-        # amp_apd_perc = (100 - apd_perc) / 100
         amp_V = (((100 - apd_perc) / 100) * (V_max - resting_V[peak])) + resting_V[peak]
         # Find index where the AP has recovered the given percentage (or if it didnt, take the last index)
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
-        # repol_index = AP_peaks_indx[peak] + np.minimum( current_APD_segment.size -1 , np.argwhere(current_APD_segment <= amp_V).min()  )
-        # repol_index = AP_peaks_indx[peak] + min(np.argwhere(current_APD_segment[current_APD_segment <= amp_V].min() == current_APD_segment)[0][0], current_APD_segment.size -1)
-        # try:
-
-        # repol_index =  AP_peaks_indx[peak] + np.minimum(np.argwhere(current_APD_segment <= amp_V)[0][0] , current_APD_segment.shape[-1] -1)
         repol_index =  AP_peaks_indx[peak] + np.minimum(np.argmax(current_APD_segment <= amp_V) , current_APD_segment.shape[-1] -1)
-        
-        # except Exception as e:
-        #     print(f"ERROR: computing APD parameters fails witht error: {repr(e)}. In addition len of 'AP_peaks_indx': {len(AP_peaks_indx)}. and len of 'peaks_times': {len(peaks_times)}")
-        # repol_index = AP_peaks_indx[peak] + np.minimum(np.argwhere(np_1Darray[AP_peaks_indx[peak] + 1 : end_indx] <= amp_V)[0], np_1Darray[AP_peaks_indx[peak] : end_indx].size)[0]
-
         pre_repol_index = repol_index - 2
         # enerate fine grid for interpolation in ms
         time_fine_grid = np.linspace(time[pre_repol_index], time[repol_index], interp_points)
@@ -738,35 +722,9 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     ROI_ids = [f'ROI_{roi_indx}' for i in range(peaks_times.shape[-1])]
     apd_perc = [apd_perc for i in range(peaks_times.shape[-1])]
     img_name = [curr_img_name for i in range(peaks_times.shape[-1])]
-    # rslt_df = pd.DataFrame({
-    #                         f"APD_perc" : AP_ids,
-    #                         f"APD" : APD,
-    #                         "AcTime_dVdtmax": dVdtmax,
-    #                         "BasCycLength_bcl": bcl_list,
-    #                         "time_at_AP_upstroke": time[AP_ini],
-    #                         f"time_at_AP_peak": time[AP_peak],
-    #                         "time_at_AP_end": time[AP_end],
-    #                         "indx_at_AP_upstroke": AP_ini,
-    #                         f"indx_at_AP_peak": AP_peak,
-    #                         "indx_at_AP_end":AP_end,
-    #                         }, index= row_names)
-
-    # rslt_df = { "AP_id" : AP_ids,
-    #             "APD_perc" : apd_perc,
-    #             "APD" : APD,
-    #             "AcTime_dVdtmax": dVdtmax,
-    #              "BasCycLength_bcl": bcl_list,
-    #              "time_at_AP_upstroke": time[AP_ini],
-    #             "time_at_AP_peak": time[AP_peak],
-    #             "time_at_AP_end": time[AP_end],
-    #             "indx_at_AP_upstroke": AP_ini,
-    #             "indx_at_AP_peak": AP_peak,
-    #             "indx_at_AP_end":AP_end,
-    #             }
 
 
     rslt_df = [img_name, ROI_ids, AP_ids, apd_perc, APD, dVdtmax, bcl_list, time[AP_ini], time[AP_peak], time[AP_end], AP_ini, AP_peak, AP_end]
-    print(rslt_df)
      
     # rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
     return (rslt_df)
