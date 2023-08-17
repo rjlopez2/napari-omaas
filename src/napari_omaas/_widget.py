@@ -361,8 +361,15 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
         self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 4, 1, 1, 1)
 
-        self.APD_computing_method_label = QLabel("AP baseline method")
-        self.APD_computing_method_label.setToolTip(("Select method to compute the resting AP. Methods are : bcl_to_bcl, pre_upstroke_min, post_AP_min and ave_pre_post_min "))
+        self.APD_computing_method_label = QLabel("AP detection method")
+        self.APD_computing_method_label.setToolTip(("""        
+        Select the method to compute the resting (membrane) to detect the AP. 
+         Methods are : 
+        - bcl_to_bcl: from BCL (Basal cycle length) to BCL.
+        - pre_upstroke_min: minimum value Pre-upstroke, 
+        - post_AP_min: minimum value after AP,
+        - ave_pre_post_min: average the minimum value before and after stroke.
+         """))
         self.APD_plot_group.glayout.addWidget(self.APD_computing_method_label, 4, 2, 1, 1)
         
         self.APD_computing_method = QComboBox()
@@ -373,21 +380,26 @@ class OMAAS(QWidget):
         self.slider_APD_thres_max_range = 10000
         self.slider_APD_detection_threshold.setRange(1, 1000)
         self.slider_APD_detection_threshold.setValue(500)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 5, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 6, 1, 1)
         
         self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
         self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
         self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 4, 4, 1, 1)
-
+        
+        self.APD_peaks_help_box_label_def_value = 0
+        self.APD_peaks_help_box_label = QLabel(f"[detected]: {self.APD_peaks_help_box_label_def_value}")
+        self.APD_peaks_help_box_label.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
+        self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 4, 5, 1, 1)
+        
         self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_percentage.setRange(10, 100)
         self.slider_APD_percentage.setValue(75)
         self.slider_APD_percentage.setSingleStep(5)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 7, 1, 1)
-
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 8, 1, 1)
+        
         self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 6, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 7, 1, 1)
         values = []
         self.AP_df_default_val = pd.DataFrame({"image_name": values,
                                                "ROI_id" : values, 
@@ -1063,8 +1075,19 @@ class OMAAS(QWidget):
         # ----->>>>> this retrn the new cavas to plot on to -> self._APD_TSP.canvas.figure.subplots
 
     def _get_APD_thre_slider_vlaue_func(self, value):
+        prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
 
-        self.slider_label_current_value.setText(f'Sensitivity threshold: {value / (self.slider_APD_thres_max_range )}')
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
+        
+        # check that you have content in the graphics panel
+        if len(self._graphics_widget_TSP.plotter.data) > 0 :
+            traces = self._graphics_widget_TSP.plotter.data[1::2]
+            shapes = self._graphics_widget_TSP.plotter.selection_layer.data
+            selected_img_list = [img.name for img in  self._graphics_widget_TSP.plotter.selector.model().get_checked()]
+            for img_indx, img_name in enumerate(selected_img_list):
+                for shpae_indx, trace in enumerate(shapes):
+                    traces[img_indx + shpae_indx]
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
