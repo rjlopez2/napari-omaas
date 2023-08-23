@@ -971,6 +971,9 @@ class OMAAS(QWidget):
 
                 for shpae_indx, trace in enumerate(shapes):
 
+                    # update detected APs labels
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
+
                     self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
 
                     # ##### catch error here and exit nicely for the user with a warning or so #####
@@ -988,22 +991,32 @@ class OMAAS(QWidget):
                         ini_indx = props[-3]
                         peak_indx = props[-2]
                         end_indx = props[-1]
+                        dVdtmax = props[5]
+                        resting_V = props[8]
                         # ini_indx = [props[val][-3] for val in range(len(props))]
                         # peak_indx = [props[val][-2] for val in range(len(props))]
                         # end_indx = [props[val][-1] for val in range(len(props))]               
 
                         # text_lalala = ["lalala" for i in range(len(props[0]))]
-                        # props.append(text_lalala)                
+                        # props.append(text_lalala)
+                        y_min = resting_V    
+                        # y_min = traces[img_indx + shpae_indx][ini_indx]    
+                        y_max = traces[img_indx + shpae_indx][peak_indx]
 
                         self.APD_axes.vlines(time[ini_indx], 
-                                            ymin=traces[img_indx + shpae_indx][end_indx], 
-                                            ymax=traces[img_indx + shpae_indx][peak_indx], 
-                                            linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
+                                            ymin= y_min,
+                                            ymax= y_max,
+                                            linestyles='dashed', color = "green", label=f'AP_ini', lw = 0.5, alpha = 0.8)
 
                         self.APD_axes.vlines(time[end_indx], 
-                                            ymin=traces[img_indx + shpae_indx][end_indx], 
-                                            ymax=traces[img_indx + shpae_indx][peak_indx],  
-                                            linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
+                                            ymin= y_min,
+                                            ymax= y_max,
+                                            linestyles='dashed', color = "red", label=f'AP_end', lw = 0.5, alpha = 0.8)
+
+                        self.APD_axes.hlines(resting_V,
+                                            xmin = time[ini_indx],
+                                            xmax = time[end_indx],
+                                            linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5, alpha = 0.8)
 
                         APD_props.append(props)
 
@@ -1022,7 +1035,9 @@ class OMAAS(QWidget):
                          "APD_perc" ,
                          "APD",
                          "AcTime_dVdtmax",
+                         "amp_Vmax",
                          "BasCycLength_bcl",
+                         "resting_V",
                          "time_at_AP_upstroke",
                          "time_at_AP_peak",
                          "time_at_AP_end",
@@ -1034,13 +1049,18 @@ class OMAAS(QWidget):
             APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
 
             # convert back to the correct type the numeric columns
-            cols = [col for col in APD_props_df if col.startswith('indx')]
-            cols.append("APD_perc")
-            APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
+            cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
+            cols_to_numeric = APD_props_df.columns.difference(cols_to_keep)
+            
+            APD_props_df[cols_to_numeric] = APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
 
-            cols = [col for col in APD_props_df if col.startswith('time')]
-            cols.extend(colnames[4:7])
-            APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
+            # cols = [col for col in APD_props_df if col.startswith('indx')]
+            # cols.append("APD_perc")
+            # APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
+
+            # cols = [col for col in APD_props_df if col.startswith('time')]
+            # cols.extend(colnames[4:7])
+            # APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
 
              # convert to ms and round values
             APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 

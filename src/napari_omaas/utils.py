@@ -614,6 +614,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     repol_time = np.zeros_like(peaks_times)
     dVdtmax =  np.zeros_like(peaks_times)
     resting_V = np.zeros_like(peaks_times)
+    amp_Vmax = np.zeros_like(peaks_times)
 
     # compute dfdt and normalize it
 
@@ -698,7 +699,8 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
 
         
         # compute APD
-        V_max = np.max(np_1Darray[ini_indx:end_indx])        
+        V_max = np.max(np_1Darray[ini_indx:end_indx])
+        amp_Vmax[peak] = V_max
         amp_V = (((100 - apd_perc) / 100) * (V_max - resting_V[peak])) + resting_V[peak]
         # Find index where the AP has recovered the given percentage (or if it didnt, take the last index)
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
@@ -725,7 +727,21 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     img_name = [curr_img_name for i in range(peaks_times.shape[-1])]
 
 
-    rslt_df = [img_name, ROI_ids, AP_ids, apd_perc, APD, dVdtmax, bcl_list, time[AP_ini], time[AP_peak], time[AP_end], AP_ini, AP_peak, AP_end]
+    rslt_df = [img_name, 
+                ROI_ids, 
+                AP_ids, 
+                apd_perc, 
+                APD, 
+                dVdtmax, 
+                amp_Vmax, 
+                bcl_list, 
+                resting_V,
+                time[AP_ini], 
+                time[AP_peak], 
+                time[AP_end], 
+                AP_ini, 
+                AP_peak, 
+                AP_end]
      
     # rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
     return (rslt_df)
