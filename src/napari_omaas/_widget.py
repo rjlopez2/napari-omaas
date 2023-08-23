@@ -22,6 +22,7 @@ from numpy import ndarray as numpy_ndarray
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import NapariMPLWidget
+import matplotlib.pyplot as plt
 
 import copy
 import subprocess
@@ -349,9 +350,9 @@ class OMAAS(QWidget):
         # self._APD_widget_TSP = TSPExplorer(self.viewer)
         # self.APD_plot_group.glayout.addWidget(self._APD_widget_TSP, 3, 0, 1, 1)
         
-        self._APD_TSP = NapariMPLWidget(self.viewer)
-        self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
-        self.APD_axes = self._APD_TSP.canvas.figure.subplots()
+        # self._APD_TSP = NapariMPLWidget(self.viewer)
+        # self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
+        # self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
         self.compute_APD_btn = QPushButton("Compute APDs")
         self.compute_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
@@ -950,7 +951,12 @@ class OMAAS(QWidget):
     def _get_APD_params_call_back(self, event):
         if len(self._graphics_widget_TSP.plotter.data) > 0 :
             # clear APD on every instance of plot
-            self._clear_APD_plot(self)
+            # try:
+            #     self._clear_APD_plot(self)
+            # except:
+            #     return
+
+            self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.canvas.figure.subplots()
 
             # handles = []
             # print("lalala")
@@ -974,7 +980,8 @@ class OMAAS(QWidget):
                     # update detected APs labels
                     self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
 
-                    self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+                    # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+                    self.APD_axes_main_canvas.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
 
                     # ##### catch error here and exit nicely for the user with a warning or so #####
                     try:
@@ -1003,17 +1010,21 @@ class OMAAS(QWidget):
                         # y_min = traces[img_indx + shpae_indx][ini_indx]    
                         y_max = traces[img_indx + shpae_indx][peak_indx]
 
-                        self.APD_axes.vlines(time[ini_indx], 
+                        self.APD_axes_main_canvas.vlines(time[ini_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
                                             linestyles='dashed', color = "green", label=f'AP_ini', lw = 0.5, alpha = 0.8)
+                        
+                        # self._graphics_widget_TSP
+                        # self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
-                        self.APD_axes.vlines(time[end_indx], 
+
+                        self.APD_axes_main_canvas.vlines(time[end_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
                                             linestyles='dashed', color = "red", label=f'AP_end', lw = 0.5, alpha = 0.8)
 
-                        self.APD_axes.hlines(resting_V,
+                        self.APD_axes_main_canvas.hlines(resting_V,
                                             xmin = time[ini_indx],
                                             xmax = time[end_indx],
                                             linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5, alpha = 0.8)
@@ -1026,7 +1037,8 @@ class OMAAS(QWidget):
 
 
 
-            self._APD_TSP._draw()
+            # self._APD_TSP._draw()
+            self._graphics_widget_TSP.plotter._draw()
 
             # print(acttime_peaks_indx, ini_peaks_indx )
             colnames = [ "image_name",
@@ -1051,7 +1063,7 @@ class OMAAS(QWidget):
             # convert back to the correct type the numeric columns
             cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
             cols_to_numeric = APD_props_df.columns.difference(cols_to_keep)
-            
+
             APD_props_df[cols_to_numeric] = APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
 
             # cols = [col for col in APD_props_df if col.startswith('indx')]
@@ -1063,7 +1075,7 @@ class OMAAS(QWidget):
             # APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
 
              # convert to ms and round values
-            APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
+            # APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
 
             
             model = PandasModel(APD_props_df[["image_name",
@@ -1085,8 +1097,20 @@ class OMAAS(QWidget):
         """
         Clear the canvas.
         """
-        self.APD_axes.clear()
-        self._APD_TSP._draw()
+        # self.APD_axes.clear()
+        # self._graphics_widget_TSP.plotter.clear()
+        # self._graphics_widget_TSP.plotter.canvas.figure.clear()
+        # self.APD_axes_main_canvas.axes.clear()
+
+
+        # if (self.APD_axes_main_canvas):
+        #     del self.APD_axes_main_canvas
+        # self._APD_TSP._draw()
+        # plt.close(self.APD_axes_main_canvas)
+        # plt.close(self._graphics_widget_TSP.plotter.canvas.figure)
+        # self._graphics_widget_TSP.plotter.axes.remove()
+        self.APD_axes_main_canvas.remove()
+        self._graphics_widget_TSP.plotter._draw()
 
         model = PandasModel(self.AP_df_default_val)
         self.APD_propert_table.setModel(model)
