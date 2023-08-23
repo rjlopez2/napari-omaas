@@ -950,13 +950,17 @@ class OMAAS(QWidget):
 
     def _get_APD_params_call_back(self, event):
         if len(self._graphics_widget_TSP.plotter.data) > 0 :
-            # clear APD on every instance of plot
+                       
+            # Clear the canvas before start plotting if plot exist
             # try:
-            #     self._clear_APD_plot(self)
-            # except:
-            #     return
+            #     if hasattr(self, "APD_axes_main_canvas"):
+            #         self.APD_axes_main_canvas.remove()
+            # except Exception as e:
+            #     print(f">>>>> this is your error: {e}")
+            self._clear_APD_plot(self)
 
             self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.canvas.figure.subplots()
+            # self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.axes
 
             # handles = []
             # print("lalala")
@@ -975,7 +979,7 @@ class OMAAS(QWidget):
             for img_indx, img_name in enumerate(selected_img_list):
 
 
-                for shpae_indx, trace in enumerate(shapes):
+                for shpae_indx, lalala in enumerate(shapes):
 
                     # update detected APs labels
                     self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
@@ -1066,16 +1070,8 @@ class OMAAS(QWidget):
 
             APD_props_df[cols_to_numeric] = APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
 
-            # cols = [col for col in APD_props_df if col.startswith('indx')]
-            # cols.append("APD_perc")
-            # APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
-
-            # cols = [col for col in APD_props_df if col.startswith('time')]
-            # cols.extend(colnames[4:7])
-            # APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
-
-             # convert to ms and round values
-            # APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
+            # convert numeric values to ms and round then
+            APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
 
             
             model = PandasModel(APD_props_df[["image_name",
@@ -1109,7 +1105,18 @@ class OMAAS(QWidget):
         # plt.close(self.APD_axes_main_canvas)
         # plt.close(self._graphics_widget_TSP.plotter.canvas.figure)
         # self._graphics_widget_TSP.plotter.axes.remove()
-        self.APD_axes_main_canvas.remove()
+        # self._graphics_widget_TSP.plotter.clear()
+        # self._graphics_widget_TSP.plotter.axes.remove()
+         # Clear the canvas before start plotting if plot exist
+        try:
+            if hasattr(self, "APD_axes_main_canvas"):
+                self.APD_axes_main_canvas.remove()
+        except Exception as e:
+            print(f">>>>> this is your error: {e}")
+
+
+
+        # self.APD_axes_main_canvas.remove()
         self._graphics_widget_TSP.plotter._draw()
 
         model = PandasModel(self.AP_df_default_val)
