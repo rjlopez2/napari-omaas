@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
-    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox
     )
 from warnings import warn
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
@@ -421,6 +421,14 @@ class OMAAS(QWidget):
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
         self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
 
+        self.copy_APD_rslts_btn = QPushButton("Copy table")
+        self.copy_APD_rslts_btn.setToolTip(("Copy to clipboard the current APD results."))
+        self.APD_plot_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 1, 1, 1)
+
+        self.export_APD_rslts_btn = QPushButton("Export table")
+        self.export_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
+        self.APD_plot_group.glayout.addWidget(self.export_APD_rslts_btn, 6, 0, 1, 1)
+
         ######## Settings tab ########
         ####################################
 
@@ -576,6 +584,8 @@ class OMAAS(QWidget):
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
         self.load_spool_dir_btn.clicked.connect(self._on_click_load_spool_dir_btn)
+        self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
+        self.export_APD_rslts_btn.clicked.connect(self._on_click_export_APD_rslts_btn_func)
         
         
         
@@ -1062,19 +1072,19 @@ class OMAAS(QWidget):
                          "indx_at_AP_end"]
 
 
-            APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
+            self.APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
 
             # convert back to the correct type the numeric columns
             cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
-            cols_to_numeric = APD_props_df.columns.difference(cols_to_keep)
+            cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
 
-            APD_props_df[cols_to_numeric] = APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
+            self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
 
             # convert numeric values to ms and round then
-            APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
+            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
 
             
-            model = PandasModel(APD_props_df[["image_name",
+            model = PandasModel(self.APD_props_df[["image_name",
                                             "ROI_id", 
                                             "AP_id" ,
                                             "APD_perc" ,
@@ -1168,6 +1178,41 @@ class OMAAS(QWidget):
                          metadata = info)
         else:
             return
+    
+    def _on_click_copy_APD_rslts_btn_func(self, event):
+        try:
+            if hasattr(self, "APD_props_df"):
+                if isinstance(self.APD_props_df, pd.DataFrame):
+                    # self.msg = QMessageBox()
+                    # self.msg.setIcon(QMessageBox.Information)
+                    # self.msg.setText("Error")
+                    # self.msg.setInformativeText('More information')
+                    # self.msg.setWindowTitle("Error")
+                    # self.msg.exec_()
+                    self.APD_props_df.to_clipboard(index=False) 
+                    print(">>>>> data copied to clipboard <<<<<<")
+                    
+        except Exception as e:
+            print(f">>>>> this is your error: {e}")
+
+    def _on_click_export_APD_rslts_btn_func(self, event):
+        try:
+            if hasattr(self, "APD_props_df"):
+                if isinstance(self.APD_props_df, pd.DataFrame):
+                    # self.msg = QMessageBox()
+                    # self.msg.setIcon(QMessageBox.Information)
+                    # self.msg.setText("Error")
+                    # self.msg.setInformativeText('More information')
+                    # self.msg.setWindowTitle("Error")
+                    # self.msg.exec_()
+                    output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
+                    file_name = os.path.join(output_dir, f"APD_rslts.csv")
+                    self.APD_props_df.to_csv(file_name)
+                    print(f">>>>> File exported to: {file_name} <<<<<<")
+                    
+        except Exception as e:
+            print(f">>>>> this is your error: {e}")
+
 
         
 
