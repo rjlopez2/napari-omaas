@@ -1299,7 +1299,7 @@ class OMAAS(QWidget):
     def _on_click_copy_APD_rslts_btn_func(self, event):
         try:
             if hasattr(self, "APD_props_df"):
-                if isinstance(self.APD_props_df, pd.DataFrame):
+                if isinstance(self.APD_props_df, pd.DataFrame) and len(self.APD_props_df) > 0:
                     # self.msg = QMessageBox()
                     # self.msg.setIcon(QMessageBox.Information)
                     # self.msg.setText("Error")
@@ -1308,6 +1308,13 @@ class OMAAS(QWidget):
                     # self.msg.exec_()
                     self.APD_props_df.to_clipboard(index=False) 
                     print(">>>>> data copied to clipboard <<<<<<")
+                    warn("APD Table copied to clipboard")
+                
+                else:
+                    warn("No data was copied! Make sure you have a APD reulst table and has len > 0")
+            else:
+                warn("No data was copied! Make sure you have a APD reulst table.")
+
                     
         except Exception as e:
             print(f">>>>> this is your error: {e}")
