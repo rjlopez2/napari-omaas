@@ -30,6 +30,7 @@ import pandas as pd
 
 from .utils import *
 import os
+from pathlib import Path
 
 
 if TYPE_CHECKING:
@@ -195,21 +196,28 @@ class OMAAS(QWidget):
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
         self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 6, 1, 2)
 
-        ######## Load spool data btns ########
+       
+        ######## Load spool data btns Group ########
         self.load_spool_group = VHGroup('Load Spool data', orientation='G')
         self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
 
         self.dir_btn_label = QLabel("Directory name")
         self.load_spool_group.glayout.addWidget(self.dir_btn_label, 3, 1, 1, 1)
 
+        # self.dir_box_text = FileDropLineEdit()
         self.dir_box_text = QLineEdit()
-        # self.dir_box_text = QPlainTextEdit()
+        self.dir_box_text.installEventFilter(self)
+        # self.dir_box_text.setDragEnabled(True)
+        self.dir_box_text.setAcceptDrops(True)
+        # self.dir_box_text.set
         self.dir_box_text.setPlaceholderText(os.getcwd())
         self.load_spool_group.glayout.addWidget(self.dir_box_text, 3, 2, 1, 1)
 
-        self.load_spool_dir_btn = QPushButton("Load spool directory")
+        self.load_spool_dir_btn = QPushButton("Load")
         self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 3, 1, 1)
 
+        self.search_spool_dir_btn = QPushButton("Search Directory")
+        self.load_spool_group.glayout.addWidget(self.search_spool_dir_btn, 3, 4, 1, 1)
 
         ######## Segmentation group ########
         self.segmentation_group = VHGroup('Segmentation', orientation='G')
@@ -605,6 +613,7 @@ class OMAAS(QWidget):
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
         self.load_spool_dir_btn.clicked.connect(self._on_click_load_spool_dir_btn)
+        self.search_spool_dir_btn.clicked.connect(self._search_and_load_spool_dir_func)
         self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
         self.export_APD_rslts_btn.clicked.connect(self._on_click_export_APD_rslts_btn_func)
         
@@ -1197,19 +1206,78 @@ class OMAAS(QWidget):
         macro.pop()
         self.add_record_fun()
     
-    def _on_click_load_spool_dir_btn(self, event=None):
-        # if filename is None: 
+    def _search_and_load_spool_dir_func(self, event=None):
         self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", self.dir_box_text.text())
+        self.dir_box_text.setText(self.spool_dir)
+        self.load_current_spool_dir()
+    
+    def _load_current_spool_dir_func(self):
+        spool_dir_name =self.dir_box_text.text()
+        if os.path.isdir(spool_dir_name):
+            self.load_current_spool_dir()
+        else:
+            print("the selected entry does not seem to be a valid directory")
+    
+
+
+    
+    def load_current_spool_dir(self):
+        self.spool_dir =self.dir_box_text.text()
         if os.path.isdir(self.spool_dir):
             data, info = return_spool_img_fun(self.spool_dir)
-            self.dir_box_text.setText(self.spool_dir)   
             self.viewer.add_image(data,
                         colormap = "turbo",
                         name = os.path.basename(self.spool_dir),
                          metadata = info)
         else:
-            return
+            warn(f"the selected item {self.spool_dir} does not seem to be a valid directory")
+
+
+
+    def eventFilter(self, source, event):
+        """
+        #### NOTE: in order to allow drop events, you must allow to drag!!
+        found this solution here: https://stackoverflow.com/questions/25505922/dragdrop-from-qlistwidget-to-qplaintextedit 
+        and here:https://www.programcreek.com/python/?CodeExample=drop+event
+        """
+        if (event.type() == QtCore.QEvent.DragEnter): # and source is self.textedit):
+            event.accept()
+            # print ('DragEnter')
+            return True
+        elif (event.type() == QtCore.QEvent.Drop): # and source is self.textedit):
+            dir_name = event.mimeData().text().replace("file://", "")
+            
+            # handel windows path
+            if os.name == "nt":
+                # print(dir_name)
+                # print(Path(dir_name))
+                dir_name = Path(dir_name)
+                last_part = dir_name.parts[0]
+                # this load files hosted locally
+                if last_part.startswith("\\"):
+                    # print("ozozozozozoz")
+                    dir_name = str(dir_name)[1:]
+                else:
+                    # this load files hosted in servers
+                    # print("lllalalalalalalala")
+                    dir_name = "//" + str(dir_name)
+                    
+            # handel Unix path
+            elif os.name == "posix":
+                dir_name = dir_name[:-1]
+            
+            else:
+                warn(f"your os with value os.name ='{os.name}' has not be normalized for directory paths yet. Please reach out with the package manteiner to discuss this feature.")
+            
+            dir_name = os.path.normpath(dir_name)  # find a way here to normalize path
+            self.dir_box_text.setText(dir_name)
+            # print ('Drop')
+            return True
+        else:
+            return super(OMAAS, self).eventFilter(source, event)
     
+
+
     def _on_click_copy_APD_rslts_btn_func(self, event):
         try:
             if hasattr(self, "APD_props_df"):
@@ -1225,42 +1293,6 @@ class OMAAS(QWidget):
                     
         except Exception as e:
             print(f">>>>> this is your error: {e}")
-
-    def _on_click_export_APD_rslts_btn_func(self, event):
-        try:
-            if hasattr(self, "APD_props_df"):
-                if isinstance(self.APD_props_df, pd.DataFrame):
-                    if not len(self.table_rstl_name.text()) > 0:
-                        filename = self.table_rstl_name.placeholderText()
-                    else:
-                        filename =  self.table_rstl_name.text()
-                    # self.msg = QMessageBox()
-                    # self.msg.setIcon(QMessageBox.Information)
-                    # self.msg.setText("Error")
-                    # self.msg.setInformativeText('More information')
-                    # self.msg.setWindowTitle("Error")
-                    # self.msg.exec_()
-                    output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
-                    file_format = self.APD_rslts_export_file_format.currentText()
-                    if file_format == ".csv":
-                        file_path = os.path.join(output_dir, f"{filename}.{file_format}")
-                        self.APD_props_df.to_csv(file_path, index=False)
-                        print(f">>>>> File exported to: {file_path} <<<<<<")
-
-                    elif file_format == ".xlsx":
-                        file_path = os.path.join(output_dir, f"{filename}.{file_format}")
-                        self.APD_props_df.to_excel(file_path, index=False)
-                        print(f">>>>> File exported to: {file_path} <<<<<<")
-
-                    
-        except Exception as e:
-            print(f">>>>> this is your error: {e}")
-            # print(e)
-
-
-        
-
-        
 
 
 @magic_factory
