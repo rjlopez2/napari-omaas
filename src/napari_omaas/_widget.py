@@ -436,36 +436,40 @@ class OMAAS(QWidget):
         self._APD_analysis_layout.addWidget(self.APD_export_group.gbox)
 
 
-
-        self.label_rstl_name = QLabel("Results name")
-        self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
-        self.APD_export_group.glayout.addWidget(self.label_rstl_name, 7, 0,  1, 1)
-        
-        self.table_rstl_name = QLineEdit()
-        self.table_rstl_name.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
-        self.APD_export_group.glayout.addWidget(self.table_rstl_name, 7, 1, 1, 1)
-
-        self.APD_rslt_dir_btn_label = QLabel("Current Directory")
-        self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 7, 2, 1, 1)
-
-        self.APD_rslts_dir_box_text = QLineEdit()
-        self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 7, 3, 1, 1)
         
         self.APD_rslts_export_file_format_label = QLabel("File format")
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 7, 4, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 7, 0, 1, 1)
         
         self.APD_rslts_export_file_format = QComboBox()
         self.APD_rslts_export_file_format.addItems([".csv", ".xlsx"])
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 7, 5, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 7, 1, 1, 1)
 
-        self.export_APD_rslts_btn = QPushButton("Export table")
-        self.export_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
-        self.APD_export_group.glayout.addWidget(self.export_APD_rslts_btn, 7, 6, 1, 1)
+        self.search_dir_APD_rslts_btn = QPushButton("change directory")
+        self.search_dir_APD_rslts_btn.setToolTip(("Change the current directory to save your APD results."))
+        self.APD_export_group.glayout.addWidget(self.search_dir_APD_rslts_btn, 7, 2, 1, 1)
 
+        self.APD_rslt_dir_btn_label = QLabel("Current Directory")
+        self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 7, 4, 1, 1)
+
+        self.APD_rslts_dir_box_text = QLineEdit()
+        self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 7, 5, 1, 1)
+        
         self.copy_APD_rslts_btn = QPushButton("Copy table")
         self.copy_APD_rslts_btn.setToolTip(("Copy to clipboard the current APD results."))
-        self.APD_export_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 0, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 0, 1, 2)
+
+        self.save_APD_rslts_btn = QPushButton("Export table")
+        self.save_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
+        self.APD_export_group.glayout.addWidget(self.save_APD_rslts_btn, 6, 2, 1, 2)
+
+        self.label_rstl_name = QLabel("Rename results")
+        self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
+        self.APD_export_group.glayout.addWidget(self.label_rstl_name, 6, 4,  1, 1)
+        
+        self.table_rstl_name = QLineEdit()
+        self.table_rstl_name.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
+        self.APD_export_group.glayout.addWidget(self.table_rstl_name, 6, 5, 1, 1)
 
         ######## Settings tab ########
         ####################################
@@ -624,7 +628,8 @@ class OMAAS(QWidget):
         self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
         self.search_spool_dir_btn.clicked.connect(self._search_and_load_spool_dir_func)
         self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
-        self.export_APD_rslts_btn.clicked.connect(self._on_click_export_APD_rslts_btn_func)
+        self.search_dir_APD_rslts_btn.clicked.connect(self._on_click_search_new_dir_APD_rslts_btn_func)
+        self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
         
         
         
@@ -1304,34 +1309,45 @@ class OMAAS(QWidget):
             print(f">>>>> this is your error: {e}")
 
 
-    def _on_click_export_APD_rslts_btn_func(self, event):
+    def _on_click_search_new_dir_APD_rslts_btn_func(self, event):
+
+        self.APD_output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
+        self.APD_rslts_dir_box_text.setText(self.APD_output_dir)
+
+
+    def _on_click_save_APD_rslts_btn_func(self, event):
         try:
             if hasattr(self, "APD_props_df"):
-                if isinstance(self.APD_props_df, pd.DataFrame):
+                if isinstance(self.APD_props_df, pd.DataFrame) and len(self.APD_props_df) > 0:
                     if not len(self.table_rstl_name.text()) > 0:
                         filename = self.table_rstl_name.placeholderText()
                     else:
                         filename =  self.table_rstl_name.text()
-                    # self.msg = QMessageBox()
-                    # self.msg.setIcon(QMessageBox.Information)
-                    # self.msg.setText("Error")
-                    # self.msg.setInformativeText('More information')
-                    # self.msg.setWindowTitle("Error")
-                    # self.msg.exec_()
-                    output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
+                    if not len(self.APD_rslts_dir_box_text.text()) > 0:
+                        output_dir = self.APD_rslts_dir_box_text.placeholderText()
+                    else:
+                        output_dir = self.APD_rslts_dir_box_text.text()
+
+                    # output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
                     file_format = self.APD_rslts_export_file_format.currentText()
+
                     if file_format == ".csv":
-                        file_path = os.path.join(output_dir, f"{filename}.{file_format}")
+                        file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_csv(file_path, index=False)
                         print(f">>>>> File exported to: {file_path} <<<<<<")
 
                     elif file_format == ".xlsx":
-                        file_path = os.path.join(output_dir, f"{filename}.{file_format}")
+                        file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_excel(file_path, index=False)
                         print(f">>>>> File exported to: {file_path} <<<<<<")
+                else:
+                    warn("No APD results table found or len of the table is < 0.")
+            else:
+                    warn("No APD results table found.")
+
         except Exception as e:
             print(f">>>>> this is your error: {e}")
-            # print(e)
+
 
 
 @magic_factory
