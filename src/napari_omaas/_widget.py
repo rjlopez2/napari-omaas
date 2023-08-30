@@ -445,10 +445,11 @@ class OMAAS(QWidget):
         self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 7, 1, 1, 1)
 
         self.search_dir_APD_rslts_btn = QPushButton("change directory")
-        self.search_dir_APD_rslts_btn.setToolTip(("Change the current directory to save your APD results."))
+        self.search_dir_APD_rslts_btn.setToolTip(("Navigate to change the current directory to save your APD results"))
         self.APD_export_group.glayout.addWidget(self.search_dir_APD_rslts_btn, 7, 2, 1, 1)
 
         self.APD_rslt_dir_btn_label = QLabel("Current Directory")
+        self.APD_rslt_dir_btn_label.setToolTip("Drag and drop folders here to change the current directory to save your APD results")
         self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 7, 4, 1, 1)
 
         self.APD_rslts_dir_box_text = QLineEdit()
