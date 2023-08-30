@@ -421,13 +421,34 @@ class OMAAS(QWidget):
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
         self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
 
-        self.copy_APD_rslts_btn = QPushButton("Copy table")
-        self.copy_APD_rslts_btn.setToolTip(("Copy to clipboard the current APD results."))
-        self.APD_plot_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 1, 1, 1)
+        self.label_rstl_name = QLabel("Results table name")
+        self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
+        self.APD_plot_group.glayout.addWidget(self.label_rstl_name, 6, 0,  1, 1)
+        
+        self.table_rstl_name = QLineEdit()
+        self.APD_plot_group.glayout.addWidget(self.table_rstl_name, 6, 1, 1, 1)
+
+        self.APD_rslt_dir_btn_label = QLabel("save to Directory")
+        self.APD_plot_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 6, 2, 1, 1)
+
+        self.APD_rslts_dir_box_text = QLineEdit()
+        self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
+        self.APD_plot_group.glayout.addWidget(self.APD_rslts_dir_box_text, 6, 3, 1, 1)
+        
+        self.APD_rslts_export_file_format_label = QLabel("File format")
+        self.APD_plot_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 6, 4, 1, 1)
+        
+        self.APD_rslts_export_file_format = QComboBox()
+        self.APD_rslts_export_file_format.addItems([".csv", ".xlsx"])
+        self.APD_plot_group.glayout.addWidget(self.APD_rslts_export_file_format, 6, 5, 1, 1)
 
         self.export_APD_rslts_btn = QPushButton("Export table")
         self.export_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
-        self.APD_plot_group.glayout.addWidget(self.export_APD_rslts_btn, 6, 0, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.export_APD_rslts_btn, 6, 6, 1, 1)
+
+        self.copy_APD_rslts_btn = QPushButton("Copy table")
+        self.copy_APD_rslts_btn.setToolTip(("Copy to clipboard the current APD results."))
+        self.APD_plot_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 7, 1, 1)
 
         ######## Settings tab ########
         ####################################
@@ -594,6 +615,7 @@ class OMAAS(QWidget):
         self.viewer.layers.events.removed.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
+        self._graphics_widget_TSP.plotter.selector.model().itemChanged.connect(self._get_current_selected_TSP_layer_callback)
         
 
     def _on_click_inv_data_btn(self):
@@ -924,6 +946,15 @@ class OMAAS(QWidget):
     #     if filename is None: filename, _ = QFileDialog.getSaveFileName(self, "Save as .csv", ".", "*.csv")
     #     # self.viewer.layers.save(filename, plugin='napari_jroiwriter')
     #     self.viewer.layers.save(filename, plugin='napari')
+
+    def _get_current_selected_TSP_layer_callback(self, event):
+        # this object is a list of image(s) selected from the Time_series_plotter pluggin layer selector
+                try:
+                    self.current_seleceted_layer_from_TSP = self._graphics_widget_TSP.plotter.selector.model().get_checked()[0].name
+                except:
+                    self.current_seleceted_layer_from_TSP = "ImageID"
+                
+                self.table_rstl_name.setPlaceholderText(f"{self.current_seleceted_layer_from_TSP}_APD_rslts")
     
     def _retrieve_metadata_call_back(self, event):
 
@@ -1199,19 +1230,32 @@ class OMAAS(QWidget):
         try:
             if hasattr(self, "APD_props_df"):
                 if isinstance(self.APD_props_df, pd.DataFrame):
+                    if not len(self.table_rstl_name.text()) > 0:
+                        filename = self.table_rstl_name.placeholderText()
+                    else:
+                        filename =  self.table_rstl_name.text()
                     # self.msg = QMessageBox()
                     # self.msg.setIcon(QMessageBox.Information)
                     # self.msg.setText("Error")
                     # self.msg.setInformativeText('More information')
                     # self.msg.setWindowTitle("Error")
                     # self.msg.exec_()
-                    output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory"))
-                    file_name = os.path.join(output_dir, f"APD_rslts.csv")
-                    self.APD_props_df.to_csv(file_name)
-                    print(f">>>>> File exported to: {file_name} <<<<<<")
+                    output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
+                    file_format = self.APD_rslts_export_file_format.currentText()
+                    if file_format == ".csv":
+                        file_path = os.path.join(output_dir, f"{filename}.{file_format}")
+                        self.APD_props_df.to_csv(file_path, index=False)
+                        print(f">>>>> File exported to: {file_path} <<<<<<")
+
+                    elif file_format == ".xlsx":
+                        file_path = os.path.join(output_dir, f"{filename}.{file_format}")
+                        self.APD_props_df.to_excel(file_path, index=False)
+                        print(f">>>>> File exported to: {file_path} <<<<<<")
+
                     
         except Exception as e:
             print(f">>>>> this is your error: {e}")
+            # print(e)
 
 
         
