@@ -213,7 +213,7 @@ class OMAAS(QWidget):
         self.dir_box_text.setPlaceholderText(os.getcwd())
         self.load_spool_group.glayout.addWidget(self.dir_box_text, 3, 2, 1, 1)
 
-        self.load_spool_dir_btn = QPushButton("Load")
+        self.load_spool_dir_btn = QPushButton("Load folder")
         self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 3, 1, 1)
 
         self.search_spool_dir_btn = QPushButton("Search Directory")
@@ -352,6 +352,8 @@ class OMAAS(QWidget):
         ######## APD-analysis tab ########
         # ####################################
         self._APD_analysis_layout.setAlignment(Qt.AlignTop)
+
+        ##### APD_plot_group ########
         self.APD_plot_group = VHGroup('APD plot group', orientation='G')
         self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
 
@@ -418,45 +420,52 @@ class OMAAS(QWidget):
                                                "AcTime_dVdtmax": values, 
                                                "BasCycLength_bcl": values})
 
-        # df = pd.read_csv("/Users/rubencito/Desktop/Iris.csv")
         
         model = PandasModel(self.AP_df_default_val)
         self.APD_propert_table = QTableView()
-        self.APD_propert_table.setModel(model)
+        self.APD_propert_table.setModel(model)      
 
         self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
         self.APD_propert_table.setAlternatingRowColors(True)
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
         self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
 
-        self.label_rstl_name = QLabel("Results table name")
+
+         ##### APD export results ########
+        self.APD_export_group = VHGroup('Export results', orientation='G')
+        self._APD_analysis_layout.addWidget(self.APD_export_group.gbox)
+
+
+
+        self.label_rstl_name = QLabel("Results name")
         self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
-        self.APD_plot_group.glayout.addWidget(self.label_rstl_name, 6, 0,  1, 1)
+        self.APD_export_group.glayout.addWidget(self.label_rstl_name, 7, 0,  1, 1)
         
         self.table_rstl_name = QLineEdit()
-        self.APD_plot_group.glayout.addWidget(self.table_rstl_name, 6, 1, 1, 1)
+        self.table_rstl_name.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
+        self.APD_export_group.glayout.addWidget(self.table_rstl_name, 7, 1, 1, 1)
 
-        self.APD_rslt_dir_btn_label = QLabel("save to Directory")
-        self.APD_plot_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 6, 2, 1, 1)
+        self.APD_rslt_dir_btn_label = QLabel("Current Directory")
+        self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 7, 2, 1, 1)
 
         self.APD_rslts_dir_box_text = QLineEdit()
         self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
-        self.APD_plot_group.glayout.addWidget(self.APD_rslts_dir_box_text, 6, 3, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 7, 3, 1, 1)
         
         self.APD_rslts_export_file_format_label = QLabel("File format")
-        self.APD_plot_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 6, 4, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 7, 4, 1, 1)
         
         self.APD_rslts_export_file_format = QComboBox()
         self.APD_rslts_export_file_format.addItems([".csv", ".xlsx"])
-        self.APD_plot_group.glayout.addWidget(self.APD_rslts_export_file_format, 6, 5, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 7, 5, 1, 1)
 
         self.export_APD_rslts_btn = QPushButton("Export table")
         self.export_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
-        self.APD_plot_group.glayout.addWidget(self.export_APD_rslts_btn, 6, 6, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.export_APD_rslts_btn, 7, 6, 1, 1)
 
         self.copy_APD_rslts_btn = QPushButton("Copy table")
         self.copy_APD_rslts_btn.setToolTip(("Copy to clipboard the current APD results."))
-        self.APD_plot_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 7, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 0, 1, 1)
 
         ######## Settings tab ########
         ####################################
