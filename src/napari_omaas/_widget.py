@@ -452,6 +452,8 @@ class OMAAS(QWidget):
         self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 7, 4, 1, 1)
 
         self.APD_rslts_dir_box_text = QLineEdit()
+        self.APD_rslts_dir_box_text.installEventFilter(self)
+        self.APD_rslts_dir_box_text.setAcceptDrops(True)
         self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
         self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 7, 5, 1, 1)
         
@@ -1285,6 +1287,7 @@ class OMAAS(QWidget):
             
             dir_name = os.path.normpath(dir_name)  # find a way here to normalize path
             self.dir_box_text.setText(dir_name)
+            self.APD_rslts_dir_box_text.setText(dir_name)
             # print ('Drop')
             return True
         else:
