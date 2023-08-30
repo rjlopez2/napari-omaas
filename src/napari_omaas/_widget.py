@@ -612,7 +612,7 @@ class OMAAS(QWidget):
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
-        self.load_spool_dir_btn.clicked.connect(self._on_click_load_spool_dir_btn)
+        self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
         self.search_spool_dir_btn.clicked.connect(self._search_and_load_spool_dir_func)
         self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
         self.export_APD_rslts_btn.clicked.connect(self._on_click_export_APD_rslts_btn_func)
@@ -1293,6 +1293,36 @@ class OMAAS(QWidget):
                     
         except Exception as e:
             print(f">>>>> this is your error: {e}")
+
+
+    def _on_click_export_APD_rslts_btn_func(self, event):
+        try:
+            if hasattr(self, "APD_props_df"):
+                if isinstance(self.APD_props_df, pd.DataFrame):
+                    if not len(self.table_rstl_name.text()) > 0:
+                        filename = self.table_rstl_name.placeholderText()
+                    else:
+                        filename =  self.table_rstl_name.text()
+                    # self.msg = QMessageBox()
+                    # self.msg.setIcon(QMessageBox.Information)
+                    # self.msg.setText("Error")
+                    # self.msg.setInformativeText('More information')
+                    # self.msg.setWindowTitle("Error")
+                    # self.msg.exec_()
+                    output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
+                    file_format = self.APD_rslts_export_file_format.currentText()
+                    if file_format == ".csv":
+                        file_path = os.path.join(output_dir, f"{filename}.{file_format}")
+                        self.APD_props_df.to_csv(file_path, index=False)
+                        print(f">>>>> File exported to: {file_path} <<<<<<")
+
+                    elif file_format == ".xlsx":
+                        file_path = os.path.join(output_dir, f"{filename}.{file_format}")
+                        self.APD_props_df.to_excel(file_path, index=False)
+                        print(f">>>>> File exported to: {file_path} <<<<<<")
+        except Exception as e:
+            print(f">>>>> this is your error: {e}")
+            # print(e)
 
 
 @magic_factory
