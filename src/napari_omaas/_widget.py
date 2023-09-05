@@ -426,7 +426,7 @@ class OMAAS(QWidget):
         self.APD_propert_table.setModel(model)      
 
         self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
-        self.APD_propert_table.setAlternatingRowColors(True)
+        self.APD_propert_table.setAlternatingRowColors(False)
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
         self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
 
