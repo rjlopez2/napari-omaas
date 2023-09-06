@@ -12,8 +12,8 @@ from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
-    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, 
-    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView
+    QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox
     )
 from warnings import warn
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
@@ -22,12 +22,15 @@ from numpy import ndarray as numpy_ndarray
 import pyqtgraph as pg
 from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import NapariMPLWidget
+import matplotlib.pyplot as plt
 
 import copy
 import subprocess
 import pandas as pd
 
 from .utils import *
+import os
+from pathlib import Path
 
 
 if TYPE_CHECKING:
@@ -77,6 +80,12 @@ class OMAAS(QWidget):
         self._APD_analysis_layout = QVBoxLayout()
         self.APD_analysis.setLayout(self._APD_analysis_layout)
         self.tabs.addTab(self.APD_analysis, 'APD analysis')
+
+        ######## Settings tab ########
+        self.settings = QWidget()
+        self._settings_layout = QVBoxLayout()
+        self.settings.setLayout(self._settings_layout)
+        self.tabs.addTab(self.settings, 'Settings')
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -187,6 +196,28 @@ class OMAAS(QWidget):
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
         self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 6, 1, 2)
 
+       
+        ######## Load spool data btns Group ########
+        self.load_spool_group = VHGroup('Load Spool data', orientation='G')
+        self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
+
+        self.dir_btn_label = QLabel("Directory name")
+        self.load_spool_group.glayout.addWidget(self.dir_btn_label, 3, 1, 1, 1)
+
+        # self.dir_box_text = FileDropLineEdit()
+        self.dir_box_text = QLineEdit()
+        self.dir_box_text.installEventFilter(self)
+        # self.dir_box_text.setDragEnabled(True)
+        self.dir_box_text.setAcceptDrops(True)
+        # self.dir_box_text.set
+        self.dir_box_text.setPlaceholderText(os.getcwd())
+        self.load_spool_group.glayout.addWidget(self.dir_box_text, 3, 2, 1, 1)
+
+        self.load_spool_dir_btn = QPushButton("Load folder")
+        self.load_spool_group.glayout.addWidget(self.load_spool_dir_btn, 3, 3, 1, 1)
+
+        self.search_spool_dir_btn = QPushButton("Search Directory")
+        self.load_spool_group.glayout.addWidget(self.search_spool_dir_btn, 3, 4, 1, 1)
 
         ######## Segmentation group ########
         self.segmentation_group = VHGroup('Segmentation', orientation='G')
@@ -330,15 +361,17 @@ class OMAAS(QWidget):
         ######## APD-analysis tab ########
         # ####################################
         self._APD_analysis_layout.setAlignment(Qt.AlignTop)
+
+        ##### APD_plot_group ########
         self.APD_plot_group = VHGroup('APD plot group', orientation='G')
         self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
 
         # self._APD_widget_TSP = TSPExplorer(self.viewer)
         # self.APD_plot_group.glayout.addWidget(self._APD_widget_TSP, 3, 0, 1, 1)
         
-        self._APD_TSP = NapariMPLWidget(self.viewer)
-        self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
-        self.APD_axes = self._APD_TSP.canvas.figure.subplots()
+        # self._APD_TSP = NapariMPLWidget(self.viewer)
+        # self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
+        # self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
         self.compute_APD_btn = QPushButton("Compute APDs")
         self.compute_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
@@ -348,8 +381,15 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
         self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 4, 1, 1, 1)
 
-        self.APD_computing_method_label = QLabel("AP baseline method")
-        self.APD_computing_method_label.setToolTip(("Select method to compute the resting AP. Methods are : bcl_to_bcl, pre_upstroke_min, post_AP_min and ave_pre_post_min "))
+        self.APD_computing_method_label = QLabel("AP detection method")
+        self.APD_computing_method_label.setToolTip(("""        
+        Select the method to compute the resting (membrane) to detect the AP. 
+         Methods are : 
+        - bcl_to_bcl: from BCL (Basal cycle length) to BCL.
+        - pre_upstroke_min: minimum value Pre-upstroke, 
+        - post_AP_min: minimum value after AP,
+        - ave_pre_post_min: average the minimum value before and after stroke.
+         """))
         self.APD_plot_group.glayout.addWidget(self.APD_computing_method_label, 4, 2, 1, 1)
         
         self.APD_computing_method = QComboBox()
@@ -358,23 +398,28 @@ class OMAAS(QWidget):
         
         self.slider_APD_detection_threshold = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_thres_max_range = 10000
-        self.slider_APD_detection_threshold.setRange(1, 300)
-        self.slider_APD_detection_threshold.setValue(100)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 5, 1, 1)
+        self.slider_APD_detection_threshold.setRange(1, 1000)
+        self.slider_APD_detection_threshold.setValue(500)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 6, 1, 1)
         
         self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
         self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
         self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 4, 4, 1, 1)
-
+        
+        self.APD_peaks_help_box_label_def_value = 0
+        self.APD_peaks_help_box_label = QLabel(f"[detected]: {self.APD_peaks_help_box_label_def_value}")
+        self.APD_peaks_help_box_label.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
+        self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 4, 5, 1, 1)
+        
         self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_percentage.setRange(10, 100)
         self.slider_APD_percentage.setValue(75)
         self.slider_APD_percentage.setSingleStep(5)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 7, 1, 1)
-
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 8, 1, 1)
+        
         self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 6, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 7, 1, 1)
         values = []
         self.AP_df_default_val = pd.DataFrame({"image_name": values,
                                                "ROI_id" : values, 
@@ -384,18 +429,85 @@ class OMAAS(QWidget):
                                                "AcTime_dVdtmax": values, 
                                                "BasCycLength_bcl": values})
 
-        # df = pd.read_csv("/Users/rubencito/Desktop/Iris.csv")
         
         model = PandasModel(self.AP_df_default_val)
         self.APD_propert_table = QTableView()
-        self.APD_propert_table.setModel(model)
+        self.APD_propert_table.setModel(model)      
 
         self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
-        self.APD_propert_table.setAlternatingRowColors(True)
+        self.APD_propert_table.setAlternatingRowColors(False)
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
         self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
 
-               
+
+         ##### APD export results ########
+        self.APD_export_group = VHGroup('Export results', orientation='G')
+        self._APD_analysis_layout.addWidget(self.APD_export_group.gbox)
+
+
+        
+        self.APD_rslts_export_file_format_label = QLabel("File format")
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 7, 0, 1, 1)
+        
+        self.APD_rslts_export_file_format = QComboBox()
+        self.APD_rslts_export_file_format.addItems([".csv", ".xlsx"])
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 7, 1, 1, 1)
+
+        self.search_dir_APD_rslts_btn = QPushButton("change directory")
+        self.search_dir_APD_rslts_btn.setToolTip(("Navigate to change the current directory to save your APD results"))
+        self.APD_export_group.glayout.addWidget(self.search_dir_APD_rslts_btn, 7, 2, 1, 1)
+
+        self.APD_rslt_dir_btn_label = QLabel("Current Directory")
+        self.APD_rslt_dir_btn_label.setToolTip("Drag and drop folders here to change the current directory to save your APD results")
+        self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 7, 4, 1, 1)
+
+        self.APD_rslts_dir_box_text = QLineEdit()
+        self.APD_rslts_dir_box_text.installEventFilter(self)
+        self.APD_rslts_dir_box_text.setAcceptDrops(True)
+        self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 7, 5, 1, 1)
+        
+        self.copy_APD_rslts_btn = QPushButton("Copy table")
+        self.copy_APD_rslts_btn.setToolTip(("Copy to clipboard the current APD results."))
+        self.APD_export_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 0, 1, 2)
+
+        self.save_APD_rslts_btn = QPushButton("Export table")
+        self.save_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
+        self.APD_export_group.glayout.addWidget(self.save_APD_rslts_btn, 6, 2, 1, 2)
+
+        self.label_rstl_name = QLabel("Rename results")
+        self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
+        self.APD_export_group.glayout.addWidget(self.label_rstl_name, 6, 4,  1, 1)
+        
+        self.table_rstl_name = QLineEdit()
+        self.table_rstl_name.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
+        self.APD_export_group.glayout.addWidget(self.table_rstl_name, 6, 5, 1, 1)
+
+        ######## Settings tab ########
+        ####################################
+
+        ######## Macro record group ########
+        self._settings_layout.setAlignment(Qt.AlignTop)
+        self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
+        self._settings_layout.addWidget(self.macro_group.gbox)
+
+        self.record_script_label = QLabel("Macro")
+        self.record_script_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
+        self.macro_group.glayout.addWidget(self.record_script_label, 3, 2, 1, 1)
+        
+        self.record_macro_check = QCheckBox()
+        self.record_macro_check.setChecked(True) 
+        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 3, 1, 1)
+
+        self.clear_last_step_macro_btn = QPushButton("Delete last step")
+        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 4, 1, 1)
+        
+        self.clear_macro_btn = QPushButton("Clear Macro")
+        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 5, 1, 1)       
+       
+        self.macro_box_text = QPlainTextEdit()
+        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
+        self.macro_group.glayout.addWidget(self.macro_box_text, 4, 2, 1, 1)
         
 
         # sub_backg_btn = QPushButton("Subtract Background")
@@ -424,6 +536,10 @@ class OMAAS(QWidget):
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
+
+        # self._settings_layout.setAlignment(Qt.AlignTop)
+        # self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
+        self._settings_layout.addWidget(self.metadata_display_group.gbox)
 
 
         ######################
@@ -519,6 +635,13 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
+        self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
+        self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
+        self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
+        self.search_spool_dir_btn.clicked.connect(self._search_and_load_spool_dir_func)
+        self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
+        self.search_dir_APD_rslts_btn.clicked.connect(self._on_click_search_new_dir_APD_rslts_btn_func)
+        self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
         
         
         
@@ -527,6 +650,7 @@ class OMAAS(QWidget):
         self.viewer.layers.events.removed.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
+        self._graphics_widget_TSP.plotter.selector.model().itemChanged.connect(self._get_current_selected_TSP_layer_callback)
         
 
     def _on_click_inv_data_btn(self):
@@ -536,6 +660,7 @@ class OMAAS(QWidget):
             print(f'computing "invert_signal" to image {current_selection}')
             results =invert_signal(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -547,6 +672,7 @@ class OMAAS(QWidget):
             print(f'computing "local_normal_fun" to image {current_selection}')
             results = local_normal_fun(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -568,7 +694,8 @@ class OMAAS(QWidget):
                 # self.viewer.add_image(my_splitted_images[channel],
                 # colormap= "turbo", 
                 # name= f"{curr_img_name}_ch{channel + 1}")
-                self.add_result_img(result_img=my_splitted_images[channel], img_custom_nam=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+                self.add_result_img(result_img=my_splitted_images[channel], img_custom_name=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+                self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -665,6 +792,8 @@ class OMAAS(QWidget):
                 print(f'applying "apply_laplace_filter" to image {current_selection}')
                 results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
                 self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
+            
+            self.add_record_fun()
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -672,10 +801,10 @@ class OMAAS(QWidget):
     
     
     
-    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_nam = None, **label_and_value_sufix):
+    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_name = None, **label_and_value_sufix):
         
-        if img_custom_nam is not None:
-            img_name = img_custom_nam
+        if img_custom_name is not None:
+            img_name = img_custom_name
         else:
             img_name = self.viewer.layers.selection.active.name
 
@@ -763,6 +892,8 @@ class OMAAS(QWidget):
                 results =  results.get()    
 
             self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+        
+            self.add_record_fun()
 
             
         else:
@@ -794,6 +925,7 @@ class OMAAS(QWidget):
                                                 fil_ord=order_value)
 
             self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
@@ -851,6 +983,15 @@ class OMAAS(QWidget):
     #     if filename is None: filename, _ = QFileDialog.getSaveFileName(self, "Save as .csv", ".", "*.csv")
     #     # self.viewer.layers.save(filename, plugin='napari_jroiwriter')
     #     self.viewer.layers.save(filename, plugin='napari')
+
+    def _get_current_selected_TSP_layer_callback(self, event):
+        # this object is a list of image(s) selected from the Time_series_plotter pluggin layer selector
+                try:
+                    self.current_seleceted_layer_from_TSP = self._graphics_widget_TSP.plotter.selector.model().get_checked()[0].name
+                except:
+                    self.current_seleceted_layer_from_TSP = "ImageID"
+                
+                self.table_rstl_name.setPlaceholderText(f"{self.current_seleceted_layer_from_TSP}_APD_rslts")
     
     def _retrieve_metadata_call_back(self, event):
 
@@ -887,8 +1028,17 @@ class OMAAS(QWidget):
 
     def _get_APD_params_call_back(self, event):
         if len(self._graphics_widget_TSP.plotter.data) > 0 :
-            # clear APD on every instance of plot
+                       
+            # Clear the canvas before start plotting if plot exist
+            # try:
+            #     if hasattr(self, "APD_axes_main_canvas"):
+            #         self.APD_axes_main_canvas.remove()
+            # except Exception as e:
+            #     print(f">>>>> this is your error: {e}")
             self._clear_APD_plot(self)
+
+            self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.canvas.figure.subplots()
+            # self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.axes
 
             # handles = []
             # print("lalala")
@@ -907,37 +1057,70 @@ class OMAAS(QWidget):
             for img_indx, img_name in enumerate(selected_img_list):
 
 
-                for shpae_indx, trace in enumerate(shapes):
+                for shpae_indx, lalala in enumerate(shapes):
 
-                    self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+                    # update detected APs labels
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
 
-                    props = compute_APD_props_func(traces[img_indx + shpae_indx], curr_img_name = img_name, cycle_length_ms= self.curr_img_metadata["CycleTime"], rmp_method = rmp_method, apd_perc = apd_percentage, promi=prominence, roi_indx=shpae_indx)
-                    
-                    ini_indx = props[-3]
-                    peak_indx = props[-2]
-                    end_indx = props[-1]
-                    # ini_indx = [props[val][-3] for val in range(len(props))]
-                    # peak_indx = [props[val][-2] for val in range(len(props))]
-                    # end_indx = [props[val][-1] for val in range(len(props))]               
+                    # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+                    self.APD_axes_main_canvas.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
 
-                    # text_lalala = ["lalala" for i in range(len(props[0]))]
-                    # props.append(text_lalala)                
+                    # ##### catch error here and exit nicely for the user with a warning or so #####
+                    try:
 
-                    self.APD_axes.vlines(time[ini_indx], 
-                                        ymin=traces[img_indx + shpae_indx][end_indx], 
-                                        ymax=traces[img_indx + shpae_indx][peak_indx], 
-                                        linestyles='dashed', color = "grey", label=f'AP_ini', lw = 0.5)
+                        props = compute_APD_props_func(traces[img_indx + shpae_indx], 
+                                                        curr_img_name = img_name, 
+                                                        # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                        cycle_length_ms= self.img_metadata_dict["CycleTime"],
+                                                        rmp_method = rmp_method, 
+                                                        apd_perc = apd_percentage, 
+                                                        promi=prominence, 
+                                                        roi_indx=shpae_indx)
+                        
+                        ini_indx = props[-3]
+                        peak_indx = props[-2]
+                        end_indx = props[-1]
+                        dVdtmax = props[5]
+                        resting_V = props[8]
+                        # ini_indx = [props[val][-3] for val in range(len(props))]
+                        # peak_indx = [props[val][-2] for val in range(len(props))]
+                        # end_indx = [props[val][-1] for val in range(len(props))]               
 
-                    self.APD_axes.vlines(time[end_indx], 
-                                        ymin=traces[img_indx + shpae_indx][end_indx], 
-                                        ymax=traces[img_indx + shpae_indx][peak_indx],  
-                                        linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5)
+                        # text_lalala = ["lalala" for i in range(len(props[0]))]
+                        # props.append(text_lalala)
+                        y_min = resting_V    
+                        # y_min = traces[img_indx + shpae_indx][ini_indx]    
+                        y_max = traces[img_indx + shpae_indx][peak_indx]
 
-                    APD_props.append(props)
+                        self.APD_axes_main_canvas.vlines(time[ini_indx], 
+                                            ymin= y_min,
+                                            ymax= y_max,
+                                            linestyles='dashed', color = "green", label=f'AP_ini', lw = 0.5, alpha = 0.8)
+                        
+                        # self._graphics_widget_TSP
+                        # self.APD_axes = self._APD_TSP.canvas.figure.subplots()
+
+
+                        self.APD_axes_main_canvas.vlines(time[end_indx], 
+                                            ymin= y_min,
+                                            ymax= y_max,
+                                            linestyles='dashed', color = "red", label=f'AP_end', lw = 0.5, alpha = 0.8)
+
+                        self.APD_axes_main_canvas.hlines(resting_V,
+                                            xmin = time[ini_indx],
+                                            xmax = time[end_indx],
+                                            linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5, alpha = 0.8)
+
+                        APD_props.append(props)
+
+                    except Exception as e:
+                        # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                        raise e
 
 
 
-            self._APD_TSP._draw()
+            # self._APD_TSP._draw()
+            self._graphics_widget_TSP.plotter._draw()
 
             # print(acttime_peaks_indx, ini_peaks_indx )
             colnames = [ "image_name",
@@ -946,7 +1129,9 @@ class OMAAS(QWidget):
                          "APD_perc" ,
                          "APD",
                          "AcTime_dVdtmax",
+                         "amp_Vmax",
                          "BasCycLength_bcl",
+                         "resting_V",
                          "time_at_AP_upstroke",
                          "time_at_AP_peak",
                          "time_at_AP_end",
@@ -955,22 +1140,19 @@ class OMAAS(QWidget):
                          "indx_at_AP_end"]
 
 
-            APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
+            self.APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
 
             # convert back to the correct type the numeric columns
-            cols = [col for col in APD_props_df if col.startswith('indx')]
-            cols.append("APD_perc")
-            APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
+            cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
+            cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
 
-            cols = [col for col in APD_props_df if col.startswith('time')]
-            cols.extend(colnames[4:7])
-            APD_props_df[cols] = APD_props_df[cols].apply(lambda x: pd.to_numeric(x))
+            self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
 
-             # convert to ms and round values
-            APD_props_df = APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
+            # convert numeric values to ms and round then
+            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
 
             
-            model = PandasModel(APD_props_df[["image_name",
+            model = PandasModel(self.APD_props_df[["image_name",
                                             "ROI_id", 
                                             "AP_id" ,
                                             "APD_perc" ,
@@ -980,6 +1162,8 @@ class OMAAS(QWidget):
                 # self.APD_propert_table = QTableView()
             self.APD_propert_table.setModel(model)
 
+            self.add_record_fun()
+
                 
 
     
@@ -987,8 +1171,31 @@ class OMAAS(QWidget):
         """
         Clear the canvas.
         """
-        self.APD_axes.clear()
-        self._APD_TSP._draw()
+        # self.APD_axes.clear()
+        # self._graphics_widget_TSP.plotter.clear()
+        # self._graphics_widget_TSP.plotter.canvas.figure.clear()
+        # self.APD_axes_main_canvas.axes.clear()
+
+
+        # if (self.APD_axes_main_canvas):
+        #     del self.APD_axes_main_canvas
+        # self._APD_TSP._draw()
+        # plt.close(self.APD_axes_main_canvas)
+        # plt.close(self._graphics_widget_TSP.plotter.canvas.figure)
+        # self._graphics_widget_TSP.plotter.axes.remove()
+        # self._graphics_widget_TSP.plotter.clear()
+        # self._graphics_widget_TSP.plotter.axes.remove()
+         # Clear the canvas before start plotting if plot exist
+        try:
+            if hasattr(self, "APD_axes_main_canvas"):
+                self.APD_axes_main_canvas.remove()
+        except Exception as e:
+            print(f">>>>> this is your error: {e}")
+
+
+
+        # self.APD_axes_main_canvas.remove()
+        self._graphics_widget_TSP.plotter._draw()
 
         model = PandasModel(self.AP_df_default_val)
         self.APD_propert_table.setModel(model)
@@ -997,12 +1204,172 @@ class OMAAS(QWidget):
         # ----->>>>> this retrn the new cavas to plot on to -> self._APD_TSP.canvas.figure.subplots
 
     def _get_APD_thre_slider_vlaue_func(self, value):
+        prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
 
-        self.slider_label_current_value.setText(f'Sensitivity threshold: {value / (self.slider_APD_thres_max_range )}')
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
+        
+        # check that you have content in the graphics panel
+        if len(self._graphics_widget_TSP.plotter.data) > 0 :
+            traces = self._graphics_widget_TSP.plotter.data[1::2]
+            shapes = self._graphics_widget_TSP.plotter.selection_layer.data
+            selected_img_list = [img.name for img in  self._graphics_widget_TSP.plotter.selector.model().get_checked()]
+            for img_indx, img_name in enumerate(selected_img_list):
+                for shpae_indx, trace in enumerate(shapes):
+                    traces[img_indx + shpae_indx]
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
-        
+
+
+    def _on_click_clear_macro_btn(self, event):
+        self.macro_box_text.clear()
+        macro.clear()
+
+    def add_record_fun(self):
+        self.macro_box_text.clear()
+        self.macro_box_text.insertPlainText(repr(macro))
+    
+    def _on_click_clear_last_step_macro_btn(self):
+        macro.pop()
+        self.add_record_fun()
+    
+    def _search_and_load_spool_dir_func(self, event=None):
+        self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", self.dir_box_text.text())
+        self.dir_box_text.setText(self.spool_dir)
+        self.load_current_spool_dir()
+    
+    def _load_current_spool_dir_func(self):
+        spool_dir_name =self.dir_box_text.text()
+        if os.path.isdir(spool_dir_name):
+            self.load_current_spool_dir()
+        else:
+            print("the selected entry does not seem to be a valid directory")
+    
+
+
+    
+    def load_current_spool_dir(self):
+        self.spool_dir =self.dir_box_text.text()
+        if os.path.isdir(self.spool_dir):
+            data, info = return_spool_img_fun(self.spool_dir)
+            self.viewer.add_image(data,
+                        colormap = "turbo",
+                        name = os.path.basename(self.spool_dir),
+                         metadata = info)
+        else:
+            warn(f"the selected item {self.spool_dir} does not seem to be a valid directory")
+
+
+
+    def eventFilter(self, source, event):
+        """
+        #### NOTE: in order to allow drop events, you must allow to drag!!
+        found this solution here: https://stackoverflow.com/questions/25505922/dragdrop-from-qlistwidget-to-qplaintextedit 
+        and here:https://www.programcreek.com/python/?CodeExample=drop+event
+        """
+        if (event.type() == QtCore.QEvent.DragEnter): # and source is self.textedit):
+            event.accept()
+            # print ('DragEnter')
+            return True
+        elif (event.type() == QtCore.QEvent.Drop): # and source is self.textedit):
+            dir_name = event.mimeData().text().replace("file://", "")
+            
+            # handel windows path
+            if os.name == "nt":
+                # print(dir_name)
+                # print(Path(dir_name))
+                dir_name = Path(dir_name)
+                last_part = dir_name.parts[0]
+                # this load files hosted locally
+                if last_part.startswith("\\"):
+                    # print("ozozozozozoz")
+                    dir_name = str(dir_name)[1:]
+                else:
+                    # this load files hosted in servers
+                    # print("lllalalalalalalala")
+                    dir_name = "//" + str(dir_name)
+                    
+            # handel Unix path
+            elif os.name == "posix":
+                dir_name = dir_name[:-1]
+            
+            else:
+                warn(f"your os with value os.name ='{os.name}' has not be normalized for directory paths yet. Please reach out with the package manteiner to discuss this feature.")
+            
+            dir_name = os.path.normpath(dir_name)  # find a way here to normalize path
+            self.dir_box_text.setText(dir_name)
+            self.APD_rslts_dir_box_text.setText(dir_name)
+            # print ('Drop')
+            return True
+        else:
+            return super(OMAAS, self).eventFilter(source, event)
+    
+
+
+    def _on_click_copy_APD_rslts_btn_func(self, event):
+        try:
+            if hasattr(self, "APD_props_df"):
+                if isinstance(self.APD_props_df, pd.DataFrame) and len(self.APD_props_df) > 0:
+                    # self.msg = QMessageBox()
+                    # self.msg.setIcon(QMessageBox.Information)
+                    # self.msg.setText("Error")
+                    # self.msg.setInformativeText('More information')
+                    # self.msg.setWindowTitle("Error")
+                    # self.msg.exec_()
+                    self.APD_props_df.to_clipboard(index=False) 
+                    print(">>>>> data copied to clipboard <<<<<<")
+                    warn("APD Table copied to clipboard")
+                
+                else:
+                    warn("No data was copied! Make sure you have a APD reulst table and has len > 0")
+            else:
+                warn("No data was copied! Make sure you have a APD reulst table.")
+
+                    
+        except Exception as e:
+            print(f">>>>> this is your error: {e}")
+
+
+    def _on_click_search_new_dir_APD_rslts_btn_func(self, event):
+
+        self.APD_output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
+        self.APD_rslts_dir_box_text.setText(self.APD_output_dir)
+
+
+    def _on_click_save_APD_rslts_btn_func(self, event):
+        try:
+            if hasattr(self, "APD_props_df"):
+                if isinstance(self.APD_props_df, pd.DataFrame) and len(self.APD_props_df) > 0:
+                    if not len(self.table_rstl_name.text()) > 0:
+                        filename = self.table_rstl_name.placeholderText()
+                    else:
+                        filename =  self.table_rstl_name.text()
+                    if not len(self.APD_rslts_dir_box_text.text()) > 0:
+                        output_dir = self.APD_rslts_dir_box_text.placeholderText()
+                    else:
+                        output_dir = self.APD_rslts_dir_box_text.text()
+
+                    # output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
+                    file_format = self.APD_rslts_export_file_format.currentText()
+
+                    if file_format == ".csv":
+                        file_path = os.path.join(output_dir, f"{filename}{file_format}")
+                        self.APD_props_df.to_csv(file_path, index=False)
+                        print(f">>>>> File exported to: {file_path} <<<<<<")
+
+                    elif file_format == ".xlsx":
+                        file_path = os.path.join(output_dir, f"{filename}{file_format}")
+                        self.APD_props_df.to_excel(file_path, index=False)
+                        print(f">>>>> File exported to: {file_path} <<<<<<")
+                else:
+                    warn("No APD results table found or len of the table is < 0.")
+            else:
+                    warn("No APD results table found.")
+
+        except Exception as e:
+            print(f">>>>> this is your error: {e}")
+
 
 
 @magic_factory
