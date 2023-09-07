@@ -499,7 +499,7 @@ class OMAAS(QWidget):
         # self.APD_plot_group = VHGroup('APD plot group', orientation='G')
         self.average_stack_group = VHGroup('Preprocess stack', orientation='G')
         self._MAP_tab_layout.addWidget(self.average_stack_group.gbox)
-        
+
         self.compute_average_stack_btn = QPushButton("Average traces")
         self.compute_average_stack_btn.setToolTip(("Average the differnet AP in your current stack"))
         self.average_stack_group.glayout.addWidget(self.compute_average_stack_btn, 4, 0, 1, 1)
@@ -664,6 +664,7 @@ class OMAAS(QWidget):
         self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
         self.search_dir_APD_rslts_btn.clicked.connect(self._on_click_search_new_dir_APD_rslts_btn_func)
         self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
+        self.compute_average_stack_btn.clicked.connect(self._on_click_compute_average_stack_btn_func)
         
         
         
@@ -1064,7 +1065,7 @@ class OMAAS(QWidget):
 
             # handles = []
             # print("lalala")
-            traces = self._graphics_widget_TSP.plotter.data[1::2]
+            traces = self._graphics_widget_TSP.plotter.data[1::2] # why every other point?
             shapes = self._graphics_widget_TSP.plotter.selection_layer.data
             time = self._graphics_widget_TSP.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
@@ -1080,9 +1081,10 @@ class OMAAS(QWidget):
 
 
                 for shpae_indx, lalala in enumerate(shapes):
-
+                    self.peaks_found = return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])
+                    
                     # update detected APs labels
-                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {len(self.peaks_found )}')
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
                     self.APD_axes_main_canvas.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
@@ -1238,7 +1240,8 @@ class OMAAS(QWidget):
             for img_indx, img_name in enumerate(selected_img_list):
                 for shpae_indx, trace in enumerate(shapes):
                     traces[img_indx + shpae_indx]
-                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
+                    self.peaks_found = return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {len(self.peaks_found)}')
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
@@ -1391,6 +1394,37 @@ class OMAAS(QWidget):
 
         except Exception as e:
             print(f">>>>> this is your error: {e}")
+
+    def _on_click_compute_average_stack_btn_func(self, event):
+        prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+        if len(self._graphics_widget_TSP.plotter.data) > 0 :
+            selected_img_list = [img.name for img in  self._graphics_widget_TSP.plotter.selector.model().get_checked()]
+            # take the first image only if many are selected from the selector
+            array_data = self.viewer.layers[selected_img_list[0]].data
+            traces = self._graphics_widget_TSP.plotter.data[1]
+            
+            ini_indx, end_indx, half_bcl_list = find_indx_to_split_peaks(traces, promi=prominence)
+            splitded_arrays = [array_data[ini_indx[indx]:end_indx[indx], :, :] for indx in range(len(ini_indx))]
+            self._get_APD_thre_slider_vlaue_func(self)
+            AP_peaks_indx = self.peaks_found
+            if half_bcl_list > AP_peaks_indx[0]:
+                padding_length = half_bcl_list - AP_peaks_indx[0]
+                padding_array = np.empty(shape = (padding_length,  array_data.shape[-2],  array_data.shape[-1]))
+                padding_array[...] = np.nan
+                splitded_arrays[0] = np.insert(splitded_arrays[0], 0, padding_array, axis=0)
+
+    ## add padding to last trace if needed:
+            if end_indx[-1] > traces.shape[-1]:
+                padding_length = end_indx[-1] - traces.shape[-1]
+                padding_array = np.empty(shape = (padding_length,  array_data.shape[-2],  array_data.shape[-1]))
+                padding_array[...] = np.nan
+                splitded_arrays[-1] = np.insert(splitded_arrays[-1], 0, padding_array, axis=0)
+        
+        mean_array = np.nanmean(np.array(splitded_arrays), axis=0)
+        self.add_result_img(result_img = mean_array, 
+                            single_label_sufix = "ave_APs", add_to_metadata = f"Average {len(AP_peaks_indx)} APs from the original trace")
+
+            # print(len(traces))
 
 
 

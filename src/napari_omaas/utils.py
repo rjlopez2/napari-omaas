@@ -755,4 +755,60 @@ def return_spool_img_fun(path):
 def return_peaks_found_fun(promi, np_1Darray):
     AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
 
-    return len(AP_peaks_indx)
+    return AP_peaks_indx
+
+def find_indx_to_split_peaks(my_1d_array, promi = 0.03):
+    
+    AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(my_1d_array, 
+                                                                           window_length=15, 
+                                                                           polyorder=2), 
+                                                      prominence=promi) # use Solaiy filter as Callum
+    
+
+    bcl_list = np.diff(AP_peaks_indx) 
+    bcl_list = np.median(bcl_list).astype(np.uint16)
+    half_bcl_list = np.round(bcl_list // 2 )
+    # print(half_bcl_list)
+
+    
+    end_ap_indx = np.empty_like(AP_peaks_indx)
+    ini_ap_indx = np.empty_like(AP_peaks_indx)
+    
+    # handle if first and last? AP are shorter than the 1/2 bcl
+    for indx, indx_peak in enumerate(AP_peaks_indx):       
+        
+        end_ap_indx[indx] = AP_peaks_indx[indx ] + half_bcl_list
+        
+        if indx  == 0:
+            if AP_peaks_indx[indx ] < half_bcl_list:
+                ini_ap_indx[indx] = 0
+                
+        elif indx == len(AP_peaks_indx):
+            if end_ap_indx[indx] > my_1d_array.shape[-1]:
+                end_ap_indx[indx] = my_1d_array.shape[-1]
+                
+            
+        else:
+            ini_ap_indx[indx] = AP_peaks_indx[indx ] - half_bcl_list
+
+    # split the n peaks traces
+
+    # splited_arrays = [my_1d_array[ini_ap_indx[indx]:end_ap_indx[indx]] for indx in range(len(AP_peaks_indx))]
+    # # [print(f"{ini_ap_indx[indx]}:{end_ap_indx[indx]}") for indx in range(len(AP_peaks_indx))]
+
+    # ## add padding to first trace if needed:
+    # if half_bcl_list > AP_peaks_indx[0]:
+    #     padding_length = half_bcl_list - AP_peaks_indx[0]
+    #     padding_array = np.empty(shape = padding_length)
+    #     padding_array[:] = np.nan
+    #     splited_arrays[0] = np.insert(splited_arrays[0], 0, padding_array)
+        
+    # if end_ap_indx[-1] > my_1d_array.shape[-1]:
+    #     padding_length = end_ap_indx[-1] - my_1d_array.shape[-1]
+    #     padding_array = np.empty(shape = padding_length)
+    #     padding_array[:] = np.nan
+    #     splited_arrays[0] = np.insert(splited_arrays[0], 0, padding_array)
+            
+
+    return ini_ap_indx, end_ap_indx, half_bcl_list
+    
