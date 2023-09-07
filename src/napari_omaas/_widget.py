@@ -83,8 +83,8 @@ class OMAAS(QWidget):
 
         ######## MAP tab ########
         self.MAP_tab = QWidget()
-        self._MAP_tab = QVBoxLayout()
-        self.MAP_tab.setLayout(self._MAP_tab)
+        self._MAP_tab_layout = QVBoxLayout()
+        self.MAP_tab.setLayout(self._MAP_tab_layout)
         self.tabs.addTab(self.MAP_tab, 'Create maps')
 
         ######## Settings tab ########
@@ -488,6 +488,22 @@ class OMAAS(QWidget):
         self.table_rstl_name = QLineEdit()
         self.table_rstl_name.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
         self.APD_export_group.glayout.addWidget(self.table_rstl_name, 6, 5, 1, 1)
+        
+
+        ######## Mapping tab ########
+        ####################################
+        self._MAP_tab_layout.setAlignment(Qt.AlignTop)
+
+        ##### APD_plot_group ########
+        
+        # self.APD_plot_group = VHGroup('APD plot group', orientation='G')
+        self.average_stack_group = VHGroup('Preprocess stack', orientation='G')
+        self._MAP_tab_layout.addWidget(self.average_stack_group.gbox)
+        
+        self.compute_average_stack_btn = QPushButton("Average traces")
+        self.compute_average_stack_btn.setToolTip(("Average the differnet AP in your current stack"))
+        self.average_stack_group.glayout.addWidget(self.compute_average_stack_btn, 4, 0, 1, 1)
+
 
         ######## Settings tab ########
         ####################################
