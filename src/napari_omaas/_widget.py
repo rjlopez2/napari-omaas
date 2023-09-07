@@ -81,6 +81,12 @@ class OMAAS(QWidget):
         self.APD_analysis.setLayout(self._APD_analysis_layout)
         self.tabs.addTab(self.APD_analysis, 'APD analysis')
 
+        ######## MAP tab ########
+        self.MAP_tab = QWidget()
+        self._MAP_tab = QVBoxLayout()
+        self.MAP_tab.setLayout(self._MAP_tab)
+        self.tabs.addTab(self.MAP_tab, 'Create maps')
+
         ######## Settings tab ########
         self.settings = QWidget()
         self._settings_layout = QVBoxLayout()
