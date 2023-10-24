@@ -11,17 +11,19 @@ from typing import TYPE_CHECKING
 from magicgui import magic_factory
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
-    QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, 
+    QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
     QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox
     )
+from qtpy import QtWidgets
 from warnings import warn
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
 from PyQt5.QtGui import QIntValidator
 from numpy import ndarray as numpy_ndarray
 import pyqtgraph as pg
-from napari_time_series_plotter import TSPExplorer
-from napari_matplotlib.base import NapariMPLWidget
+# from napari_time_series_plotter import TSPExplorer
+from napari_matplotlib.base import BaseNapariMPLWidget
+from napari.layers import Shapes, Image
 import matplotlib.pyplot as plt
 
 import copy
@@ -45,6 +47,8 @@ class OMAAS(QWidget):
     def __init__(self, napari_viewer):
         super().__init__()
         self.viewer = napari_viewer
+        self.viewer.text_overlay.visible = True
+        self.viewer.text_overlay.font_size = 36
 
 
         self.main_layout = QVBoxLayout()
@@ -243,6 +247,52 @@ class OMAAS(QWidget):
         self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 0, 1, 1)
         self.pick_frames_btn = QPushButton("apply")
         self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
+
+         ######## Plotting Group ########
+        self.plot_grpup = VHGroup('Plot profile', orientation='G')
+        # self.main_layout.addWidget(self.plot_grpup.gbox)
+        self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
+
+        ############################################
+        ############ create plot widget ############
+        ############################################
+        self.plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+        self.plot_grpup.glayout.addWidget(self.plot_widget, 1, 1, 1, 2)
+
+
+        ######################################################
+        ############ create Shape selector widget ############
+        ######################################################
+        
+        self.listShapeswidget = QListWidget()
+
+        self.listShapeswidget_label = QLabel("Select *Shape* for plotting profile")
+        self.plot_grpup.glayout.addWidget(self.listShapeswidget_label, 3, 2, 1, 1)
+        self.plot_grpup.glayout.addWidget(self.listShapeswidget, 4, 2, 1, 1)
+
+        ######################################################
+        ############ create Image selector widget ############
+        ######################################################
+        
+        self.listImagewidget = QListWidget()
+        self.listImagewidget.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
+
+        self.listImagewidget_label = QLabel("Select *Image* for plotting profile")
+        self.plot_grpup.glayout.addWidget(self.listImagewidget_label, 3, 1, 1, 1)
+        self.plot_grpup.glayout.addWidget(self.listImagewidget, 4, 1, 1, 1)
+
+
+        ######################################################
+        ############ create plotting button widget ###########
+        ######################################################
+
+        # self.plot_profile_btn = QPushButton("Plot profile")
+        self.plot_profile_btn = QCheckBox("Plot profile")
+        self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
+        # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
+        self.plot_grpup.glayout.addWidget(self.plot_profile_btn, 2, 1, 1, 1)
 
         ######## Shapes tab ########
         ############################
@@ -538,7 +588,7 @@ class OMAAS(QWidget):
         ######################
 
         ##### using pyqtgraph ######
-        self.plotting_group = VHGroup('Plot profile', orientation='G')
+        # self.plotting_group = VHGroup('Plot profile', orientation='G')
         # self.layout().addWidget(self.plotting_group.gbox)
 
         ######## pre-processing btns ########
@@ -558,23 +608,23 @@ class OMAAS(QWidget):
 
         # graph_container = QWidget()
 
-        # histogram view
-        self._graphics_widget = pg.GraphicsLayoutWidget()
-        self._graphics_widget.setBackground("w")
+        # # histogram view
+        # self._graphics_widget = pg.GraphicsLayoutWidget()
+        # self._graphics_widget.setBackground("w")
 
 
-        self.plotting_group.glayout.addWidget(self._graphics_widget, 3, 0, 1, 1)
+        # self.plotting_group.glayout.addWidget(self._graphics_widget, 3, 0, 1, 1)
 
-        hour = [1,2,3,4,5,6,7,8,9,10]
-        temperature = [30,32,34,32,33,31,29,32,35,45]
+        # hour = [1,2,3,4,5,6,7,8,9,10]
+        # temperature = [30,32,34,32,33,31,29,32,35,45]
 
-        self.p2 = self._graphics_widget.addPlot()
-        axis = self.p2.getAxis('bottom')
-        axis.setLabel("Distance")
-        axis = self.p2.getAxis('left')
-        axis.setLabel("Intensity")
+        # self.p2 = self._graphics_widget.addPlot()
+        # axis = self.p2.getAxis('bottom')
+        # axis.setLabel("Distance")
+        # axis = self.p2.getAxis('left')
+        # axis.setLabel("Intensity")
 
-        self.p2.plot(hour, temperature, pen="red", name="test")
+        # self.p2.plot(hour, temperature, pen="red", name="test")
 
         # individual layers: legend
         # self._labels = QWidget()
@@ -588,10 +638,26 @@ class OMAAS(QWidget):
         # self.layout().addWidget(self._labels)
 
 
-        ##### using TSPExplorer ######
+        # ##### using TSPExplorer ######
 
-        self._graphics_widget_TSP = TSPExplorer(self.viewer)
-        self.layout().addWidget(self._graphics_widget_TSP, 1)
+        # self._graphics_widget_TSP = TSPExplorer(self.viewer)
+        # self.layout().addWidget(self._graphics_widget_TSP, 1)
+
+        
+        
+
+        # callback for insert /remove layers
+        self.viewer.layers.events.inserted.connect(self._layer_list_changed_callback)
+        self.viewer.layers.events.removed.connect(self._layer_list_changed_callback)
+        # callback for selection of layers in the selectors
+        self.listShapeswidget.itemClicked.connect(self._data_changed_callback)
+        self.listImagewidget.itemClicked.connect(self._data_changed_callback)
+        # updtae FPS label
+        self.viewer.window.qt_viewer.canvas.measure_fps(callback = self.update_fps)
+        # callback for trace plotting
+        # self.plot_profile_btn.clicked.connect(self._on_click_plot_profile_btn_func)
+        self.plot_profile_btn.stateChanged.connect(self._on_click_plot_profile_btn_func)
+        # self.selection_layer.events.data.connect()
 
 
 
@@ -640,8 +706,8 @@ class OMAAS(QWidget):
         self.viewer.layers.events.inserted.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.events.removed.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
-        self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
-        self._graphics_widget_TSP.plotter.selector.model().itemChanged.connect(self._get_current_selected_TSP_layer_callback)
+        # self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
+        # self.plot_widget.plotter.selector.model().itemChanged.connect(self._get_current_selected_TSP_layer_callback)
         
 
     def _on_click_inv_data_btn(self):
@@ -976,7 +1042,7 @@ class OMAAS(QWidget):
     def _get_current_selected_TSP_layer_callback(self, event):
         # this object is a list of image(s) selected from the Time_series_plotter pluggin layer selector
                 try:
-                    self.current_seleceted_layer_from_TSP = self._graphics_widget_TSP.plotter.selector.model().get_checked()[0].name
+                    self.current_seleceted_layer_from_TSP = self.plot_widget.plotter.selector.model().get_checked()[0].name
                 except:
                     self.current_seleceted_layer_from_TSP = "ImageID"
                 
@@ -1000,23 +1066,23 @@ class OMAAS(QWidget):
                     self.metadata_tree.insertTopLevelItems(0, items)  
                     self.xscale = metadata["CycleTime"]       
                     # update plotter x scale and x label expressed in ms
-                    self._graphics_widget_TSP.options.xscale.setText(str(metadata["CycleTime"] * 1000))
-                    self._graphics_widget_TSP.options.xaxis_label.setText("Time (ms)")
-                    options = self._graphics_widget_TSP.options.plotter_options()  
-                    self._graphics_widget_TSP.plotter.update_options(options) 
+                    self.plot_widget.options.xscale.setText(str(metadata["CycleTime"] * 1000))
+                    self.plot_widget.options.xaxis_label.setText("Time (ms)")
+                    options = self.plot_widget.options.plotter_options()  
+                    self.plot_widget.plotter.update_options(options) 
                     self.fps_val.setText(str(round(1/metadata["CycleTime"], 2)))
                 
             if value is not None and value._type_string != 'image' :
                 self.metadata_tree.clear()
-                self._graphics_widget_TSP.options.xscale.setText(str(1))
-                self._graphics_widget_TSP.options.xaxis_label.setText("Time")
-                options = self._graphics_widget_TSP.options.plotter_options()
+                self.plot_widget.options.xscale.setText(str(1))
+                self.plot_widget.options.xaxis_label.setText("Time")
+                options = self.plot_widget.options.plotter_options()
                 self.fps_val.setText("")
 
 
 
     def _get_APD_params_call_back(self, event):
-        if len(self._graphics_widget_TSP.plotter.data) > 0 :
+        if len(self.plot_widget.plotter.data) > 0 :
                        
             # Clear the canvas before start plotting if plot exist
             # try:
@@ -1026,14 +1092,14 @@ class OMAAS(QWidget):
             #     print(f">>>>> this is your error: {e}")
             self._clear_APD_plot(self)
 
-            self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.canvas.figure.subplots()
+            self.APD_axes_main_canvas = self.plot_widget.plotter.canvas.figure.subplots()
             # self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.axes
 
             # handles = []
             # print("lalala")
-            traces = self._graphics_widget_TSP.plotter.data[1::2]
-            shapes = self._graphics_widget_TSP.plotter.selection_layer.data
-            time = self._graphics_widget_TSP.plotter.data[0]
+            traces = self.plot_widget.plotter.data[1::2]
+            shapes = self.plot_widget.plotter.selection_layer.data
+            time = self.plot_widget.plotter.data[0]
             lname = self.viewer.layers.selection.active.name
             rmp_method = self.APD_computing_method.currentText()
             apd_percentage = self.slider_APD_percentage.value()
@@ -1041,7 +1107,7 @@ class OMAAS(QWidget):
             # self.viewer.layers.select_previous()
             # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
             APD_props = []
-            selected_img_list = [img.name for img in  self._graphics_widget_TSP.plotter.selector.model().get_checked()]
+            selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
 
             for img_indx, img_name in enumerate(selected_img_list):
 
@@ -1109,7 +1175,7 @@ class OMAAS(QWidget):
 
 
             # self._APD_TSP._draw()
-            self._graphics_widget_TSP.plotter._draw()
+            self.plot_widget.plotter._draw()
 
             # print(acttime_peaks_indx, ini_peaks_indx )
             colnames = [ "image_name",
@@ -1184,7 +1250,7 @@ class OMAAS(QWidget):
 
 
         # self.APD_axes_main_canvas.remove()
-        self._graphics_widget_TSP.plotter._draw()
+        self.plot_widget.plotter._draw()
 
         model = PandasModel(self.AP_df_default_val)
         self.APD_propert_table.setModel(model)
@@ -1198,10 +1264,10 @@ class OMAAS(QWidget):
         self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
         
         # check that you have content in the graphics panel
-        if len(self._graphics_widget_TSP.plotter.data) > 0 :
-            traces = self._graphics_widget_TSP.plotter.data[1::2]
-            shapes = self._graphics_widget_TSP.plotter.selection_layer.data
-            selected_img_list = [img.name for img in  self._graphics_widget_TSP.plotter.selector.model().get_checked()]
+        if len(self.plot_widget.plotter.data) > 0 :
+            traces = self.plot_widget.plotter.data[1::2]
+            shapes = self.plot_widget.plotter.selection_layer.data
+            selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
             for img_indx, img_name in enumerate(selected_img_list):
                 for shpae_indx, trace in enumerate(shapes):
                     traces[img_indx + shpae_indx]
@@ -1358,6 +1424,97 @@ class OMAAS(QWidget):
 
         except Exception as e:
             print(f">>>>> this is your error: {e}")
+    
+    def draw(self)-> None:
+
+        self.plot_widget.canvas.draw() # you must add this in order tp display the plot
+
+        
+    def _layer_list_changed_callback(self, event):
+        """Callback function for layer list changes.
+        Update the selector model on each layer list change to insert or remove items accordingly.
+        """
+        
+        value = event.value
+        etype = event.type
+        # control selection of Shape layers
+        if isinstance(value, Shapes):
+            if etype  == 'inserted':
+                item = QtWidgets.QListWidgetItem(value.name)
+                self.listShapeswidget.addItem(item)
+            if event.type  == 'removed':
+                item = self.listShapeswidget.findItems(value.name, Qt.MatchExactly)
+                item_row = self.listShapeswidget.row(item[0])
+                curr_item = self.listShapeswidget.takeItem(item_row)
+                del curr_item
+       # control selection of Image Layers
+        elif isinstance(value, Image):
+            if etype  == 'inserted':
+                item = QtWidgets.QListWidgetItem(value.name)
+                self.listImagewidget.addItem(item)
+            if event.type  == 'removed':
+                item = self.listImagewidget.findItems(value.name, Qt.MatchExactly)
+                item_row = self.listImagewidget.row(item[0])
+                curr_item = self.listImagewidget.takeItem(item_row)
+                del curr_item
+    
+
+    
+    def update_fps(self, fps):
+        """Update fps."""
+        self.viewer.text_overlay.text = f"Currently rendering at: {fps:1.1f} FPS"
+    
+    def _on_click_plot_profile_btn_func(self):
+        state = self.plot_profile_btn.isChecked()
+        if state == True:
+            # print('Checked')
+            img_items = [item.text() for item in self.listImagewidget.selectedItems()]
+            shapes_items = [item.text() for item in self.listShapeswidget.selectedItems()]
+            
+            if not shapes_items and img_items:
+                warn("Please create and Select a SHAPE from the Shape selector to plot profile")
+            if not img_items and shapes_items:
+                warn("Please open and Select an IMAGE from the Image selector to plot profile")
+            if not img_items and not shapes_items:
+                warn("Please select a SHAPE & IMAGE from the Shape and Image selectors")
+            if img_items and shapes_items:
+                try:
+                    # img_layer = self.viewer.layers[img_items[0]]
+                    img_layer = [self.viewer.layers[layer] for layer in img_items]
+                    self.shape_layer = self.viewer.layers[shapes_items[0]]
+                    n_shapes = len(self.shape_layer.data)
+                    if n_shapes == 0:
+                        warn("Draw a new square shape to plot profile in the current selected shape")
+                    else:
+                        self.plot_widget.figure.clear()
+                        self.plot_widget.add_single_axes()
+                        # loop over images
+                        for img in img_layer:
+                            # loop over shapes
+                            for roi in range(n_shapes):
+                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean")
+                                self.plot_widget.axes.plot(x, y, label= f"{img.name}_{shapes_items}_ROI:{roi}")
+                                self.plot_widget.axes.legend()
+                                
+                                self.draw()
+                            # print("I am alive")
+                        self.shape_layer.events.data.connect(self._data_changed_callback)
+                except Exception as e:
+                    print(f"You have the following error: --->> {e} <----")
+        else:
+            # print('Unchecked')
+            self.plot_widget.figure.clear()
+            self.draw()
+
+        
+    
+    def _data_changed_callback(self):
+        state = self.plot_profile_btn.isChecked()
+        if state:
+            self._on_click_plot_profile_btn_func()
+            self.plot_widget.canvas.draw()
+        else:
+            warn("Please Check on 'Plot profile' to creaate the plot")
 
 
 
@@ -1400,58 +1557,5 @@ class VHGroup():
 
         self.gbox.setLayout(self.glayout)
 
-class PandasModel(QAbstractTableModel):
-    """A model to interface a Qt view with pandas dataframe """
 
-    def __init__(self, dataframe: pd.DataFrame, parent=None):
-        QAbstractTableModel.__init__(self, parent)
-        self._dataframe = dataframe
-
-    def rowCount(self, parent=QModelIndex()) -> int:
-        """ Override method from QAbstractTableModel
-
-        Return row count of the pandas DataFrame
-        """
-        if parent == QModelIndex():
-            return len(self._dataframe)
-
-        return 0
-
-    def columnCount(self, parent=QModelIndex()) -> int:
-        """Override method from QAbstractTableModel
-
-        Return column count of the pandas DataFrame
-        """
-        if parent == QModelIndex():
-            return len(self._dataframe.columns)
-        return 0
-
-    def data(self, index: QModelIndex, role=Qt.ItemDataRole):
-        """Override method from QAbstractTableModel
-
-        Return data cell from the pandas DataFrame
-        """
-        if not index.isValid():
-            return None
-
-        if role == Qt.DisplayRole:
-            return str(self._dataframe.iloc[index.row(), index.column()])
-
-        return None
-
-    def headerData(
-        self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole
-    ):
-        """Override method from QAbstractTableModel
-
-        Return dataframe index as vertical header data and columns as horizontal header data.
-        """
-        if role == Qt.DisplayRole:
-            if orientation == Qt.Horizontal:
-                return str(self._dataframe.columns[section])
-
-            if orientation == Qt.Vertical:
-                return str(self._dataframe.index[section])
-
-        return None
 
