@@ -646,18 +646,7 @@ class OMAAS(QWidget):
         
         
 
-        # callback for insert /remove layers
-        self.viewer.layers.events.inserted.connect(self._layer_list_changed_callback)
-        self.viewer.layers.events.removed.connect(self._layer_list_changed_callback)
-        # callback for selection of layers in the selectors
-        self.listShapeswidget.itemClicked.connect(self._data_changed_callback)
-        self.listImagewidget.itemClicked.connect(self._data_changed_callback)
-        # updtae FPS label
-        self.viewer.window.qt_viewer.canvas.measure_fps(callback = self.update_fps)
-        # callback for trace plotting
-        # self.plot_profile_btn.clicked.connect(self._on_click_plot_profile_btn_func)
-        self.plot_profile_btn.stateChanged.connect(self._on_click_plot_profile_btn_func)
-        # self.selection_layer.events.data.connect()
+       
 
 
 
@@ -703,11 +692,23 @@ class OMAAS(QWidget):
         
         
         ##### handle events #####
-        self.viewer.layers.events.inserted.connect(self._shapes_layer_list_changed_callback)
-        self.viewer.layers.events.removed.connect(self._shapes_layer_list_changed_callback)
-        self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
-        # self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
+        # self.viewer.layers.events.inserted.connect(self._shapes_layer_list_changed_callback)
+        # self.viewer.layers.events.removed.connect(self._shapes_layer_list_changed_callback)
+        # self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
+        self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
         # self.plot_widget.plotter.selector.model().itemChanged.connect(self._get_current_selected_TSP_layer_callback)
+        # callback for insert /remove layers
+        self.viewer.layers.events.inserted.connect(self._layer_list_changed_callback)
+        self.viewer.layers.events.removed.connect(self._layer_list_changed_callback)
+        # callback for selection of layers in the selectors
+        self.listShapeswidget.itemClicked.connect(self._data_changed_callback)
+        self.listImagewidget.itemClicked.connect(self._data_changed_callback)
+        # updtae FPS label
+        self.viewer.window.qt_viewer.canvas.measure_fps(callback = self.update_fps)
+        # callback for trace plotting
+        # self.plot_profile_btn.clicked.connect(self._on_click_plot_profile_btn_func)
+        self.plot_profile_btn.stateChanged.connect(self._on_click_plot_profile_btn_func)
+        # self.selection_layer.events.data.connect()
         
 
     def _on_click_inv_data_btn(self):
@@ -1052,32 +1053,30 @@ class OMAAS(QWidget):
 
         if event.type in ['active']:
             value = event.value
-            if value is not None and value._type_string == 'image' :
+            if isinstance(value, Image):
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
                 if "CycleTime" in self.img_metadata_dict:
                     # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
                     self.metadata_tree.clear()
-                    metadata = self.img_metadata_dict
+                    # metadata = self.img_metadata_dict
                     items = []
-                    for key, values in metadata.items():
+                    for key, values in self.img_metadata_dict.items():
                         item = QTreeWidgetItem([key, str(values)])
                         items.append(item)
                 
                     self.metadata_tree.insertTopLevelItems(0, items)  
-                    self.xscale = metadata["CycleTime"]       
-                    # update plotter x scale and x label expressed in ms
-                    self.plot_widget.options.xscale.setText(str(metadata["CycleTime"] * 1000))
-                    self.plot_widget.options.xaxis_label.setText("Time (ms)")
-                    options = self.plot_widget.options.plotter_options()  
-                    self.plot_widget.plotter.update_options(options) 
-                    self.fps_val.setText(str(round(1/metadata["CycleTime"], 2)))
+                    # Set the scale base on the metadata 
+                    # if metadata["CycleTime"]:
+                    # self.xscale = self.img_metadata_dict["CycleTime"]
+                        # self.plot_widget.axes.set_xlabel("Time (ms)")
+                    self.fps_val.setText(str(round(1/self.img_metadata_dict["CycleTime"], 2)))
+                else:
+                    # self.xscale = 1
+                    self.fps_val.setText("Unknown sampling frequency (fps)")
                 
-            if value is not None and value._type_string != 'image' :
-                self.metadata_tree.clear()
-                self.plot_widget.options.xscale.setText(str(1))
-                self.plot_widget.options.xaxis_label.setText("Time")
-                options = self.plot_widget.options.plotter_options()
+            if not isinstance(value, Image):
                 self.fps_val.setText("")
+                self.metadata_tree.clear()
 
 
 
@@ -1466,6 +1465,7 @@ class OMAAS(QWidget):
     
     def _on_click_plot_profile_btn_func(self):
         state = self.plot_profile_btn.isChecked()
+        
         if state == True:
             # print('Checked')
             img_items = [item.text() for item in self.listImagewidget.selectedItems()]
@@ -1489,11 +1489,47 @@ class OMAAS(QWidget):
                         self.plot_widget.figure.clear()
                         self.plot_widget.add_single_axes()
                         # loop over images
+                        # self.xscale = self.img_metadata_dict["CycleTime"]
+                        # take a list of the images that contain "CycleTime" metadata
+                        fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]
+                        imgs_metadata_names = [image.name for image in img_layer if "CycleTime" in image.metadata ]
+                        # check that all images contain contain "CycleTime" metadata otherwise trow error
+                        if fps_metadata and not (len(img_layer) == len(fps_metadata)):
+
+                            return warn(f"Imcompatible metedata for plotting. Not all images seem to have the same fps metadata as 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata} for images : {imgs_metadata_names}")
+                            
+                        elif not all(fps == fps_metadata[0] for fps in fps_metadata):
+
+                            return warn(f"Not all images seem to have the same 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata}")
+                        # else:
+                            
+
+                        #     self.img_metadata_dict = img_layer[0].metadata
+                        #     fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]                            
+                        #     [image.metadata["CycleTime"] == img_layer[0].metadata["CycleTime"] for image in img_layer]
+
+                        # ###### check that all images must have the same frame rate for compatibility plotting
+                        # if not all(image.metadata["CycleTime"] == img_layer[0].metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata):
+                        #     warn(f"not all images seem to have same the fps. please check that the images have same fps. current values are {[image.metadata for image in img_layer]}")
+                            # raise Exception(f"not all images seem to have same the fps. please check that the images have same fps. current values are {[image.metadata for image in img_layer]}")
+                        else:
+                            self.img_metadata_dict = img_layer[0].metadata
+
+                        if "CycleTime" in self.img_metadata_dict:
+                            self.plot_widget.axes.set_xlabel("Time (ms)")
+                            self.xscale = self.img_metadata_dict["CycleTime"]
+                        else:
+                            self.xscale = 1
+                            self.plot_widget.axes.set_xlabel("Frames")
                         for img in img_layer:
                             # loop over shapes
                             for roi in range(n_shapes):
-                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean")
+                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale )
                                 self.plot_widget.axes.plot(x, y, label= f"{img.name}_{shapes_items}_ROI:{roi}")
+                                # if self.xscale != 1:
+                                #     self.plot_widget.axes.set_xlabel("Time (ms)")
+                                # else:
+                                #     self.plot_widget.axes.set_xlabel("Frames")
                                 self.plot_widget.axes.legend()
                                 
                                 self.draw()
@@ -1508,7 +1544,9 @@ class OMAAS(QWidget):
 
         
     
-    def _data_changed_callback(self):
+    def _data_changed_callback(self, event):
+
+        self._retrieve_metadata_call_back(event)
         state = self.plot_profile_btn.isChecked()
         if state:
             self._on_click_plot_profile_btn_func()
@@ -1530,32 +1568,6 @@ def example_function_widget(img_layer: "napari.layers.Image"):
     print(f"you have selected {img_layer}")
 
 
-
-
-
-class VHGroup():
-    """Group box with specific layout.
-
-    Parameters
-    ----------
-    name: str
-        Name of the group box
-    orientation: str
-        'V' for vertical, 'H' for horizontal, 'G' for grid
-    """
-
-    def __init__(self, name, orientation='V'):
-        self.gbox = QGroupBox(name)
-        if orientation=='V':
-            self.glayout = QVBoxLayout()
-        elif orientation=='H':
-            self.glayout = QHBoxLayout()
-        elif orientation=='G':
-            self.glayout = QGridLayout()
-        else:
-            raise Exception(f"Unknown orientation {orientation}") 
-
-        self.gbox.setLayout(self.glayout)
 
 
 
