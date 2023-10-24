@@ -28,6 +28,8 @@ import pandas as pd
 # import cupyx
 # from cucim.skimage import registration as registration_gpu
 # from cucim.skimage import transform as transform_gpu
+from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QGroupBox, QGridLayout
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
 
 
 # instanciate a macro object
@@ -756,3 +758,132 @@ def return_peaks_found_fun(promi, np_1Darray):
     AP_peaks_indx, AP_peaks_props = signal.find_peaks(signal.savgol_filter(np_1Darray, window_length=15, polyorder=2), prominence=promi) # use Solaiy filter as Callum
 
     return len(AP_peaks_indx)
+
+def add_index_dim(arr1d, scale):
+    """Add a dimension to a 1D array, containing scaled index values.
+    
+    :param arr1d: array with one dimension
+    :type arr1d: np.ndarray
+    :param scale: index scaling value
+    :type scale: float
+    :retun: 2D array with the index dim added at -1 position
+    :rtype: np.ndarray
+    """
+    idx = np.arange(0, arr1d.size, 1) * scale
+    out = np.zeros((2, arr1d.size))
+    out[0] = idx
+    out[1] = arr1d
+    return out
+
+
+def extract_ROI_time_series(img_layer, shape_layer, idx_shape, roi_mode, xscale = 1):
+    """Extract the array element values inside a ROI along the first axis of a napari viewer layer.
+
+    :param current_step: napari viewer current step
+    :param layer: a napari image layer
+    :param labels: 2D label array derived from a shapes layer (Shapes.to_labels())
+    :param idx_shape: the index value for a given shape
+    :param roi_mode: defines how to handle the values inside of the ROI -> calc mean (default), median, sum or std
+    :return: shape index, ROI mean time series
+    :rtype: np.ndarray
+    """
+
+    ndim = img_layer.ndim
+    dshape = img_layer.data.shape
+
+    mode_dict = dict(
+        Min=np.min,
+        Max=np.max,
+        Mean=np.mean,
+        Median=np.median,
+        Sum=np.sum,
+        Std=np.std,
+    )
+    # convert ROI label to mask
+    if ndim == 3:    
+        label = shape_layer.to_labels(dshape[-2:])
+        mask = np.tile(label == (idx_shape + 1), (dshape[0], 1, 1))
+
+    if mask.any():
+        return add_index_dim(mode_dict[roi_mode](img_layer.data[mask].reshape(dshape[0], -1), axis=1), xscale)
+
+# this class helper allow to make gorup layouts easily"
+class VHGroup():
+    """Group box with specific layout.
+
+    Parameters
+    ----------
+    name: str
+        Name of the group box
+    orientation: str
+        'V' for vertical, 'H' for horizontal, 'G' for grid
+    """
+
+    def __init__(self, name, orientation='V'):
+        self.gbox = QGroupBox(name)
+        if orientation=='V':
+            self.glayout = QVBoxLayout()
+        elif orientation=='H':
+            self.glayout = QHBoxLayout()
+        elif orientation=='G':
+            self.glayout = QGridLayout()
+        else:
+            raise Exception(f"Unknown orientation {orientation}") 
+
+        self.gbox.setLayout(self.glayout)
+
+
+class PandasModel(QAbstractTableModel):
+    """A model to interface a Qt view with pandas dataframe """
+
+    def __init__(self, dataframe: pd.DataFrame, parent=None):
+        QAbstractTableModel.__init__(self, parent)
+        self._dataframe = dataframe
+
+    def rowCount(self, parent=QModelIndex()) -> int:
+        """ Override method from QAbstractTableModel
+
+        Return row count of the pandas DataFrame
+        """
+        if parent == QModelIndex():
+            return len(self._dataframe)
+
+        return 0
+
+    def columnCount(self, parent=QModelIndex()) -> int:
+        """Override method from QAbstractTableModel
+
+        Return column count of the pandas DataFrame
+        """
+        if parent == QModelIndex():
+            return len(self._dataframe.columns)
+        return 0
+
+    def data(self, index: QModelIndex, role=Qt.ItemDataRole):
+        """Override method from QAbstractTableModel
+
+        Return data cell from the pandas DataFrame
+        """
+        if not index.isValid():
+            return None
+
+        if role == Qt.DisplayRole:
+            return str(self._dataframe.iloc[index.row(), index.column()])
+
+        return None
+
+    def headerData(
+        self, section: int, orientation: Qt.Orientation, role: Qt.ItemDataRole
+    ):
+        """Override method from QAbstractTableModel
+
+        Return dataframe index as vertical header data and columns as horizontal header data.
+        """
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return str(self._dataframe.columns[section])
+
+            if orientation == Qt.Vertical:
+                return str(self._dataframe.index[section])
+
+        return None
