@@ -9,13 +9,13 @@
 
 **napari-OMAAS stands for Optical Mapping Acquisition and Analysis Software for panoramic heart imaging**
 
-This plugin intends to be an analysis and acquisition tool for optical mapping systems from panoramic imaging of intact hearts' potentiometric or Ca^2+^ fluorescence signals.
+This plugin intends to be an analysis and acquisition tool for optical mapping in potentiometric (V<sub>m</sub>) or calcium (Ca<sup>2+</sup>) fluorescence signals obtained from panoramic imaging of intact hearts.
 
-This plugin is in a very early developmental/experimental stage and only supports reading images in .sif format from Andor Technologies powered by the [sif_parser] python module.
+This plugin is in a very early developmental/experimental stage so expect very braking changes at anytime. At the momment supports reading images in .sif format from Andor Technologies powered by the [sif_parser] python module.
 
 ## Usage
 
-This plugin can only read images generated with Andor Technologies cameras currently, having been tested on Zyla cameras. Just drag and drop an image to the napari GUI, and the image will display. Alternatively, you can programmatically load/read the image within a notebook.
+This plugin can read images generated with Andor Technologies cameras. It has been currently tested on Zyla cameras. Just drag and drop an image to the napari GUI, and the image will display. Alternatively, you can programmatically load/read the image within a notebook.
     
     import napari
     
@@ -28,21 +28,25 @@ to display the metadata use the standard call to the corresponding layer:
 
     viewer.layers['my_image'].metadata
 
+In addition to opening specific image format, it allows the users to perform some basic operations and visualization on images, such as normalization, temporal/spatial filters, motion tracking/compenstaion, plot profile, etc.
 
 ## Roadmap
 
 This plugin is composed of two major components: **analysis** and **acquisition**.
 
+Bellow is a list of some features this pluggin aims to do.
+
 ### Analysis Features
     
 - [x] Read sif files from Andor Technologies.
-- [ ] Display time profile of ROIs on image sequences.
-- [ ] Normalize images.
+- [x] Display time profile of ROIs on image sequences.
+- [x] Normalize images.
+    - [x] Perform peak analysis of action potential / Calcium traces.
+    - [x] Add motion correction.
+    - [x] APD analysis.
+    - [ ] Create activation maps.
     - [ ] Segment images and align heart ROIs.
-    - [ ] Perform peak analysis of action potential / Calcium traces 
-    - [ ] Create activation maps
-    - [ ] Add motion correction
-- [ ] Export results and analysis log.
+- [x] Export results and analysis log.
 
 ### Acquisition Features
 
@@ -72,7 +76,7 @@ You can install `napari-omaas` via [pip]:
 
 
 
-To install the latest development version :
+To install the latest development version (recommended) :
 
     pip install git+https://github.com/rjlopez2/napari-omaas.git
 
