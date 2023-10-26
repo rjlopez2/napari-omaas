@@ -30,6 +30,10 @@ to display the metadata use the standard call to the corresponding layer:
 
 In addition to opening specific image format, it allows the users to perform some basic operations and visualization on images, such as normalization, temporal/spatial filters, motion tracking/compenstaion, plot profile, etc.
 
+The following example ilustrate how to perform normalization (pixelwise) on a time serie image and plot 2d profile along the t dimension.
+
+![image1_gif](example_imgs/Oct-26-2023_inv_norm_plot_exmaple_file_2.gif)
+
 ## Roadmap
 
 This plugin is composed of two major components: **analysis** and **acquisition**.
