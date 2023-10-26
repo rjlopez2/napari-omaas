@@ -32,7 +32,7 @@ In addition to opening specific image format, it allows the users to perform som
 
 The following example ilustrate how to perform normalization (pixelwise) on a time serie image and plot 2d profile along the t dimension.
 
-![image1_gif](example_imgs/Oct-26-2023_inv_norm_plot_exmaple_file_2.gif)
+![](https://github.com/rjlopez2/napari-omaas/blob/main/example_imgs/Oct-26-2023_inv_norm_plot_exmaple_file_3.gif?raw=true)
 
 ## Roadmap
 
