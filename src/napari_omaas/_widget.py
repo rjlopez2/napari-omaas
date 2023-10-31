@@ -506,6 +506,7 @@ class OMAAS(QWidget):
         self.APD_rslts_dir_box_text.installEventFilter(self)
         self.APD_rslts_dir_box_text.setAcceptDrops(True)
         self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
+        self.APD_rslts_dir_box_text.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
         self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 7, 5, 1, 1)
         
         self.copy_APD_rslts_btn = QPushButton("Copy table")
@@ -521,7 +522,8 @@ class OMAAS(QWidget):
         self.APD_export_group.glayout.addWidget(self.label_rstl_name, 6, 4,  1, 1)
         
         self.table_rstl_name = QLineEdit()
-        self.table_rstl_name.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
+
+        self.table_rstl_name.setPlaceholderText("APD_results")
         self.APD_export_group.glayout.addWidget(self.table_rstl_name, 6, 5, 1, 1)
 
         ######## Settings tab ########
@@ -1446,19 +1448,19 @@ class OMAAS(QWidget):
                     if file_format == ".csv":
                         file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_csv(file_path, index=False)
-                        print(f">>>>> File exported to: {file_path} <<<<<<")
+                        warn(f"File '{filename}{file_format}' exported to: {file_path}.")
 
                     elif file_format == ".xlsx":
                         file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_excel(file_path, index=False)
-                        print(f">>>>> File exported to: {file_path} <<<<<<")
+                        warn(f"File '{filename}{file_format}' exported to: {file_path}.")
                 else:
-                    warn("No APD results table found or len of the table is < 0.")
+                    return warn("No APD results table found or len of the table is < 0.")
             else:
-                    warn("No APD results table found.")
+                    return warn("No APD results table found.")
 
         except Exception as e:
-            print(f">>>>> this is your error: {e}")
+            return print(f">>>>> this is your error: {e}")
     
     def draw(self)-> None:
 
