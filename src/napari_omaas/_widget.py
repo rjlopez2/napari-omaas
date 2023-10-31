@@ -679,7 +679,7 @@ class OMAAS(QWidget):
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
-        self.compute_APD_btn.clicked.connect(self._get_APD_params_call_back)
+        self.compute_APD_btn.clicked.connect(self._get_APD_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
@@ -1082,7 +1082,7 @@ class OMAAS(QWidget):
 
 
 
-    def _get_APD_params_call_back(self, event):
+    def _get_APD_call_back(self, event):
         # if len(self.plot_widget.plotter.data) > 0 :
         if len(self.plot_widget.figure.axes) > 0 :
                        
@@ -1124,13 +1124,14 @@ class OMAAS(QWidget):
             # # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
             APD_props = []
             # selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
-            selected_img_list = [self.viewer.layers[item.text()] for item in self.listImagewidget.selectedItems()]
-            shapes = [self.viewer.layers[item.text()] for item in self.listShapeswidget.selectedItems()]
+            # selected_img_list = [self.viewer.layers[item.text()] for item in self.listImagewidget.selectedItems()]
+            # selected_shps_list = [self.viewer.layers[item.text()] for item in self.listShapeswidget.selectedItems()]
+            selected_img_list, selected_shps_list = self._get_imgs_and_shpes_items(return_img=True)
 
             for img_indx, img in enumerate(selected_img_list):
 
 
-                for shape_indx, lalala in enumerate(shapes[0].data):
+                for shape_indx, lalala in enumerate(selected_shps_list[0].data):
 
                     # update detected APs labels
                     self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shape_indx])}')
