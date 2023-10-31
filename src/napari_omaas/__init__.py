@@ -1,4 +1,4 @@
-__version__ = "0.1.2"
+__version__ = "0.1.3"
 
 from ._sample_data import make_sample_data
 from ._widget import OMAAS, example_magic_widget
