@@ -407,8 +407,8 @@ class OMAAS(QWidget):
         self.APD_plot_group = VHGroup('APD plot group', orientation='G')
         self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
 
-        # self._APD_widget_TSP = TSPExplorer(self.viewer)
-        # self.APD_plot_group.glayout.addWidget(self._APD_widget_TSP, 3, 0, 1, 1)
+        self._APD_plot_widget = BaseNapariMPLWidget(self.viewer) 
+        self.APD_plot_group.glayout.addWidget(self._APD_plot_widget, 3, 0, 1, 9)
         
         # self._APD_TSP = NapariMPLWidget(self.viewer)
         # self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
@@ -478,7 +478,7 @@ class OMAAS(QWidget):
         self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
         self.APD_propert_table.setAlternatingRowColors(False)
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
-        self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 8)
+        self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 9)
 
 
          ##### APD export results ########
@@ -1081,7 +1081,8 @@ class OMAAS(QWidget):
 
 
     def _get_APD_params_call_back(self, event):
-        if len(self.plot_widget.plotter.data) > 0 :
+        # if len(self.plot_widget.plotter.data) > 0 :
+        if len(self.plot_widget.figure.axes) > 0 :
                        
             # Clear the canvas before start plotting if plot exist
             # try:
@@ -1089,47 +1090,63 @@ class OMAAS(QWidget):
             #         self.APD_axes_main_canvas.remove()
             # except Exception as e:
             #     print(f">>>>> this is your error: {e}")
-            self._clear_APD_plot(self)
+            # self._clear_APD_plot(self) # fix this one
 
-            self.APD_axes_main_canvas = self.plot_widget.plotter.canvas.figure.subplots()
+            # self.APD_axes_main_canvas = self.plot_widget.plotter.canvas.figure.subplots()
+            # self.APD_axes_main_canvas = BaseNapariMPLWidget(self.viewer) 
+            self._APD_plot_widget.figure.clear()
+            self._APD_plot_widget.add_single_axes()
+            # x = np.linspace(1,10, 10)
+            # self._APD_plot_widget.axes.plot(x, np.tanh(x)**2, label= f"a test")
+
+            # self._APD_plot_widget.canvas.draw()
+            
             # self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.axes
 
             # handles = []
             # print("lalala")
-            traces = self.plot_widget.plotter.data[1::2]
-            shapes = self.plot_widget.plotter.selection_layer.data
-            time = self.plot_widget.plotter.data[0]
-            lname = self.viewer.layers.selection.active.name
+
+
+
+
+            # traces = self.plot_widget.plotter.data[1::2]
+            traces = self.data_main_canvas["y"]
+            # shapes = self.plot_widget.plotter.selection_layer.data
+            # time = self.plot_widget.plotter.data[0]
+            time = self.data_main_canvas["x"]
+            # lname = self.viewer.layers.selection.active.name
             rmp_method = self.APD_computing_method.currentText()
             apd_percentage = self.slider_APD_percentage.value()
             prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
-            # self.viewer.layers.select_previous()
-            # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
+            # # self.viewer.layers.select_previous()
+            # # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
             APD_props = []
-            selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
+            # selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
+            selected_img_list = [self.viewer.layers[item.text()] for item in self.listImagewidget.selectedItems()]
+            shapes = [self.viewer.layers[item.text()] for item in self.listShapeswidget.selectedItems()]
 
-            for img_indx, img_name in enumerate(selected_img_list):
+            for img_indx, img in enumerate(selected_img_list):
 
 
-                for shpae_indx, lalala in enumerate(shapes):
+                for shape_indx, lalala in enumerate(shapes[0].data):
 
                     # update detected APs labels
-                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shape_indx])}')
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
-                    self.APD_axes_main_canvas.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
 
-                    # ##### catch error here and exit nicely for the user with a warning or so #####
+                    ##### catch error here and exit nicely for the user with a warning or so #####
                     try:
 
-                        props = compute_APD_props_func(traces[img_indx + shpae_indx], 
-                                                        curr_img_name = img_name, 
+                        props = compute_APD_props_func(traces[img_indx + shape_indx], 
+                                                        curr_img_name = img.name, 
                                                         # cycle_length_ms= self.curr_img_metadata["CycleTime"],
                                                         cycle_length_ms= self.img_metadata_dict["CycleTime"],
                                                         rmp_method = rmp_method, 
                                                         apd_perc = apd_percentage, 
                                                         promi=prominence, 
-                                                        roi_indx=shpae_indx)
+                                                        roi_indx=shape_indx)
                         
                         ini_indx = props[-3]
                         peak_indx = props[-2]
@@ -1144,9 +1161,9 @@ class OMAAS(QWidget):
                         # props.append(text_lalala)
                         y_min = resting_V    
                         # y_min = traces[img_indx + shpae_indx][ini_indx]    
-                        y_max = traces[img_indx + shpae_indx][peak_indx]
+                        y_max = traces[img_indx + shape_indx][peak_indx]
 
-                        self.APD_axes_main_canvas.vlines(time[ini_indx], 
+                        self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][ini_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
                                             linestyles='dashed', color = "green", label=f'AP_ini', lw = 0.5, alpha = 0.8)
@@ -1155,15 +1172,15 @@ class OMAAS(QWidget):
                         # self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
 
-                        self.APD_axes_main_canvas.vlines(time[end_indx], 
+                        self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][end_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
                                             linestyles='dashed', color = "red", label=f'AP_end', lw = 0.5, alpha = 0.8)
 
-                        self.APD_axes_main_canvas.hlines(resting_V,
-                                            xmin = time[ini_indx],
-                                            xmax = time[end_indx],
-                                            linestyles='dashed', color = "grey", label=f'AP_end', lw = 0.5, alpha = 0.8)
+                        self._APD_plot_widget.axes.hlines(resting_V,
+                                            xmin = time[img_indx + shape_indx][ini_indx],
+                                            xmax = time[img_indx + shape_indx][end_indx],
+                                            linestyles='dashed', color = "grey", label=f'AP_base', lw = 0.5, alpha = 0.8)
 
                         APD_props.append(props)
 
@@ -1173,10 +1190,10 @@ class OMAAS(QWidget):
 
 
 
-            # self._APD_TSP._draw()
-            self.plot_widget.plotter._draw()
+            # # self._APD_TSP._draw()
+            # self.plot_widget.plotter._draw()
 
-            # print(acttime_peaks_indx, ini_peaks_indx )
+            # # print(acttime_peaks_indx, ini_peaks_indx )
             colnames = [ "image_name",
                          "ROI_id",
                          "AP_id" ,
@@ -1192,6 +1209,8 @@ class OMAAS(QWidget):
                          "indx_at_AP_upstroke",
                          "indx_at_AP_peak",
                          "indx_at_AP_end"]
+            # self._APD_plot_widget.axes.legend()
+            self._APD_plot_widget.canvas.draw()
 
 
             self.APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
@@ -1263,12 +1282,15 @@ class OMAAS(QWidget):
         self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
         
         # check that you have content in the graphics panel
-        if len(self.plot_widget.plotter.data) > 0 :
-            traces = self.plot_widget.plotter.data[1::2]
-            shapes = self.plot_widget.plotter.selection_layer.data
-            selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
+        # if len(self.plot_widget.plotter.data) > 0 :
+        if len(self.plot_widget.figure.axes) > 0 :
+            # traces = self.plot_widget.plotter.data[1::2]
+            traces = self.data_main_canvas["y"]
+            # shapes = self.plot_widget.plotter.selection_layer.data
+            # selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
+            selected_img_list, shapes = self._get_imgs_and_shpes_items(return_img=True)
             for img_indx, img_name in enumerate(selected_img_list):
-                for shpae_indx, trace in enumerate(shapes):
+                for shpae_indx, trace in enumerate(shapes[0].data):
                     traces[img_indx + shpae_indx]
                     self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
 
@@ -1299,6 +1321,20 @@ class OMAAS(QWidget):
             self.load_current_spool_dir()
         else:
             print("the selected entry does not seem to be a valid directory")
+    
+    def _get_imgs_and_shpes_items(self, return_img = False):
+        """
+        Helper function that retunr the names of imags and shapes picked in the selector
+        """
+        if not return_img:
+
+            img_items = [item.text() for item in self.listImagewidget.selectedItems()]
+            shapes_items = [item.text() for item in self.listShapeswidget.selectedItems()]
+        elif return_img:
+            img_items = [self.viewer.layers[item.text()] for item in self.listImagewidget.selectedItems()]
+            shapes_items = [self.viewer.layers[item.text()] for item in self.listShapeswidget.selectedItems()]
+
+        return img_items, shapes_items
     
 
 
@@ -1470,6 +1506,7 @@ class OMAAS(QWidget):
             # print('Checked')
             img_items = [item.text() for item in self.listImagewidget.selectedItems()]
             shapes_items = [item.text() for item in self.listShapeswidget.selectedItems()]
+            img_items, shapes_items = self._get_imgs_and_shpes_items(return_img=False)
             
             if not shapes_items and img_items:
                 warn("Please create and Select a SHAPE from the Shape selector to plot profile")
@@ -1488,6 +1525,8 @@ class OMAAS(QWidget):
                     else:
                         self.plot_widget.figure.clear()
                         self.plot_widget.add_single_axes()
+                        # define container for data
+                        self.data_main_canvas = {"x": [], "y": []}
                         # loop over images
                         # self.xscale = self.img_metadata_dict["CycleTime"]
                         # take a list of the images that contain "CycleTime" metadata
@@ -1533,6 +1572,9 @@ class OMAAS(QWidget):
                                 self.plot_widget.axes.legend()
                                 
                                 self.draw()
+
+                                self.data_main_canvas["x"].append(x)
+                                self.data_main_canvas["y"].append(y)
                             # print("I am alive")
                         self.shape_layer.events.data.connect(self._data_changed_callback)
                 except Exception as e:
