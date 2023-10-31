@@ -690,6 +690,7 @@ class OMAAS(QWidget):
         self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
         self.search_dir_APD_rslts_btn.clicked.connect(self._on_click_search_new_dir_APD_rslts_btn_func)
         self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
+        self.APD_computing_method.activated.connect(self._get_APD_call_back)
         
         
         
