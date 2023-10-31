@@ -1084,55 +1084,24 @@ class OMAAS(QWidget):
 
 
     def _get_APD_call_back(self, event):
-        # if len(self.plot_widget.plotter.data) > 0 :
-        if len(self.plot_widget.figure.axes) > 0 :
-                       
-            # Clear the canvas before start plotting if plot exist
-            # try:
-            #     if hasattr(self, "APD_axes_main_canvas"):
-            #         self.APD_axes_main_canvas.remove()
-            # except Exception as e:
-            #     print(f">>>>> this is your error: {e}")
-            # self._clear_APD_plot(self) # fix this one
 
-            # self.APD_axes_main_canvas = self.plot_widget.plotter.canvas.figure.subplots()
-            # self.APD_axes_main_canvas = BaseNapariMPLWidget(self.viewer) 
+        if len(self.plot_widget.figure.axes) > 0 :
+
             self._APD_plot_widget.figure.clear()
             self._APD_plot_widget.add_single_axes()
-            # x = np.linspace(1,10, 10)
-            # self._APD_plot_widget.axes.plot(x, np.tanh(x)**2, label= f"a test")
-
-            # self._APD_plot_widget.canvas.draw()
-            
-            # self.APD_axes_main_canvas = self._graphics_widget_TSP.plotter.axes
-
-            # handles = []
-            # print("lalala")
-
-
-
-
-            # traces = self.plot_widget.plotter.data[1::2]
             traces = self.data_main_canvas["y"]
-            # shapes = self.plot_widget.plotter.selection_layer.data
-            # time = self.plot_widget.plotter.data[0]
             time = self.data_main_canvas["x"]
-            # lname = self.viewer.layers.selection.active.name
             rmp_method = self.APD_computing_method.currentText()
             apd_percentage = self.slider_APD_percentage.value()
             prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
-            # # self.viewer.layers.select_previous()
-            # # self.img_metadata_dict = self.viewer.layers.selection.active.metadata
+            
             APD_props = []
-            # selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
-            # selected_img_list = [self.viewer.layers[item.text()] for item in self.listImagewidget.selectedItems()]
-            # selected_shps_list = [self.viewer.layers[item.text()] for item in self.listShapeswidget.selectedItems()]
+            # get selection of images iand shape from the selector
             selected_img_list, selected_shps_list = self._get_imgs_and_shpes_items(return_img=True)
 
             for img_indx, img in enumerate(selected_img_list):
 
-
-                for shape_indx, lalala in enumerate(selected_shps_list[0].data):
+                for shape_indx, shape in enumerate(selected_shps_list[0].data):
 
                     # update detected APs labels
                     self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shape_indx])}')
@@ -1151,36 +1120,25 @@ class OMAAS(QWidget):
                                                         apd_perc = apd_percentage, 
                                                         promi=prominence, 
                                                         roi_indx=shape_indx)
-                        
+                        # collect indexes of AP for plotting AP boudaries: ini, end, baseline
                         ini_indx = props[-3]
                         peak_indx = props[-2]
                         end_indx = props[-1]
                         dVdtmax = props[5]
                         resting_V = props[8]
-                        # ini_indx = [props[val][-3] for val in range(len(props))]
-                        # peak_indx = [props[val][-2] for val in range(len(props))]
-                        # end_indx = [props[val][-1] for val in range(len(props))]               
-
-                        # text_lalala = ["lalala" for i in range(len(props[0]))]
-                        # props.append(text_lalala)
-                        y_min = resting_V    
-                        # y_min = traces[img_indx + shpae_indx][ini_indx]    
+                        y_min = resting_V
                         y_max = traces[img_indx + shape_indx][peak_indx]
-
+                        # plot vline of AP start
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][ini_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
                                             linestyles='dashed', color = "green", label=f'AP_ini', lw = 0.5, alpha = 0.8)
-                        
-                        # self._graphics_widget_TSP
-                        # self.APD_axes = self._APD_TSP.canvas.figure.subplots()
-
-
+                        # plot vline of AP end
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][end_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
                                             linestyles='dashed', color = "red", label=f'AP_end', lw = 0.5, alpha = 0.8)
-
+                        # plot hline of AP baseline
                         self._APD_plot_widget.axes.hlines(resting_V,
                                             xmin = time[img_indx + shape_indx][ini_indx],
                                             xmax = time[img_indx + shape_indx][end_indx],
@@ -1192,12 +1150,6 @@ class OMAAS(QWidget):
                         # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
                         raise e
 
-
-
-            # # self._APD_TSP._draw()
-            # self.plot_widget.plotter._draw()
-
-            # # print(acttime_peaks_indx, ini_peaks_indx )
             colnames = [ "image_name",
                          "ROI_id",
                          "AP_id" ,
@@ -1248,21 +1200,6 @@ class OMAAS(QWidget):
         """
         Clear the canvas.
         """
-        # self.APD_axes.clear()
-        # self._graphics_widget_TSP.plotter.clear()
-        # self._graphics_widget_TSP.plotter.canvas.figure.clear()
-        # self.APD_axes_main_canvas.axes.clear()
-
-
-        # if (self.APD_axes_main_canvas):
-        #     del self.APD_axes_main_canvas
-        # self._APD_TSP._draw()
-        # plt.close(self.APD_axes_main_canvas)
-        # plt.close(self._graphics_widget_TSP.plotter.canvas.figure)
-        # self._graphics_widget_TSP.plotter.axes.remove()
-        # self._graphics_widget_TSP.plotter.clear()
-        # self._graphics_widget_TSP.plotter.axes.remove()
-         # Clear the canvas before start plotting if plot exist
         try:            
             self._APD_plot_widget.figure.clear()
             self._APD_plot_widget.canvas.draw()
@@ -1270,15 +1207,9 @@ class OMAAS(QWidget):
             print(f">>>>> this is your error: {e}")
 
 
-
-        # self.APD_axes_main_canvas.remove()
-        # self.plot_widget.plotter._draw()
-
         model = PandasModel(self.AP_df_default_val)
         self.APD_propert_table.setModel(model)
 
-        # ---->>>> this return the data currently pltting -> self._graphics_widget_TSP.plotter.data
-        # ----->>>>> this retrn the new cavas to plot on to -> self._APD_TSP.canvas.figure.subplots
 
     def _get_APD_thre_slider_vlaue_func(self, value):
         prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
@@ -1286,12 +1217,8 @@ class OMAAS(QWidget):
         self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
         
         # check that you have content in the graphics panel
-        # if len(self.plot_widget.plotter.data) > 0 :
         if len(self.plot_widget.figure.axes) > 0 :
-            # traces = self.plot_widget.plotter.data[1::2]
             traces = self.data_main_canvas["y"]
-            # shapes = self.plot_widget.plotter.selection_layer.data
-            # selected_img_list = [img.name for img in  self.plot_widget.plotter.selector.model().get_checked()]
             selected_img_list, shapes = self._get_imgs_and_shpes_items(return_img=True)
             for img_indx, img_name in enumerate(selected_img_list):
                 for shpae_indx, trace in enumerate(shapes[0].data):
@@ -1404,21 +1331,17 @@ class OMAAS(QWidget):
     def _on_click_copy_APD_rslts_btn_func(self, event):
         try:
             if hasattr(self, "APD_props_df"):
+
                 if isinstance(self.APD_props_df, pd.DataFrame) and len(self.APD_props_df) > 0:
-                    # self.msg = QMessageBox()
-                    # self.msg.setIcon(QMessageBox.Information)
-                    # self.msg.setText("Error")
-                    # self.msg.setInformativeText('More information')
-                    # self.msg.setWindowTitle("Error")
-                    # self.msg.exec_()
+
                     self.APD_props_df.to_clipboard(index=False) 
                     print(">>>>> data copied to clipboard <<<<<<")
-                    warn("APD Table copied to clipboard")
-                
+                    warn("APD Table copied to clipboard")               
+
                 else:
-                    warn("No data was copied! Make sure you have a APD reulst table and has len > 0")
+                    return warn("No data was copied! Make sure you have a APD reulst table and has len > 0")
             else:
-                warn("No data was copied! Make sure you have a APD reulst table.")
+                return warn("No data was copied! Make sure you have a APD reulst table.")
 
                     
         except Exception as e:
@@ -1444,7 +1367,6 @@ class OMAAS(QWidget):
                     else:
                         output_dir = self.APD_rslts_dir_box_text.text()
 
-                    # output_dir = str(QFileDialog.getExistingDirectory(self, "Select Directory", self.APD_rslts_dir_box_text.placeholderText()))
                     file_format = self.APD_rslts_export_file_format.currentText()
 
                     if file_format == ".csv":
@@ -1495,8 +1417,7 @@ class OMAAS(QWidget):
                 item = self.listImagewidget.findItems(value.name, Qt.MatchExactly)
                 item_row = self.listImagewidget.row(item[0])
                 curr_item = self.listImagewidget.takeItem(item_row)
-                del curr_item
-    
+                del curr_item    
 
     
     def update_fps(self, fps):
@@ -1531,12 +1452,11 @@ class OMAAS(QWidget):
                         self.plot_widget.add_single_axes()
                         # define container for data
                         self.data_main_canvas = {"x": [], "y": []}
-                        # loop over images
-                        # self.xscale = self.img_metadata_dict["CycleTime"]
                         # take a list of the images that contain "CycleTime" metadata
                         fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]
                         imgs_metadata_names = [image.name for image in img_layer if "CycleTime" in image.metadata ]
-                        # check that all images contain contain "CycleTime" metadata otherwise trow error
+                        
+                        # check that all images contain contain compatible "CycleTime" metadataotherwise trow error
                         if fps_metadata and not (len(img_layer) == len(fps_metadata)):
 
                             return warn(f"Imcompatible metedata for plotting. Not all images seem to have the same fps metadata as 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata} for images : {imgs_metadata_names}")
@@ -1544,19 +1464,9 @@ class OMAAS(QWidget):
                         elif not all(fps == fps_metadata[0] for fps in fps_metadata):
 
                             return warn(f"Not all images seem to have the same 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata}")
-                        # else:
-                            
-
-                        #     self.img_metadata_dict = img_layer[0].metadata
-                        #     fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]                            
-                        #     [image.metadata["CycleTime"] == img_layer[0].metadata["CycleTime"] for image in img_layer]
-
-                        # ###### check that all images must have the same frame rate for compatibility plotting
-                        # if not all(image.metadata["CycleTime"] == img_layer[0].metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata):
-                        #     warn(f"not all images seem to have same the fps. please check that the images have same fps. current values are {[image.metadata for image in img_layer]}")
-                            # raise Exception(f"not all images seem to have same the fps. please check that the images have same fps. current values are {[image.metadata for image in img_layer]}")
                         else:
-                            self.img_metadata_dict = img_layer[0].metadata
+                            self.img_metadata_dict = img_layer[0].metadata                        
+                        
 
                         if "CycleTime" in self.img_metadata_dict:
                             self.plot_widget.axes.set_xlabel("Time (ms)")
@@ -1564,22 +1474,18 @@ class OMAAS(QWidget):
                         else:
                             self.xscale = 1
                             self.plot_widget.axes.set_xlabel("Frames")
+
+                        # loop over images
                         for img in img_layer:
                             # loop over shapes
                             for roi in range(n_shapes):
                                 x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale * 1000 )
                                 self.plot_widget.axes.plot(x, y, label= f"{img.name}_{shapes_items}_ROI:{roi}")
-                                # if self.xscale != 1:
-                                #     self.plot_widget.axes.set_xlabel("Time (ms)")
-                                # else:
-                                #     self.plot_widget.axes.set_xlabel("Frames")
-                                self.plot_widget.axes.legend()
-                                
+                                self.plot_widget.axes.legend()                                
                                 self.draw()
 
                                 self.data_main_canvas["x"].append(x)
                                 self.data_main_canvas["y"].append(y)
-                            # print("I am alive")
                         self.shape_layer.events.data.connect(self._data_changed_callback)
                 except Exception as e:
                     print(f"You have the following error: --->> {e} <----")
