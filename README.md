@@ -28,11 +28,19 @@ to display the metadata use the standard call to the corresponding layer:
 
     viewer.layers['my_image'].metadata
 
-In addition to opening specific image format, it allows the users to perform some basic operations and visualization on images, such as normalization, temporal/spatial filters, motion tracking/compenstaion, plot profile, etc.
+In addition to opening this specific image format (.sif), it allows the users to perform some basic operations and visualization on images, such as normalization, temporal/spatial filters, motion tracking/compenstaion, plot profile, etc.
+## Examples
 
-The following example ilustrate how to perform normalization (pixelwise) on a time serie image and plot 2d profile along the t dimension.
+The following example ilustrate how to perform normalization (pixelwise) on a time serie image and plot its 2d profile along the t dimension withing the average data from the ROI selected.
 
-![](https://github.com/rjlopez2/napari-omaas/blob/main/example_imgs/Oct-26-2023_inv_norm_plot_exmaple_file_3.gif?raw=true)
+![](https://github.com/rjlopez2/napari-omaas/blob/documentation/example_imgs/Oct-31-2023%2016-45-55_plot_profile.gif?raw=true)
+
+
+The next example shows how to compute action potetnial duration in the same image stack.
+
+![](https://github.com/rjlopez2/napari-omaas/blob/documentation/example_imgs/Oct-31-2023%2016-49-02_APD_analysis.gif?raw=true)
+
+
 
 ## Roadmap
 
