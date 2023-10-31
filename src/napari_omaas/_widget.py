@@ -1261,16 +1261,16 @@ class OMAAS(QWidget):
         # self._graphics_widget_TSP.plotter.clear()
         # self._graphics_widget_TSP.plotter.axes.remove()
          # Clear the canvas before start plotting if plot exist
-        try:
-            if hasattr(self, "APD_axes_main_canvas"):
-                self.APD_axes_main_canvas.remove()
+        try:            
+            self._APD_plot_widget.figure.clear()
+            self._APD_plot_widget.canvas.draw()
         except Exception as e:
             print(f">>>>> this is your error: {e}")
 
 
 
         # self.APD_axes_main_canvas.remove()
-        self.plot_widget.plotter._draw()
+        # self.plot_widget.plotter._draw()
 
         model = PandasModel(self.AP_df_default_val)
         self.APD_propert_table.setModel(model)
