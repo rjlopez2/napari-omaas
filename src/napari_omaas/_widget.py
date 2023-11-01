@@ -72,25 +72,25 @@ class OMAAS(QWidget):
         self.layers_processing = QWidget()
         self._layers_processing_layout = QVBoxLayout()
         self.layers_processing.setLayout(self._layers_processing_layout)
-        # self.tabs.addTab(self.layers_processing, 'Shapes') # this tab is not making the GUI fat, it's ok!
+        self.tabs.addTab(self.layers_processing, 'Shapes') # this tab is not making the GUI fat, it's ok!
 
         ######## Mot-Correction tab ########
         self.motion_correction = QWidget()
         self._motion_correction_layout = QVBoxLayout()
         self.motion_correction.setLayout(self._motion_correction_layout)
-        # self.tabs.addTab(self.motion_correction, 'Mot-Correction') # this tab is just ok!
+        self.tabs.addTab(self.motion_correction, 'Mot-Correction') # this tab is just ok!
 
         ######## APD analysis tab ########
         self.APD_analysis = QWidget()
         self._APD_analysis_layout = QVBoxLayout()
         self.APD_analysis.setLayout(self._APD_analysis_layout)
-        # self.tabs.addTab(self.APD_analysis, 'APD analysis') # this one makes the GUI fat!
+        self.tabs.addTab(self.APD_analysis, 'APD analysis') # this one makes the GUI fat!
 
         ######## Settings tab ########
         self.settings = QWidget()
         self._settings_layout = QVBoxLayout()
         self.settings.setLayout(self._settings_layout)
-        # self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
+        self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -165,7 +165,7 @@ class OMAAS(QWidget):
 
         self.butter_cutoff_freq_val = QSpinBox()
         self.butter_cutoff_freq_val.setSingleStep(5)
-        self.butter_cutoff_freq_val.setValue(30)
+        self.butter_cutoff_freq_val.setValue(45)
         self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_val, 1, 1, 1, 1)
         
         self.filt_order_label = QLabel("Filter order")
@@ -319,7 +319,7 @@ class OMAAS(QWidget):
         self._pre_processing_layout.addWidget(self.load_spool_group.gbox)
         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
         self._pre_processing_layout.addWidget(self._collapse2)
-        # self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
+        self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
 
         ######## Shapes tab ########
         ############################
@@ -711,7 +711,7 @@ class OMAAS(QWidget):
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
-        # self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
+        self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         self.compute_APD_btn.clicked.connect(self._get_APD_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
