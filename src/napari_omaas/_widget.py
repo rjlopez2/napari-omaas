@@ -66,7 +66,7 @@ class OMAAS(QWidget):
         self.pre_processing_tab = QWidget()
         self._pre_processing_layout = QVBoxLayout()
         self.pre_processing_tab.setLayout(self._pre_processing_layout)
-        # self.tabs.addTab(self.pre_processing_tab, 'Pre-processing')
+        self.tabs.addTab(self.pre_processing_tab, 'Pre-processing')
        
        ######## Shapes tab ########
         self.layers_processing = QWidget()
@@ -84,13 +84,13 @@ class OMAAS(QWidget):
         self.APD_analysis = QWidget()
         self._APD_analysis_layout = QVBoxLayout()
         self.APD_analysis.setLayout(self._APD_analysis_layout)
-        self.tabs.addTab(self.APD_analysis, 'APD analysis') # this one makes the GUI fat!
+        # self.tabs.addTab(self.APD_analysis, 'APD analysis') # this one makes the GUI fat!
 
         ######## Settings tab ########
         self.settings = QWidget()
         self._settings_layout = QVBoxLayout()
         self.settings.setLayout(self._settings_layout)
-        self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
+        # self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -145,35 +145,41 @@ class OMAAS(QWidget):
         self.filter_group.glayout.addWidget(self.temp_filter_group.gbox)
 
         ######## temporal Filters btns ########
+        self.temp_filt_type_label = QLabel("Filter type")
+        self.temp_filter_group.glayout.addWidget(self.temp_filt_type_label, 0, 0, 1, 1)
+
         self.temp_filter_types = QComboBox()
         self.temp_filter_types.addItems(["Butterworth", "FIR"])
-        self.temp_filter_group.glayout.addWidget(self.temp_filter_types, 3, 0, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.temp_filter_types, 0, 1, 1, 1)
+
+        self.fps_label = QLabel("Sampling Freq (Hz)")
+        self.temp_filter_group.glayout.addWidget(self.fps_label, 0, 2, 1, 1)
+        
+        self.fps_val = QLineEdit()
+        self.fps_val.setText("")
+        self.temp_filter_group.glayout.addWidget(self.fps_val, 0, 3, 1, 1)
+
 
         self.cutoff_freq_label = QLabel("Cutoff frequency")
-        self.temp_filter_group.glayout.addWidget(self.cutoff_freq_label, 3, 1, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.cutoff_freq_label, 1, 0, 1, 1)
 
         self.butter_cutoff_freq_val = QSpinBox()
         self.butter_cutoff_freq_val.setSingleStep(5)
         self.butter_cutoff_freq_val.setValue(30)
-        self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_val, 3, 2, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_val, 1, 1, 1, 1)
         
         self.filt_order_label = QLabel("Filter order")
-        self.temp_filter_group.glayout.addWidget(self.filt_order_label, 3, 3, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.filt_order_label, 1, 2, 1, 1)
 
         self.butter_order_val = QSpinBox()
         self.butter_order_val.setSingleStep(1)
         self.butter_order_val.setValue(5)
-        self.temp_filter_group.glayout.addWidget(self.butter_order_val, 3, 4, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.butter_order_val, 1, 3, 1, 1)
 
-        self.fps_label = QLabel("Sampling Freq (Hz)")
-        self.temp_filter_group.glayout.addWidget(self.fps_label, 3, 5, 1, 1)
         
-        self.fps_val = QLineEdit()
-        self.fps_val.setText("")
-        self.temp_filter_group.glayout.addWidget(self.fps_val, 3, 6, 1, 1)
 
         self.apply_temp_filt_btn = QPushButton("apply")
-        self.temp_filter_group.glayout.addWidget(self.apply_temp_filt_btn, 3, 7, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.apply_temp_filt_btn, 2, 0, 1, 4)
 
 
 
@@ -181,7 +187,7 @@ class OMAAS(QWidget):
 
         ####### spacial filter subgroup #######
         self.spac_filter_group = VHGroup('Spacial Filters', orientation='G')
-        self.filter_group.glayout.addWidget(self.spac_filter_group.gbox)
+        # self.filter_group.glayout.addWidget(self.spac_filter_group.gbox)
 
         
         ######## spacial Filters btns ########
@@ -307,6 +313,14 @@ class OMAAS(QWidget):
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
         self.plot_grpup.glayout.addWidget(self.plot_profile_btn, 2, 1, 1, 1)
 
+        ########################################################
+        # set the layout of the plotting group in the given order
+        ########################################################
+        self._pre_processing_layout.addWidget(self.load_spool_group.gbox)
+        self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
+        self._pre_processing_layout.addWidget(self._collapse2)
+        # self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
+
         ######## Shapes tab ########
         ############################
 
@@ -334,13 +348,7 @@ class OMAAS(QWidget):
         self.copy_ROIs_btn.setToolTip(("Transfer ROIs from one 'Shape' layer to another 'Shape' layer"))
         self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
 
-        # set the layout of the plotting group in the given order
-        self._pre_processing_layout.addWidget(self.load_spool_group.gbox)
-        # self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
-        # self._pre_processing_layout.addWidget(self._collapse2)
-        # self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
-
-
+        
         ######## Mot-Correction tab ########
         ####################################
 
@@ -703,7 +711,7 @@ class OMAAS(QWidget):
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
         self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
-        self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
+        # self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         self.compute_APD_btn.clicked.connect(self._get_APD_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
