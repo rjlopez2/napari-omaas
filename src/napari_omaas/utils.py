@@ -8,12 +8,17 @@ from skimage import morphology, registration, segmentation
 import warnings
 from napari.layers import Image
 import sif_parser
+from numba import njit
+import tqdm.auto as tqdm
+from napari.utils import progress
+
 
 from napari_macrokit import get_macro
 
 # from numba import jit, prange
 from scipy import signal, ndimage
 from scipy.interpolate import CubicSpline
+from scipy.ndimage import gaussian_filter
 # functions
 
 from napari.types import ImageData, ShapesData
@@ -178,7 +183,7 @@ def apply_gaussian_func (data: "napari.types.ImageData",
         The image to be back subtracted.
     
     sigma: int
-        Magintud of gaussina filer kernel, default to 2.
+        Magintud of gaussian filer kernel, default to 2.
     
     
     Returns
@@ -189,18 +194,20 @@ def apply_gaussian_func (data: "napari.types.ImageData",
     """
 
     # data = image.active.data
-    out_img = np.empty_like(data)
-    gauss_kernel1d = signal.windows.gaussian(M= kernel_size, std=sigma)
-    gauss_kernel2d = gauss_kernel1d[:, None] @ gauss_kernel1d[None]
+    # out_img = np.empty_like(data)
+    # gauss_kernel1d = signal.windows.gaussian(M= kernel_size, std=sigma)
+    # gauss_kernel2d = gauss_kernel1d[:, None] @ gauss_kernel1d[None]
 
     # print(f'applying "apply_gaussian_func" to image {image.active}')
 
-    for plane, img in enumerate(data):
+    # for plane, img in enumerate(tqdm.tqdm(data)):
+    # for plane, img in enumerate(progress(data)):
         # out_img[plane] = gaussian(img, sigma, preserve_range = True)
-        out_img[plane] = signal.oaconvolve(img, gauss_kernel2d, mode="same")
+        # out_img[plane] = signal.oaconvolve(img, gauss_kernel2d, mode="same")
 
     # return (gaussian(data, sigma))
-    return out_img
+    # return out_img
+    return gaussian_filter(data, sigma=sigma, order= 0, radius=kernel_size, axes = (1,2))
 
 @macro.record
 def apply_median_filt_func (data: "napari.types.ImageData",
