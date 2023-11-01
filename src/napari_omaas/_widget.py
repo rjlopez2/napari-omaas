@@ -182,44 +182,44 @@ class OMAAS(QWidget):
         self.temp_filter_group.glayout.addWidget(self.apply_temp_filt_btn, 2, 0, 1, 4)
 
 
-
-
-
-        ####### spacial filter subgroup #######
-        self.spac_filter_group = VHGroup('Spacial Filters', orientation='G')
-        # self.filter_group.glayout.addWidget(self.spac_filter_group.gbox)
+        ####### spatial filter subgroup #######
+        self.spac_filter_group = VHGroup('Spatial Filters', orientation='G')
+        self.filter_group.glayout.addWidget(self.spac_filter_group.gbox)
 
         
-        ######## spacial Filters btns ########
+        ######## spatial Filters btns ########
         # self.filters_label = QLabel("Gaussian filter")
         # self.filter_group.glayout.addWidget(self.filters_label, 3, 0, 1, 1)
 
+        self.spatial_filt_type_label = QLabel("Filter type")
+        self.spac_filter_group.glayout.addWidget(self.spatial_filt_type_label, 0, 0, 1, 1)
+        
         self.spat_filter_types = QComboBox()
         self.spat_filter_types.addItems(["Gaussian", "Box Filter", "Laplace Filter", "Median"])
-        self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 3, 1, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 0, 1, 1, 1)
 
         self.sigma_label = QLabel("Sigma")
-        self.spac_filter_group.glayout.addWidget(self.sigma_label, 3, 2, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.sigma_label, 0, 2, 1, 1)
 
         self.sigma_filt_param = QDoubleSpinBox()
         self.sigma_filt_param.setSingleStep(1)
         self.sigma_filt_param.setSingleStep(0.1)
         self.sigma_filt_param.setValue(1)
-        self.spac_filter_group.glayout.addWidget(self.sigma_filt_param, 3, 3, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.sigma_filt_param, 0, 3, 1, 1)
 
         self.kernels_label = QLabel("Kernel size")
-        self.spac_filter_group.glayout.addWidget(self.kernels_label, 3, 4, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.kernels_label, 1, 2, 1, 1)
 
         self.filt_kernel_value = QSpinBox()
         self.filt_kernel_value.setSingleStep(1)
         self.filt_kernel_value.setSingleStep(1)
         self.filt_kernel_value.setValue(5)
-        self.spac_filter_group.glayout.addWidget(self.filt_kernel_value, 3, 5, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.filt_kernel_value, 1, 3, 1, 1)
 
 
         self.apply_spat_filt_btn = QPushButton("apply")
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
-        self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 6, 1, 2)
+        self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 2, 0, 1, 4)
 
        
         ######## Load spool data btns Group ########
