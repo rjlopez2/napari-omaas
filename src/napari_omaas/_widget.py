@@ -90,7 +90,7 @@ class OMAAS(QWidget):
         self.settings = QWidget()
         self._settings_layout = QVBoxLayout()
         self.settings.setLayout(self._settings_layout)
-        # self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
+        self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -424,10 +424,10 @@ class OMAAS(QWidget):
 
         ##### APD_plot_group ########
         self.APD_plot_group = VHGroup('APD plot group', orientation='G')
-        self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox) # this one is making the GUI fat!
+        
 
         self._APD_plot_widget = BaseNapariMPLWidget(self.viewer) 
-        self.APD_plot_group.glayout.addWidget(self._APD_plot_widget, 3, 0, 1, 4)
+        self.APD_plot_group.glayout.addWidget(self._APD_plot_widget, 6, 0, 1, 4)
         
         # self._APD_TSP = NapariMPLWidget(self.viewer)
         # self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
@@ -435,11 +435,11 @@ class OMAAS(QWidget):
 
         self.compute_APD_btn = QPushButton("Compute APDs")
         self.compute_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.compute_APD_btn, 4, 0, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.compute_APD_btn, 3, 0, 1, 1)
 
         self.clear_plot_APD_btn = QPushButton("Clear traces")
         self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 4, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 3, 1, 1, 1)
 
         self.APD_computing_method_label = QLabel("AP detect meth")
         self.APD_computing_method_label.setToolTip(("""        
@@ -450,36 +450,36 @@ class OMAAS(QWidget):
         - post_AP_min: minimum value after AP,
         - ave_pre_post_min: average the minimum value before and after stroke.
          """))
-        self.APD_plot_group.glayout.addWidget(self.APD_computing_method_label, 4, 2, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.APD_computing_method_label, 3, 2, 1, 1)
         
         self.APD_computing_method = QComboBox()
         self.APD_computing_method.addItems(["bcl_to_bcl", "pre_upstroke_min", "post_AP_min", "ave_pre_post_min"])
-        self.APD_plot_group.glayout.addWidget(self.APD_computing_method, 4, 3, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.APD_computing_method, 3, 3, 1, 1)
         
         self.slider_APD_detection_threshold = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_thres_max_range = 10000
         self.slider_APD_detection_threshold.setRange(1, 1000)
         self.slider_APD_detection_threshold.setValue(500)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 5, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 1, 1, 1)
         
         self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
         self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
-        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 5, 0, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 4, 0, 1, 1)
         
         self.APD_peaks_help_box_label_def_value = 0
         self.APD_peaks_help_box_label = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
         self.APD_peaks_help_box_label.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
-        self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 6, 0, 1, 4)
+        self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 5, 0, 1, 4)
         
         self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_percentage.setRange(10, 100)
         self.slider_APD_percentage.setValue(75)
         self.slider_APD_percentage.setSingleStep(5)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 5, 3, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 3, 1, 1)
         
         self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 5, 2, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 2, 1, 1)
         values = []
         self.AP_df_default_val = pd.DataFrame({"image_name": values,
                                                "ROI_id" : values, 
@@ -502,48 +502,49 @@ class OMAAS(QWidget):
 
          ##### APD export results ########
         self.APD_export_group = VHGroup('Export results', orientation='G')
-        self._APD_analysis_layout.addWidget(self.APD_export_group.gbox)
 
 
         
-        self.APD_rslts_export_file_format_label = QLabel("File format")
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 7, 0, 1, 1)
+
         
-        self.APD_rslts_export_file_format = QComboBox()
-        self.APD_rslts_export_file_format.addItems([".csv", ".xlsx"])
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 7, 1, 1, 1)
 
-        self.search_dir_APD_rslts_btn = QPushButton("change directory")
-        self.search_dir_APD_rslts_btn.setToolTip(("Navigate to change the current directory to save your APD results"))
-        self.APD_export_group.glayout.addWidget(self.search_dir_APD_rslts_btn, 7, 2, 1, 1)
-
-        self.APD_rslt_dir_btn_label = QLabel("Current Directory")
+        self.APD_rslt_dir_btn_label = QLabel("Save to Directory")
         self.APD_rslt_dir_btn_label.setToolTip("Drag and drop folders here to change the current directory to save your APD results")
-        self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 7, 4, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 1, 0, 1, 1)
 
         self.APD_rslts_dir_box_text = QLineEdit()
         self.APD_rslts_dir_box_text.installEventFilter(self)
         self.APD_rslts_dir_box_text.setAcceptDrops(True)
         self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
         self.APD_rslts_dir_box_text.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 7, 5, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 1, 1, 1, 1)
+
+        self.search_dir_APD_rslts_btn = QPushButton("change directory")
+        self.search_dir_APD_rslts_btn.setToolTip(("Navigate to change the current directory to save your APD results"))
+        self.APD_export_group.glayout.addWidget(self.search_dir_APD_rslts_btn, 1, 2, 1, 2)        
         
-        self.copy_APD_rslts_btn = QPushButton("Copy table")
+        self.label_rstl_name = QLabel("Rename results")
+        self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
+        self.APD_export_group.glayout.addWidget(self.label_rstl_name, 2, 0,  1, 1)
+        
+        self.table_rstl_name = QLineEdit()
+        self.table_rstl_name.setPlaceholderText("APD_results")
+        self.APD_export_group.glayout.addWidget(self.table_rstl_name, 2, 1, 1, 1)
+
+        self.APD_rslts_export_file_format_label = QLabel("Change format")
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 2, 2, 1, 1)
+        
+        self.APD_rslts_export_file_format = QComboBox()
+        self.APD_rslts_export_file_format.addItems([".csv", ".xlsx"])
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 2, 3, 1, 1)
+
+        self.copy_APD_rslts_btn = QPushButton("Copy to clipboard")
         self.copy_APD_rslts_btn.setToolTip(("Copy to clipboard the current APD results."))
-        self.APD_export_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 0, 1, 2)
+        self.APD_export_group.glayout.addWidget(self.copy_APD_rslts_btn, 4, 0, 1, 2)
 
         self.save_APD_rslts_btn = QPushButton("Export table")
         self.save_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
-        self.APD_export_group.glayout.addWidget(self.save_APD_rslts_btn, 6, 2, 1, 2)
-
-        self.label_rstl_name = QLabel("Rename results")
-        self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
-        self.APD_export_group.glayout.addWidget(self.label_rstl_name, 6, 4,  1, 1)
-        
-        self.table_rstl_name = QLineEdit()
-
-        self.table_rstl_name.setPlaceholderText("APD_results")
-        self.APD_export_group.glayout.addWidget(self.table_rstl_name, 6, 5, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.save_APD_rslts_btn, 4, 2, 1, 2)
 
         ######## Settings tab ########
         ####################################
@@ -570,6 +571,11 @@ class OMAAS(QWidget):
         self.macro_box_text = QPlainTextEdit()
         self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
         self.macro_group.glayout.addWidget(self.macro_box_text, 4, 2, 1, 1)
+
+
+        
+        self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
+        self._APD_analysis_layout.addWidget(self.APD_export_group.gbox)
         
 
         # sub_backg_btn = QPushButton("Subtract Background")
