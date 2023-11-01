@@ -9,6 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
+from superqt import QCollapsible
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
@@ -65,31 +66,31 @@ class OMAAS(QWidget):
         self.pre_processing_tab = QWidget()
         self._pre_processing_layout = QVBoxLayout()
         self.pre_processing_tab.setLayout(self._pre_processing_layout)
-        self.tabs.addTab(self.pre_processing_tab, 'Pre-processing')
+        # self.tabs.addTab(self.pre_processing_tab, 'Pre-processing')
        
        ######## Shapes tab ########
         self.layers_processing = QWidget()
         self._layers_processing_layout = QVBoxLayout()
         self.layers_processing.setLayout(self._layers_processing_layout)
-        self.tabs.addTab(self.layers_processing, 'Shapes')
+        # self.tabs.addTab(self.layers_processing, 'Shapes') # this tab is not making the GUI fat, it's ok!
 
         ######## Mot-Correction tab ########
         self.motion_correction = QWidget()
         self._motion_correction_layout = QVBoxLayout()
         self.motion_correction.setLayout(self._motion_correction_layout)
-        self.tabs.addTab(self.motion_correction, 'Mot-Correction')
+        # self.tabs.addTab(self.motion_correction, 'Mot-Correction') # this tab is just ok!
 
         ######## APD analysis tab ########
         self.APD_analysis = QWidget()
         self._APD_analysis_layout = QVBoxLayout()
         self.APD_analysis.setLayout(self._APD_analysis_layout)
-        self.tabs.addTab(self.APD_analysis, 'APD analysis')
+        self.tabs.addTab(self.APD_analysis, 'APD analysis') # this one makes the GUI fat!
 
         ######## Settings tab ########
         self.settings = QWidget()
         self._settings_layout = QVBoxLayout()
         self.settings.setLayout(self._settings_layout)
-        self.tabs.addTab(self.settings, 'Settings')
+        # self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -101,7 +102,6 @@ class OMAAS(QWidget):
         
         ######## pre-processing  group ########
         self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
-        self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
 
         ######## pre-processing btns ########
         self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
@@ -121,8 +121,23 @@ class OMAAS(QWidget):
         self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 3, 4, 1, 1)
  
         ######## Filters group ########
+        # QCollapsible creates a collapse container for inner widgets
+       
+        # magicgui doesn't need to be used as a decorator, you can call it
+        # repeatedly to create new widgets:
+        # new_widget = magicgui(do_something)
+        # if you're mixing Qt and magicgui, you need to use the "native"
+        # attribute in magicgui to access the QWidget
+
+
+
+
+
         self.filter_group = VHGroup('Filter Image', orientation='G')
-        self._pre_processing_layout.addWidget(self.filter_group.gbox)
+        # self._pre_processing_layout.addWidget(self.filter_group.gbox)
+
+        self._collapse2 = QCollapsible('Filters', self)
+        self._collapse2.addWidget(self.filter_group.gbox)
 
 
         ####### temporal filter subgroup #######     
@@ -183,7 +198,7 @@ class OMAAS(QWidget):
         self.sigma_filt_param = QDoubleSpinBox()
         self.sigma_filt_param.setSingleStep(1)
         self.sigma_filt_param.setSingleStep(0.1)
-        self.sigma_filt_param.setValue(0.5)
+        self.sigma_filt_param.setValue(1)
         self.spac_filter_group.glayout.addWidget(self.sigma_filt_param, 3, 3, 1, 1)
 
         self.kernels_label = QLabel("Kernel size")
@@ -192,7 +207,7 @@ class OMAAS(QWidget):
         self.filt_kernel_value = QSpinBox()
         self.filt_kernel_value.setSingleStep(1)
         self.filt_kernel_value.setSingleStep(1)
-        self.filt_kernel_value.setValue(3)
+        self.filt_kernel_value.setValue(5)
         self.spac_filter_group.glayout.addWidget(self.filt_kernel_value, 3, 5, 1, 1)
 
 
@@ -203,7 +218,6 @@ class OMAAS(QWidget):
        
         ######## Load spool data btns Group ########
         self.load_spool_group = VHGroup('Load Spool data', orientation='G')
-        self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
 
         self.dir_btn_label = QLabel("Directory name")
         self.load_spool_group.glayout.addWidget(self.dir_btn_label, 3, 1, 1, 1)
@@ -251,7 +265,6 @@ class OMAAS(QWidget):
          ######## Plotting Group ########
         self.plot_grpup = VHGroup('Plot profile', orientation='G')
         # self.main_layout.addWidget(self.plot_grpup.gbox)
-        self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
 
         ############################################
         ############ create plot widget ############
@@ -321,6 +334,12 @@ class OMAAS(QWidget):
         self.copy_ROIs_btn.setToolTip(("Transfer ROIs from one 'Shape' layer to another 'Shape' layer"))
         self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
 
+        # set the layout of the plotting group in the given order
+        self._pre_processing_layout.addWidget(self.load_spool_group.gbox)
+        # self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
+        # self._pre_processing_layout.addWidget(self._collapse2)
+        # self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
+
 
         ######## Mot-Correction tab ########
         ####################################
@@ -328,8 +347,8 @@ class OMAAS(QWidget):
         self._motion_correction_layout.setAlignment(Qt.AlignTop)
 
         ######## Transform group ########
-        self.transform_group = VHGroup('Transform Image data', orientation='G')
-        self._motion_correction_layout.addWidget(self.transform_group.gbox)
+        self.transform_group = VHGroup('Transform Image data', orientation='G') # Zombi code
+        # self._motion_correction_layout.addWidget(self.transform_group.gbox) # Zombi code
 
         ######## Transform btns ########
         # self.inv_img_label = QLabel("Transform data to integer")
@@ -405,10 +424,10 @@ class OMAAS(QWidget):
 
         ##### APD_plot_group ########
         self.APD_plot_group = VHGroup('APD plot group', orientation='G')
-        self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
+        self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox) # this one is making the GUI fat!
 
         self._APD_plot_widget = BaseNapariMPLWidget(self.viewer) 
-        self.APD_plot_group.glayout.addWidget(self._APD_plot_widget, 3, 0, 1, 9)
+        self.APD_plot_group.glayout.addWidget(self._APD_plot_widget, 3, 0, 1, 4)
         
         # self._APD_TSP = NapariMPLWidget(self.viewer)
         # self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
@@ -422,7 +441,7 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
         self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 4, 1, 1, 1)
 
-        self.APD_computing_method_label = QLabel("AP detection method")
+        self.APD_computing_method_label = QLabel("AP detect meth")
         self.APD_computing_method_label.setToolTip(("""        
         Select the method to compute the resting (membrane) to detect the AP. 
          Methods are : 
@@ -441,26 +460,26 @@ class OMAAS(QWidget):
         self.slider_APD_thres_max_range = 10000
         self.slider_APD_detection_threshold.setRange(1, 1000)
         self.slider_APD_detection_threshold.setValue(500)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 6, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 5, 1, 1, 1)
         
         self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
         self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
-        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 4, 4, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 5, 0, 1, 1)
         
         self.APD_peaks_help_box_label_def_value = 0
-        self.APD_peaks_help_box_label = QLabel(f"[detected]: {self.APD_peaks_help_box_label_def_value}")
+        self.APD_peaks_help_box_label = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
         self.APD_peaks_help_box_label.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
-        self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 4, 5, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 6, 0, 1, 4)
         
         self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_percentage.setRange(10, 100)
         self.slider_APD_percentage.setValue(75)
         self.slider_APD_percentage.setSingleStep(5)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 8, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 5, 3, 1, 1)
         
         self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 7, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 5, 2, 1, 1)
         values = []
         self.AP_df_default_val = pd.DataFrame({"image_name": values,
                                                "ROI_id" : values, 
@@ -478,7 +497,7 @@ class OMAAS(QWidget):
         self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
         self.APD_propert_table.setAlternatingRowColors(False)
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
-        self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 9)
+        self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 7, 0, 1, 4)
 
 
          ##### APD export results ########
@@ -1104,7 +1123,7 @@ class OMAAS(QWidget):
                 for shape_indx, shape in enumerate(selected_shps_list[0].data):
 
                     # update detected APs labels
-                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shape_indx])}')
+                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shape_indx])}')
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
                     self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
@@ -1223,7 +1242,7 @@ class OMAAS(QWidget):
             for img_indx, img_name in enumerate(selected_img_list):
                 for shpae_indx, trace in enumerate(shapes[0].data):
                     traces[img_indx + shpae_indx]
-                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
+                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
