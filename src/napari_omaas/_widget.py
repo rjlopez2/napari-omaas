@@ -573,27 +573,27 @@ class OMAAS(QWidget):
 
         self.get_AP_splitted_btn = QPushButton("Preview traces")
         self.get_AP_splitted_btn.setToolTip(("lalalal"))
-        self.average_trace_group.glayout.addWidget(self.get_AP_splitted_btn, 1, 0, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.get_AP_splitted_btn, 1, 1, 1, 1)
 
         self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
         self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
-        self.average_trace_group.glayout.addWidget(self.slider_label_current_value_2, 1, 1, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.slider_label_current_value_2, 1, 2, 1, 1)
         
         self.slider_APD_detection_threshold_2 = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_thres_max_range = 10000
         self.slider_APD_detection_threshold_2.setRange(1, 1000)
         self.slider_APD_detection_threshold_2.setValue(500)
-        self.average_trace_group.glayout.addWidget(self.slider_APD_detection_threshold_2, 1, 2, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.slider_APD_detection_threshold_2, 1, 3, 1, 1)
 
         self.clear_AP_splitted_btn = QPushButton("Clear Plot")
-        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 3, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 4, 1, 1)
 
         self.APD_peaks_help_box_label_2 = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
         self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
-        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 1, 4, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 1, 5, 1, 1)
 
         self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 2, 1, 1, 4)
+        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 2, 1, 1, 5)
         
 
 
