@@ -18,8 +18,8 @@ from qtpy.QtWidgets import (
     )
 from qtpy import QtWidgets
 from warnings import warn
-from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
-from PyQt5.QtGui import QIntValidator
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
+from PyQt5.QtGui import QIntValidator, QPainter
 from numpy import ndarray as numpy_ndarray
 # import pyqtgraph as pg
 # from napari_time_series_plotter import TSPExplorer
@@ -560,6 +560,38 @@ class OMAAS(QWidget):
         self.save_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
         self.APD_export_group.glayout.addWidget(self.save_APD_rslts_btn, 4, 2, 1, 2)
 
+
+        ######## Mapping tab ########
+        # ####################################
+        self._mapping_processing_layout.setAlignment(Qt.AlignTop)
+
+        ##### APD_plot_group ########
+        self.average_trace_group = VHGroup('Preview traces', orientation='G')
+        self._mapping_processing_layout.addWidget(self.average_trace_group.gbox)
+
+        self.get_AP_btn = QPushButton("Estimate AP average")
+        self.get_AP_btn.setToolTip(("lalalal"))
+        self.average_trace_group.glayout.addWidget(self.get_AP_btn, 1, 0, 1, 1)
+
+        self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
+        self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
+        self.average_trace_group.glayout.addWidget(self.slider_label_current_value_2, 1, 1, 1, 1)
+        
+        self.slider_APD_detection_threshold_2 = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_thres_max_range = 10000
+        self.slider_APD_detection_threshold_2.setRange(1, 1000)
+        self.slider_APD_detection_threshold_2.setValue(500)
+        self.average_trace_group.glayout.addWidget(self.slider_APD_detection_threshold_2, 1, 2, 1, 1)
+
+        self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 2, 1, 1, 3)
+        
+
+
+
+
+
+
         ######## Settings tab ########
         ####################################
 
@@ -721,6 +753,7 @@ class OMAAS(QWidget):
         self.compute_APD_btn.clicked.connect(self._get_APD_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
+        self.slider_APD_detection_threshold_2.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
@@ -730,6 +763,9 @@ class OMAAS(QWidget):
         self.search_dir_APD_rslts_btn.clicked.connect(self._on_click_search_new_dir_APD_rslts_btn_func)
         self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
         self.APD_computing_method.activated.connect(self._get_APD_call_back)
+        # self.get_AP_btn.clicked.connect(self.show_pop_window_ave_trace)
+        self.get_AP_btn.clicked.connect(self._plot_multiples_traces_func)
+        
         
         
         
@@ -1251,9 +1287,12 @@ class OMAAS(QWidget):
 
 
     def _get_APD_thre_slider_vlaue_func(self, value):
-        prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+        prominence = value / (self.slider_APD_thres_max_range)
+        self.slider_APD_detection_threshold.setValue(value)
+        self.slider_APD_detection_threshold_2.setValue(value)
 
         self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
+        self.slider_label_current_value_2.setText(self.slider_label_current_value.text())
         
         # check that you have content in the graphics panel
         if len(self.plot_widget.figure.axes) > 0 :
@@ -1544,6 +1583,16 @@ class OMAAS(QWidget):
             self.plot_widget.canvas.draw()
         else:
             warn("Please Check on 'Plot profile' to creaate the plot")
+        
+    def _plot_multiples_traces_func(self):
+
+
+
+    # def show_pop_window_ave_trace(self):
+    #     print ("Opening a new popup window...")
+    #     self.average_tracce_pop_pup_window = MyPopup(self)
+    #     self.average_tracce_pop_pup_window.setGeometry(QRect(100, 100, 400, 200))
+    #     self.average_tracce_pop_pup_window.show()
 
 
 
@@ -1559,6 +1608,61 @@ def example_function_widget(img_layer: "napari.layers.Image"):
     print(f"you have selected {img_layer}")
 
 
+# class MyPopup(QWidget):
+#     def __init__(self, napari_viewer):
+#         super().__init__()
+#         # QWidget.__init__(self)
+#         self.viewer = napari_viewer
+#         self.main_layout = QVBoxLayout()
+#         self.setLayout(self.main_layout)
+
+#         # self.tabs = QTabWidget()
+#         # self.main_layout.addWidget(self.tabs)
+#         ######## pre-processing tab ########
+#         self.average_APs_widget = QWidget()
+#         self._pre_processing_layout = QVBoxLayout()
+#         self.average_APs_widget.setLayout(self._pre_processing_layout)
+#         # self.tabs.addTab(self.pre_processing_tab, 'Average Trace')
+#         # self.tabs.addTab(self.pre_processing_tab, 'Average Trace')
+#         self.main_layout.addWidget(self.average_APs_widget)
+
+
+#         ######## Pre-processing tab ########
+#         ####################################
+#         self._pre_processing_layout.setAlignment(Qt.AlignTop)
+        
+#         ######## pre-processing  group ########
+#         self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
+
+#         ######## pre-processing btns ########
+#         self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
+#         self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 0, 1, 1, 1)
+
+#         self.inv_data_btn = QPushButton("Invert signal")
+#         self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
+#         self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 1, 1, 1, 1) 
+
+#         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
+
+        
+#         self.plot_grpup = VHGroup('Plot profile', orientation='G')
+#         self.plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+#         self.plot_grpup.glayout.addWidget(self.plot_widget, 1, 1, 1, 2)
+#         self.main_layout.addWidget(self.average_APs_widget)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
