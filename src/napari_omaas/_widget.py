@@ -592,8 +592,11 @@ class OMAAS(QWidget):
         self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
         self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 1, 5, 1, 1)
 
+        self.create_average_AP_btn = QPushButton("Create average")
+        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 2, 1, 1, 5)
+
         self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 2, 1, 1, 5)
+        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 3, 1, 1, 5)
         
 
 
@@ -775,6 +778,7 @@ class OMAAS(QWidget):
         # self.get_AP_btn.clicked.connect(self.show_pop_window_ave_trace)
         self.get_AP_splitted_btn.clicked.connect(self._plot_multiples_traces_func)
         self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
+        self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
         
         
         
@@ -1609,16 +1613,16 @@ class OMAAS(QWidget):
         traces = self.data_main_canvas["y"][0]
         time = self.data_main_canvas["x"][0]
 
-        ini_i, _, end_i = split_peaks_1d_traces(my_1d_array = traces, promi= self.prominence)
-        splitted_stack = split_traces_func(traces, ini_i, end_i, type = "1d", return_mean=False)
-        new_time_len = splitted_stack.shape[-1]
+        self.ini_i_spl_traces, _, self.end_i_spl_traces = split_peaks_1d_traces(my_1d_array = traces, promi= self.prominence)
+        self.splitted_stack = split_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
+        new_time_len = self.splitted_stack.shape[-1]
 
         self.average_AP_plot_widget.figure.clear()
         self.average_AP_plot_widget.add_single_axes()
-        for indx, array in progress(enumerate(splitted_stack)):
+        for indx, array in progress(enumerate(self.splitted_stack)):
             self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.2)
         
-        self.average_AP_plot_widget.axes.plot(time[:new_time_len], np.mean(splitted_stack, axis = 0), label = f"Average trace", c = "b")
+        self.average_AP_plot_widget.axes.plot(time[:new_time_len], np.mean(self.splitted_stack, axis = 0), label = f"Average trace", c = "b")
         
         self.average_AP_plot_widget.axes.legend()
         self.average_AP_plot_widget.canvas.draw()
@@ -1628,6 +1632,18 @@ class OMAAS(QWidget):
     def _on_click_clear_AP_splitted_btn_fun(self, event):
         self.average_AP_plot_widget.figure.clear()
         self.average_AP_plot_widget.canvas.draw()
+    
+    def _on_click_create_average_AP_btn_func(self):
+        # traces = self.data_main_canvas["y"][0]
+        # time = self.data_main_canvas["x"][0]
+
+
+        ini_i, _, end_i = split_peaks_1d_traces(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+        img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
+        results= split_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
+        self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
+        print("Average trace created")
+
         
         # send the splitted_stack to plot
 
