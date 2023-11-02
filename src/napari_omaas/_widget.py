@@ -26,6 +26,7 @@ from numpy import ndarray as numpy_ndarray
 from napari_matplotlib.base import BaseNapariMPLWidget
 from napari.layers import Shapes, Image
 import matplotlib.pyplot as plt
+from napari.utils import progress
 
 import copy
 import subprocess
@@ -474,6 +475,7 @@ class OMAAS(QWidget):
         self.slider_APD_thres_max_range = 10000
         self.slider_APD_detection_threshold.setRange(1, 1000)
         self.slider_APD_detection_threshold.setValue(500)
+        self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
         self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 1, 1, 1)
         
         self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
@@ -566,12 +568,12 @@ class OMAAS(QWidget):
         self._mapping_processing_layout.setAlignment(Qt.AlignTop)
 
         ##### APD_plot_group ########
-        self.average_trace_group = VHGroup('Preview traces', orientation='G')
+        self.average_trace_group = VHGroup('Average individual AP traces', orientation='G')
         self._mapping_processing_layout.addWidget(self.average_trace_group.gbox)
 
-        self.get_AP_btn = QPushButton("Estimate AP average")
-        self.get_AP_btn.setToolTip(("lalalal"))
-        self.average_trace_group.glayout.addWidget(self.get_AP_btn, 1, 0, 1, 1)
+        self.get_AP_splitted_btn = QPushButton("Preview traces")
+        self.get_AP_splitted_btn.setToolTip(("lalalal"))
+        self.average_trace_group.glayout.addWidget(self.get_AP_splitted_btn, 1, 0, 1, 1)
 
         self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
         self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
@@ -583,8 +585,15 @@ class OMAAS(QWidget):
         self.slider_APD_detection_threshold_2.setValue(500)
         self.average_trace_group.glayout.addWidget(self.slider_APD_detection_threshold_2, 1, 2, 1, 1)
 
+        self.clear_AP_splitted_btn = QPushButton("Clear Plot")
+        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 3, 1, 1)
+
+        self.APD_peaks_help_box_label_2 = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
+        self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
+        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 1, 4, 1, 1)
+
         self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 2, 1, 1, 3)
+        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 2, 1, 1, 4)
         
 
 
@@ -764,7 +773,8 @@ class OMAAS(QWidget):
         self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
         self.APD_computing_method.activated.connect(self._get_APD_call_back)
         # self.get_AP_btn.clicked.connect(self.show_pop_window_ave_trace)
-        self.get_AP_btn.clicked.connect(self._plot_multiples_traces_func)
+        self.get_AP_splitted_btn.clicked.connect(self._plot_multiples_traces_func)
+        self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
         
         
         
@@ -1168,7 +1178,7 @@ class OMAAS(QWidget):
             time = self.data_main_canvas["x"]
             rmp_method = self.APD_computing_method.currentText()
             apd_percentage = self.slider_APD_percentage.value()
-            prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+            # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             
             APD_props = []
             # get selection of images iand shape from the selector
@@ -1179,7 +1189,9 @@ class OMAAS(QWidget):
                 for shape_indx, shape in enumerate(selected_shps_list[0].data):
 
                     # update detected APs labels
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shape_indx])}')
+                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
+                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
                     self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
@@ -1193,7 +1205,7 @@ class OMAAS(QWidget):
                                                         cycle_length_ms= self.img_metadata_dict["CycleTime"],
                                                         rmp_method = rmp_method, 
                                                         apd_perc = apd_percentage, 
-                                                        promi=prominence, 
+                                                        promi=self.prominence, 
                                                         roi_indx=shape_indx)
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
                         ini_indx = props[-3]
@@ -1287,11 +1299,11 @@ class OMAAS(QWidget):
 
 
     def _get_APD_thre_slider_vlaue_func(self, value):
-        prominence = value / (self.slider_APD_thres_max_range)
+        self.prominence = value / (self.slider_APD_thres_max_range)
         self.slider_APD_detection_threshold.setValue(value)
         self.slider_APD_detection_threshold_2.setValue(value)
 
-        self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {self.prominence}')
         self.slider_label_current_value_2.setText(self.slider_label_current_value.text())
         
         # check that you have content in the graphics panel
@@ -1301,7 +1313,9 @@ class OMAAS(QWidget):
             for img_indx, img_name in enumerate(selected_img_list):
                 for shpae_indx, trace in enumerate(shapes[0].data):
                     traces[img_indx + shpae_indx]
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
+                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
+                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
@@ -1576,6 +1590,8 @@ class OMAAS(QWidget):
     
     def _data_changed_callback(self, event):
 
+        # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+        self._get_APD_thre_slider_vlaue_func(value=self.prominence * self.slider_APD_thres_max_range)
         self._retrieve_metadata_call_back(event)
         state = self.plot_profile_btn.isChecked()
         if state:
@@ -1584,7 +1600,37 @@ class OMAAS(QWidget):
         else:
             warn("Please Check on 'Plot profile' to creaate the plot")
         
-    def _plot_multiples_traces_func(self):
+    def _plot_multiples_traces_func(self, event):
+
+        # self._data_changed_callback(event)
+        self.shape_layer.events.data.connect(self._data_changed_callback)
+        # prominence = self.slider_label_current_value / (self.slider_APD_thres_max_range)
+        
+        traces = self.data_main_canvas["y"][0]
+        time = self.data_main_canvas["x"][0]
+
+        ini_i, _, end_i = split_peaks_1d_traces(my_1d_array = traces, promi= self.prominence)
+        splitted_stack = split_traces_func(traces, ini_i, end_i, type = "1d", return_mean=False)
+        new_time_len = splitted_stack.shape[-1]
+
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.add_single_axes()
+        for indx, array in progress(enumerate(splitted_stack)):
+            self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.2)
+        
+        self.average_AP_plot_widget.axes.plot(time[:new_time_len], np.mean(splitted_stack, axis = 0), label = f"Average trace", c = "b")
+        
+        self.average_AP_plot_widget.axes.legend()
+        self.average_AP_plot_widget.canvas.draw()
+
+        print("done")
+    
+    def _on_click_clear_AP_splitted_btn_fun(self, event):
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.canvas.draw()
+        
+        # send the splitted_stack to plot
+
 
 
 

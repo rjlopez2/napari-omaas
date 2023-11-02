@@ -814,6 +814,75 @@ def extract_ROI_time_series(img_layer, shape_layer, idx_shape, roi_mode, xscale 
     if mask.any():
         return add_index_dim(mode_dict[roi_mode](img_layer.data[mask].reshape(dshape[0], -1), axis=1), xscale)
 
+
+def split_peaks_1d_traces(my_1d_array, promi = 0.03):
+    """
+    This function takes a 1d array trace, compute the peaks
+    and return the ini, end, and peak indexes of n numbers of peaks found.
+    """
+    
+    AP_peaks_indx, _ = signal.find_peaks(signal.savgol_filter(my_1d_array, 
+                                                                           window_length=15, 
+                                                                           polyorder=2), 
+                                                      prominence=promi) # use Solaiy filter as Callum
+    
+
+    bcl_list = np.diff(AP_peaks_indx) 
+    bcl_list = np.median(bcl_list).astype(np.uint16)
+    half_bcl_list = np.round(bcl_list // 2 )
+
+    
+    end_ap_indx = AP_peaks_indx + half_bcl_list
+    ini_ap_indx = AP_peaks_indx - half_bcl_list
+
+    for indx, indx_peak in enumerate(AP_peaks_indx):
+        # handeling first trace
+        if ini_ap_indx[indx] < 0 :
+            
+            half_bcl_list = half_bcl_list + ini_ap_indx[indx]        
+            ini_ap_indx = AP_peaks_indx - half_bcl_list
+
+        # handeling last trace NOTE: no sure if this make sense, need to teste with real data
+        if end_ap_indx[indx] > len(my_1d_array):
+            half_bcl_list = half_bcl_list - end_ap_indx[indx]
+            end_ap_indx = AP_peaks_indx - half_bcl_list
+
+    # return splited_arrays
+    return ini_ap_indx, AP_peaks_indx, end_ap_indx
+    
+    
+def split_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
+    """
+    This function takes a 1d or 3D array, ini index, end index of ap 
+    previously computed with function 'split_peaks_1d_traces' 
+    and return the splitted arrays for each AP.
+    """
+    # must check that all len are the same
+    n_peaks = len(ini_i)
+    
+    if type == "1d":
+        splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
+        splitted_traces = np.array(splitted_traces).reshape(n_peaks, -1)
+    
+    elif type == "3d":
+        img_dim_x, img_dim_y = trace.shape[-2:]
+        splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
+        splitted_traces = np.array(splitted_traces).reshape( n_peaks, -1, img_dim_x, img_dim_y)
+    
+
+    if return_mean:
+        splitted_traces = np.mean(np.array([trace for trace in splitted_traces]), axis=(0))
+        
+    
+    return splitted_traces
+
+
+
+
+
+
+
+
 # this class helper allow to make gorup layouts easily"
 class VHGroup():
     """Group box with specific layout.
