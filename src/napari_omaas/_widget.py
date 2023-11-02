@@ -80,6 +80,12 @@ class OMAAS(QWidget):
         self.motion_correction.setLayout(self._motion_correction_layout)
         self.tabs.addTab(self.motion_correction, 'Mot-Correction') # this tab is just ok!
 
+        ######## Mapping tab ########
+        self.mapping_processing = QWidget()
+        self._mapping_processing_layout = QVBoxLayout()
+        self.mapping_processing.setLayout(self._mapping_processing_layout)
+        self.tabs.addTab(self.mapping_processing, 'Mapping') # this tab is just ok!
+
         ######## APD analysis tab ########
         self.APD_analysis = QWidget()
         self._APD_analysis_layout = QVBoxLayout()
