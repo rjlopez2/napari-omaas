@@ -592,7 +592,7 @@ class OMAAS(QWidget):
         self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
         self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 1, 5, 1, 1)
 
-        self.create_average_AP_btn = QPushButton("Create average")
+        self.create_average_AP_btn = QPushButton("Average traces")
         self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 2, 1, 1, 5)
 
         self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
