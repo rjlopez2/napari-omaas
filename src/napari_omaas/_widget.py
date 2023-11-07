@@ -202,7 +202,7 @@ class OMAAS(QWidget):
         self.spac_filter_group.glayout.addWidget(self.spatial_filt_type_label, 0, 0, 1, 1)
         
         self.spat_filter_types = QComboBox()
-        self.spat_filter_types.addItems(["Gaussian", "Box Filter", "Laplace Filter", "Median"])
+        self.spat_filter_types.addItems(["Gaussian", "Box", "Laplace", "Median"])
         self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 0, 1, 1, 1)
 
         self.sigma_label = QLabel("Sigma")
@@ -914,34 +914,35 @@ class OMAAS(QWidget):
 
     def _on_click_apply_spat_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
-        if current_selection._type_string == "image":
+        if isinstance(current_selection, Image):
         
             filter_type = self.spat_filter_types.currentText()
+            all_my_filters = [self.spat_filter_types.itemText(i) for i in range(self.spat_filter_types.count())]
             sigma = self.sigma_filt_param.value()
             kernel_size = self.filt_kernel_value.value()
             
-            if filter_type == "Gaussian":
-                print(f'applying "apply_gaussian_func" to image {current_selection}')
+            if filter_type == all_my_filters[0]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_gaussian_func(current_selection.data, 
                                             sigma= sigma, 
                                             kernel_size=kernel_size)
-                self.add_result_img(results, KrnlSiz = kernel_size, Sgma = sigma)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", KrnlSiz = kernel_size, Sgma = sigma, add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
 
             
-            if filter_type == "Median":
-                print(f'applying "apply_median_filt_func" to image {current_selection}')
+            elif filter_type == all_my_filters[3]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_median_filt_func(current_selection.data, kernel_size)
-                self.add_result_img(results, MednFilt = kernel_size)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", MednFilt = kernel_size, add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
 
-            if filter_type == "Box Filter":
-                print(f'applying "apply_box_filter" to image {current_selection}')
+            elif filter_type == all_my_filters[1]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_box_filter(current_selection.data, kernel_size)
-                self.add_result_img(results, BoxFilt = kernel_size)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", BoxFilt = kernel_size, add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
             
-            if filter_type == "Laplace Filter":
-                print(f'applying "apply_laplace_filter" to image {current_selection}')
+            elif filter_type == all_my_filters[2]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
-                self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", KrnlSiz = kernel_size, Widht = sigma, add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
             
             self.add_record_fun()
 
@@ -1061,19 +1062,31 @@ class OMAAS(QWidget):
 
     def _on_click_apply_temp_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
-        if self.viewer.layers.selection.active._type_string == "image":
-
+        
+        if isinstance(current_selection, Image):
+            filter_type = self.temp_filter_types.currentText()
+            all_my_filters = [self.temp_filter_types.itemText(i) for i in range(self.temp_filter_types.count())]
             cutoff_freq_value = self.butter_cutoff_freq_val.value()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
 
-            results = apply_butterworth_filt_func(current_selection.data, 
-                                                ac_freq=fps_val, 
-                                                cf_freq= cutoff_freq_value, 
-                                                fil_ord=order_value)
+            if filter_type == all_my_filters[0]:
 
-            self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
+                results = apply_butterworth_filt_func(current_selection.data, 
+                                                    ac_freq=fps_val, 
+                                                    cf_freq= cutoff_freq_value, 
+                                                    fil_ord=order_value)
+
+                # self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val), add_to_metadata=f"ButterworthFilt_acfreq{fps_val}_cffreq{cutoff_freq_value}_filtord{order_value}")
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", cffreq = cutoff_freq_value, ord = order_value, fps=round(fps_val), add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{cutoff_freq_value}_ord{order_value}")
+                
+            
+            elif filter_type == all_my_filters[1]:
+
+                return warn("Current filter '{filter_type}' is not supported.")
+            
             self.add_record_fun()
+
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
