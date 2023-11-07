@@ -1579,16 +1579,16 @@ class OMAAS(QWidget):
 
                         if "CycleTime" in self.img_metadata_dict:
                             self.plot_widget.axes.set_xlabel("Time (ms)")
-                            self.xscale = self.img_metadata_dict["CycleTime"]
+                            self.xscale = self.img_metadata_dict["CycleTime"] * 1000 
                         else:
-                            self.xscale = 1
                             self.plot_widget.axes.set_xlabel("Frames")
+                            self.xscale = 1
 
                         # loop over images
                         for img in img_layer:
                             # loop over shapes
                             for roi in range(n_shapes):
-                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale * 1000 )
+                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale)
                                 self.plot_widget.axes.plot(x, y, label= f"{img.name}_{shapes_items}_ROI:{roi}")
                                 self.plot_widget.axes.legend()                                
                                 self.draw()
