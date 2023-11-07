@@ -1219,7 +1219,7 @@ class OMAAS(QWidget):
                         props = compute_APD_props_func(traces[img_indx + shape_indx], 
                                                         curr_img_name = img.name, 
                                                         # cycle_length_ms= self.curr_img_metadata["CycleTime"],
-                                                        cycle_length_ms= self.img_metadata_dict["CycleTime"],
+                                                        cycle_length_ms= self.xscale,
                                                         rmp_method = rmp_method, 
                                                         apd_perc = apd_percentage, 
                                                         promi=self.prominence, 
