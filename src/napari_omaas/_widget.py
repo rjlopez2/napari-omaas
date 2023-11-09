@@ -112,20 +112,23 @@ class OMAAS(QWidget):
 
         ######## pre-processing btns ########
         self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 3, 1, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 1, 1, 1, 1)
 
         self.inv_data_btn = QPushButton("Invert signal")
         self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
-        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 2, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 1, 2, 1, 1)
 
-        self.norm_data_btn = QPushButton("Normalize (loc max)")        
-        self.pre_processing_group.glayout.addWidget(self.norm_data_btn, 3, 3, 1, 1)
+        self.loc_norm_data_btn = QPushButton("Normalize (loc max)")        
+        self.pre_processing_group.glayout.addWidget(self.loc_norm_data_btn, 2, 1, 1, 1)
 
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
         self.splt_chann_btn = QPushButton("Split Channels")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 3, 4, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 1, 3, 1, 1)
+
+        self.glob_norm_data_btn = QPushButton("Normalize (global)")
+        self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
  
         ######## Filters group ########
         # QCollapsible creates a collapse container for inner widgets
@@ -573,30 +576,30 @@ class OMAAS(QWidget):
 
         self.get_AP_splitted_btn = QPushButton("Preview traces")
         self.get_AP_splitted_btn.setToolTip(("lalalal"))
-        self.average_trace_group.glayout.addWidget(self.get_AP_splitted_btn, 1, 1, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.get_AP_splitted_btn, 1, 0, 1, 2)
 
         self.clear_AP_splitted_btn = QPushButton("Clear Plot")
-        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 2)
 
         self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
         self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
-        self.average_trace_group.glayout.addWidget(self.slider_label_current_value_2, 1, 3, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.slider_label_current_value_2, 2, 0, 1, 1)
         
         self.slider_APD_detection_threshold_2 = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_thres_max_range = 10000
         self.slider_APD_detection_threshold_2.setRange(1, 1000)
         self.slider_APD_detection_threshold_2.setValue(500)
-        self.average_trace_group.glayout.addWidget(self.slider_APD_detection_threshold_2, 1, 4, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.slider_APD_detection_threshold_2, 2, 1, 1, 1)
 
         self.APD_peaks_help_box_label_2 = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
         self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
-        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 1, 5, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 2, 2, 1, 1)
 
         self.create_average_AP_btn = QPushButton("Average traces")
-        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 2, 1, 1, 5)
+        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 3, 0, 1, 4)
 
         self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 3, 1, 1, 5)
+        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 4, 0, 1, 4)
         
 
 
@@ -612,23 +615,28 @@ class OMAAS(QWidget):
         self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
         self._settings_layout.addWidget(self.macro_group.gbox)
 
-        self.record_script_label = QLabel("Macro")
-        self.record_script_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
-        self.macro_group.glayout.addWidget(self.record_script_label, 3, 2, 1, 1)
+        self.record_script_label = QLabel("Your current actions")
+        self.record_script_label.setToolTip('Display bellow the recorded set of actions of your processing pipeline.')
+        self.macro_group.glayout.addWidget(self.record_script_label, 1, 0, 1, 4)
+       
+        self.macro_box_text = QPlainTextEdit()
+        self.macro_box_text.setStyleSheet("border: 1px solid black;") 
+        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
+        self.macro_group.glayout.addWidget(self.macro_box_text, 2, 0, 1, 4)
+
+        self.activate_macro_label = QLabel("Enable/disable Macro recording")
+        self.activate_macro_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
+        self.macro_group.glayout.addWidget(self.activate_macro_label, 3, 0, 1, 1)
         
         self.record_macro_check = QCheckBox()
         self.record_macro_check.setChecked(True) 
-        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 3, 1, 1)
+        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 1, 1, 1)
 
         self.clear_last_step_macro_btn = QPushButton("Delete last step")
-        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 4, 1, 1)
+        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 2, 1, 1)
         
         self.clear_macro_btn = QPushButton("Clear Macro")
-        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 5, 1, 1)       
-       
-        self.macro_box_text = QPlainTextEdit()
-        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
-        self.macro_group.glayout.addWidget(self.macro_box_text, 4, 2, 1, 1)
+        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 3, 1, 1)       
 
 
         
@@ -741,9 +749,10 @@ class OMAAS(QWidget):
         ##################################################################
         
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
-        self.norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
+        self.loc_norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
+        self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
         self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
         self.apply_spat_filt_btn.clicked.connect(self._on_click_apply_spat_filt_btn)
@@ -812,7 +821,7 @@ class OMAAS(QWidget):
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
             self.add_record_fun()
         else:
-            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+           return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_norm_data_btn(self):
@@ -821,10 +830,10 @@ class OMAAS(QWidget):
         if current_selection._type_string == "image":
             print(f'computing "local_normal_fun" to image {current_selection}')
             results = local_normal_fun(current_selection.data)
-            self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
+            self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
             self.add_record_fun()
         else:
-            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+           return  warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_inv_and_norm_data_btn(self):
@@ -848,6 +857,17 @@ class OMAAS(QWidget):
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+
+    def _on_click_glob_norm_data_btn(self):
+        current_selection = self.viewer.layers.selection.active
+        
+        if isinstance(current_selection, Image):
+            results = global_normal_fun(current_selection.data)
+            self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
+
+        else:
+            return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+
 
     
     def get_rois_list(self):
