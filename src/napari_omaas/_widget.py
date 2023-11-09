@@ -14,8 +14,9 @@ from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
-    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton
     )
+from superqt import QLabeledSlider
 from qtpy import QtWidgets
 from warnings import warn
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
@@ -574,9 +575,9 @@ class OMAAS(QWidget):
         self.average_trace_group = VHGroup('Average individual AP traces', orientation='G')
         self._mapping_processing_layout.addWidget(self.average_trace_group.gbox)
 
-        self.get_AP_splitted_btn = QPushButton("Preview traces")
-        self.get_AP_splitted_btn.setToolTip(("lalalal"))
-        self.average_trace_group.glayout.addWidget(self.get_AP_splitted_btn, 1, 0, 1, 2)
+        self.preview_AP_splitted_btn = QPushButton("Preview traces")
+        self.preview_AP_splitted_btn.setToolTip(("Preview the Ap traces from current image"))
+        self.average_trace_group.glayout.addWidget(self.preview_AP_splitted_btn, 1, 0, 1, 2)
 
         self.clear_AP_splitted_btn = QPushButton("Clear Plot")
         self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 2)
@@ -600,7 +601,31 @@ class OMAAS(QWidget):
 
         self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
         self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 4, 0, 1, 4)
+
+        self.slider_N_APs_label = QLabel("Slide to select your current AP")
+        self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
+
+        self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.slider_N_APs.setValue(0)
+        self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
+
+        self.remove_mean_label = QLabel("remove mean")
+        self.average_trace_group.glayout.addWidget(self.remove_mean_label, 5, 2, 1, 1)
+
+        self.remove_mean_check = QCheckBox()
+        self.remove_mean_check.setChecked(True)
+        self.average_trace_group.glayout.addWidget(self.remove_mean_check, 5, 3, 1, 1)
+
+        self.shift_AP_label = QLabel("Shift selected AP")
+        self.average_trace_group.glayout.addWidget(self.shift_AP_label, 6, 0, 1, 1)
+
+        self.mv_left_AP_btn = QToolButton()
+        self.mv_left_AP_btn.setArrowType(QtCore.Qt.LeftArrow)
+        self.average_trace_group.glayout.addWidget(self.mv_left_AP_btn, 6, 1, 1, 1)
         
+        self.mv_righ_AP_btn = QToolButton()
+        self.mv_righ_AP_btn.setArrowType(QtCore.Qt.RightArrow)
+        self.average_trace_group.glayout.addWidget(self.mv_righ_AP_btn, 6, 2, 1, 1)
 
 
 
@@ -785,7 +810,10 @@ class OMAAS(QWidget):
         self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
         self.APD_computing_method.activated.connect(self._get_APD_call_back)
         # self.get_AP_btn.clicked.connect(self.show_pop_window_ave_trace)
-        self.get_AP_splitted_btn.clicked.connect(self._plot_multiples_traces_func)
+        self.preview_AP_splitted_btn.clicked.connect(self._preview_multiples_traces_func)
+        self.remove_mean_check.stateChanged.connect(self._remove_mean_check_func)
+        self.slider_N_APs.valueChanged.connect(self._slider_N_APs_changed_func)
+        self.mv_left_AP_btn.clicked.connect(self._on_click_mv_left_AP_btn_func)
         self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
         self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
         
@@ -1637,7 +1665,7 @@ class OMAAS(QWidget):
         else:
             warn("Please Check on 'Plot profile' to creaate the plot")
         
-    def _plot_multiples_traces_func(self, event):
+    def _preview_multiples_traces_func(self):
 
         # self._data_changed_callback(event)
         self.shape_layer.events.data.connect(self._data_changed_callback)
@@ -1647,24 +1675,85 @@ class OMAAS(QWidget):
         time = self.data_main_canvas["x"][0]
 
         self.ini_i_spl_traces, _, self.end_i_spl_traces = split_peaks_1d_traces(my_1d_array = traces, promi= self.prominence)
-        self.splitted_stack = split_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
-        new_time_len = self.splitted_stack.shape[-1]
-
-        self.average_AP_plot_widget.figure.clear()
-        self.average_AP_plot_widget.add_single_axes()
-        for indx, array in progress(enumerate(self.splitted_stack)):
-            self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.2)
+        self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces))
         
-        self.average_AP_plot_widget.axes.plot(time[:new_time_len], np.mean(self.splitted_stack, axis = 0), label = f"Average trace", c = "b")
-        
-        self.average_AP_plot_widget.axes.legend()
-        self.average_AP_plot_widget.canvas.draw()
+        if self.ini_i_spl_traces.size > 0:
 
+            self.splitted_stack = split_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
+            new_time_len = self.splitted_stack.shape[-1]
+
+            self.average_AP_plot_widget.figure.clear()
+            self.average_AP_plot_widget.add_single_axes()
+
+            for indx, array in progress(enumerate(self.splitted_stack)):
+                # handle higlighting of selected AP
+                if indx == self.slider_N_APs.value():
+                    self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)                
+                else:
+                    self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.2)
+            
+            # plot the average
+            if self.remove_mean_check.isChecked():
+
+                self.average_AP_plot_widget.axes.plot(time[:new_time_len], np.mean(self.splitted_stack, axis = 0), label = f"Average trace", c = "b")
+            
+            self.average_AP_plot_widget.axes.legend()
+            self.average_AP_plot_widget.canvas.draw()
+
+            # first create remove the attributes if they already exist
+            # self._remove_attribute_widget()
+            # self.slider_N_APs_label = QLabel("Slide to select your current AP")
+            # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
+
+            # self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
+            
+            # self.slider_N_APs.setValue(0)
+            # self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
+
+            # self.remove_mean_label = QLabel("remove mean")
+            # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 2, 1, 1)
+
+            # self.remove_mean_check = QCheckBox()
+            # self.average_trace_group.glayout.addWidget(self.slider_N_APremove_mean_checks_label, 5, 3, 1, 1)
+            
+            print("Average trace created")
+
+        else:
+            self._on_click_clear_AP_splitted_btn_fun()
+            return warn("No AP detected")
+        
         print("done")
+
+
+    def _remove_mean_check_func(self):
+        # print("lalala")
+        # if not self.remove_mean_check.isChecked():
+        #     self._preview_multiples_traces_func()
+        # else:
+        #     self._preview_multiples_traces_func()
+        self._preview_multiples_traces_func()
+
+
     
-    def _on_click_clear_AP_splitted_btn_fun(self, event):
+    def _on_click_clear_AP_splitted_btn_fun(self):
+        # self._remove_attribute_widget()
         self.average_AP_plot_widget.figure.clear()
         self.average_AP_plot_widget.canvas.draw()
+    
+    def _remove_attribute_widget(self):
+        my_attr_list = ["slider_N_APs", "slider_N_APs_label"]
+        for attr in my_attr_list:
+            if hasattr(self, attr):
+                for widget in list_of_widgets:
+                    widget.destroy() 
+
+        
+        
+        # [self.attr = None for attr in my_attr_list if hasattr(self, attr)]
+        # if hasattr(self, "slider_N_APs"):
+        #         self.slider_N_APs = None
+        #         self.slider_N_APs_label = None
+
     
     def _on_click_create_average_AP_btn_func(self):
         # traces = self.data_main_canvas["y"][0]
@@ -1672,12 +1761,20 @@ class OMAAS(QWidget):
 
 
         ini_i, _, end_i = split_peaks_1d_traces(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
-        img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
-        results= split_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
-        self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
-        print("Average trace created")
+        if ini_i.size > 0:
 
-        
+            img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
+            results= split_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
+            self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
+            print("Average trace created")
+
+        else:
+            self._on_click_clear_AP_splitted_btn_fun()
+            return warn("No AP detected")
+
+
+    def _on_click_mv_left_AP_btn_func(self):
+        print("move to left")
         # send the splitted_stack to plot
 
 
@@ -1688,7 +1785,9 @@ class OMAAS(QWidget):
     #     self.average_tracce_pop_pup_window = MyPopup(self)
     #     self.average_tracce_pop_pup_window.setGeometry(QRect(100, 100, 400, 200))
     #     self.average_tracce_pop_pup_window.show()
-
+    def _slider_N_APs_changed_func(self):
+        print("update plot")
+        self._preview_multiples_traces_func()
 
 
 @magic_factory
