@@ -65,8 +65,7 @@ def invert_signal(
 def local_normal_fun(
     data: "napari.types.ImageData")-> "napari.types.ImageData":
 
-    """Invert signal fluorescence values. This is usefull to properly visulaize
-    AP signals from inverted traces.
+    """Normalize traces pixelwise along the time dimension.
 
     Parameters
     ----------
@@ -81,6 +80,39 @@ def local_normal_fun(
     results = (data - np.min(data, axis = 0)) / np.max(data, axis=0)
     results = np.nan_to_num(results, nan=0)
     return results
+
+@macro.record
+def global_normal_fun(
+    data: "napari.types.ImageData")-> "napari.types.ImageData":
+
+    """Nomrlaize and scale to [0, 1] the siganl by the global max and min 
+    previusly cliping the data between 5-95%. This helps to remove outliers on the data.
+    
+    source: 'https://scikit-image.org/docs/stable/auto_examples/color_exposure/plot_adapt_hist_eq_3d.html#sphx-glr-auto-examples-color-exposure-plot-adapt-hist-eq-3d-py'
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be normalized.
+
+    Returns
+    -------
+    normalized_signal : np.ndarray
+        The normlaized numpy array.
+
+    """
+
+    # Rescale image data to range [0, 1]
+    im_orig = data
+    # NOTE: clipping does not seem to be usefull inthis case.
+    # im_orig = np.clip(data,
+    #                 np.percentile(data, 2),
+    #                 np.percentile(data, 98)
+    #                 )
+    eps = np.finfo(im_orig.dtype).eps
+    
+    return (im_orig - im_orig.min()) / (im_orig.max() - im_orig.min() + eps)
+
 
 
 @macro.record
