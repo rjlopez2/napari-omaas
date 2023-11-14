@@ -597,7 +597,7 @@ def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
     return (out_img)
 
 @macro.record
-def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_ms = 0.004, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0):
+def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -654,7 +654,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, diff_n = 1, cycle_length_m
     activation_time = np.zeros_like(peaks_times)
     repol_time = np.zeros_like(peaks_times)
     dVdtmax =  np.zeros_like(peaks_times)
-    resting_V = np.zeros_like(peaks_times)
+    resting_V = np.zeros_like(peaks_times, dtype=np.float64) # this must be of float data type otherwose produce a tricky bug later whan asigning a uint type value
     amp_Vmax = np.zeros_like(peaks_times)
 
     # compute dfdt and normalize it
