@@ -609,7 +609,7 @@ class OMAAS(QWidget):
         self.slider_N_APs.setValue(0)
         self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
 
-        self.remove_mean_label = QLabel("remove mean")
+        self.remove_mean_label = QLabel("Display mean")
         self.average_trace_group.glayout.addWidget(self.remove_mean_label, 5, 2, 1, 1)
 
         self.remove_mean_check = QCheckBox()
@@ -620,6 +620,7 @@ class OMAAS(QWidget):
         self.average_trace_group.glayout.addWidget(self.shift_AP_label, 6, 0, 1, 1)
 
         self.mv_left_AP_btn = QToolButton()
+        self.shif_trace = False
         self.mv_left_AP_btn.setArrowType(QtCore.Qt.LeftArrow)
         self.average_trace_group.glayout.addWidget(self.mv_left_AP_btn, 6, 1, 1, 1)
         
@@ -814,6 +815,7 @@ class OMAAS(QWidget):
         self.remove_mean_check.stateChanged.connect(self._remove_mean_check_func)
         self.slider_N_APs.valueChanged.connect(self._slider_N_APs_changed_func)
         self.mv_left_AP_btn.clicked.connect(self._on_click_mv_left_AP_btn_func)
+        self.mv_righ_AP_btn.clicked.connect(self._on_click_mv_right_AP_btn_func)
         self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
         self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
         
@@ -1254,7 +1256,11 @@ class OMAAS(QWidget):
                 for shape_indx, shape in enumerate(selected_shps_list[0].data):
 
                     # update detected APs labels
-                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
+                    # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
+                    # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
+                    #                                           cycle_length_ms = self.xscale,
+                    #                                           promi=self.prominence)]
+                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
                     self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
                     self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
@@ -1264,21 +1270,22 @@ class OMAAS(QWidget):
                     ##### catch error here and exit nicely for the user with a warning or so #####
                     try:
 
-                        props = compute_APD_props_func(traces[img_indx + shape_indx], 
+                        self.APs_props = compute_APD_props_func(traces[img_indx + shape_indx],
                                                         curr_img_name = img.name, 
                                                         # cycle_length_ms= self.curr_img_metadata["CycleTime"],
                                                         cycle_length_ms= self.xscale,
-                                                        rmp_method = rmp_method, 
-                                                        apd_perc = apd_percentage, 
+                                                        rmp_method = self.APD_computing_method.currentText(), 
+                                                        apd_perc = self.slider_APD_percentage.value(), 
                                                         promi=self.prominence, 
                                                         roi_indx=shape_indx)
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
-                        ini_indx = props[-3]
-                        peak_indx = props[-2]
-                        end_indx = props[-1]
-                        dVdtmax = props[5]
-                        resting_V = props[8]
+                        ini_indx = self.APs_props[-3]
+                        peak_indx = self.APs_props[-2]
+                        end_indx = self.APs_props[-1]
+                        dVdtmax = self.APs_props[5]
+                        resting_V = self.APs_props[8]
                         y_min = resting_V
+
                         y_max = traces[img_indx + shape_indx][peak_indx]
                         # plot vline of AP start
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][ini_indx], 
@@ -1296,7 +1303,7 @@ class OMAAS(QWidget):
                                             xmax = time[img_indx + shape_indx][end_indx],
                                             linestyles='dashed', color = "grey", label=f'AP_base', lw = 0.5, alpha = 0.8)
 
-                        APD_props.append(props)
+                        APD_props.append(self.APs_props)
 
                     except Exception as e:
                         # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
@@ -1330,7 +1337,7 @@ class OMAAS(QWidget):
             self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
 
             # convert numeric values to ms and round then
-            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
+            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
 
             
             model = PandasModel(self.APD_props_df[["image_name",
@@ -1674,13 +1681,22 @@ class OMAAS(QWidget):
         traces = self.data_main_canvas["y"][0]
         time = self.data_main_canvas["x"][0]
 
-        self.ini_i_spl_traces, _, self.end_i_spl_traces = split_peaks_1d_traces(my_1d_array = traces, promi= self.prominence)
-        self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces))
+        try:
+            self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
+                                                                                #    cycle_length_ms = self.xscale, 
+                                                                                   promi= self.prominence)
+        except Exception as e:
+            print(f"You have the following error: --->> {e} <----")
+            return
+
+        self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
         
         if self.ini_i_spl_traces.size > 0:
 
+            # NOTE: need to fix this function
             self.splitted_stack = split_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
             new_time_len = self.splitted_stack.shape[-1]
+            time = time[:new_time_len]
 
             self.average_AP_plot_widget.figure.clear()
             self.average_AP_plot_widget.add_single_axes()
@@ -1688,14 +1704,42 @@ class OMAAS(QWidget):
             for indx, array in progress(enumerate(self.splitted_stack)):
                 # handle higlighting of selected AP
                 if indx == self.slider_N_APs.value():
-                    self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)                
+                    # if self.shif_trace:
+
+                    #     # NOTE!!!: eveytime the plotting is call it recalculate the peak index, etc and therefore no further shift happen if called multiples time.
+                    #     # need to find a way to store the data/canvas and thereafter manipulate/update the figure with the new data
+                    #     # functions affected by this behaviour are: _slider_N_APs_changed_func, _remove_mean_check_func, _on_click_mv_left_AP_btn_func and _on_click_mv_right_AP_btn_func
+                        
+                    #     # duplicate the last value and pad the tail with that
+                    #     if self.shift_to_left:
+                    #         y = array[-1]
+                    #         array = np.concatenate([array[1:], [y]])
+
+                    #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                            
+                    #         self.splitted_stack[indx] = array
+                    #         self.shif_trace = False
+                    #         self.shift_to_left = False
+                        
+                    #     elif  self.shift_to_right:
+                    #         y = array[0]
+                    #         array = np.concatenate([[y], array[:-1]])
+
+                    #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                            
+                    #         self.splitted_stack[indx] = array
+                    #         self.shif_trace = False
+                    #         self.shift_to_right = False
+                        
+                    # else:
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
                 else:
-                    self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.2)
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
             
             # plot the average
             if self.remove_mean_check.isChecked():
 
-                self.average_AP_plot_widget.axes.plot(time[:new_time_len], np.mean(self.splitted_stack, axis = 0), label = f"Average trace", c = "b")
+                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
             
             self.average_AP_plot_widget.axes.legend()
             self.average_AP_plot_widget.canvas.draw()
@@ -1727,11 +1771,12 @@ class OMAAS(QWidget):
 
     def _remove_mean_check_func(self):
         # print("lalala")
+        self._slider_N_APs_changed_func()
         # if not self.remove_mean_check.isChecked():
         #     self._preview_multiples_traces_func()
         # else:
         #     self._preview_multiples_traces_func()
-        self._preview_multiples_traces_func()
+        # self._preview_multiples_traces_func()
 
 
     
@@ -1740,6 +1785,7 @@ class OMAAS(QWidget):
         self.average_AP_plot_widget.figure.clear()
         self.average_AP_plot_widget.canvas.draw()
     
+    # this method can be reomoved
     def _remove_attribute_widget(self):
         my_attr_list = ["slider_N_APs", "slider_N_APs_label"]
         for attr in my_attr_list:
@@ -1758,9 +1804,12 @@ class OMAAS(QWidget):
     def _on_click_create_average_AP_btn_func(self):
         # traces = self.data_main_canvas["y"][0]
         # time = self.data_main_canvas["x"][0]
+        # NOTE: make new logic: fistr check that tupdated data is collected here: self.splitted_stack
+        # and then use this info for averaging teh full image stack
 
 
-        ini_i, _, end_i = split_peaks_1d_traces(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+        ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+
         if ini_i.size > 0:
 
             img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
@@ -1774,8 +1823,60 @@ class OMAAS(QWidget):
 
 
     def _on_click_mv_left_AP_btn_func(self):
+        time = self.data_main_canvas["x"][0]
+        new_time_len = self.splitted_stack.shape[-1]
+        time = time[:new_time_len]
+        # self._preview_multiples_traces_func()
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.add_single_axes()
+
+        selected_AP = self.slider_N_APs.value()
+        # for the selected AP shift to the left 1 position and append the last value (to match size)
+        self.splitted_stack[selected_AP] = np.concatenate([ self.splitted_stack[selected_AP][1:], [self.splitted_stack[selected_AP][-1]] ])
+        
+        for indx, array in progress(enumerate(self.splitted_stack)):
+            # handle higlighting of selected AP
+            if indx == self.slider_N_APs.value():
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+            else:
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+            
+        if self.remove_mean_check.isChecked():
+            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+
+        self.average_AP_plot_widget.axes.legend()
+        self.average_AP_plot_widget.canvas.draw()
+
         print("move to left")
-        # send the splitted_stack to plot
+
+
+    def _on_click_mv_right_AP_btn_func(self):
+        time = self.data_main_canvas["x"][0]
+        new_time_len = self.splitted_stack.shape[-1]
+        time = time[:new_time_len]
+        # self._preview_multiples_traces_func()
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.add_single_axes()
+
+        selected_AP = self.slider_N_APs.value()
+        # for the selected AP shift to the left 1 position and append the last value (to match size)
+        self.splitted_stack[selected_AP] = np.concatenate([ [self.splitted_stack[selected_AP][0]], self.splitted_stack[selected_AP][:-1]  ])
+        
+        for indx, array in progress(enumerate(self.splitted_stack)):
+            # handle higlighting of selected AP
+            if indx == self.slider_N_APs.value():
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+            else:
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+            
+        if self.remove_mean_check.isChecked():
+            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+
+        self.average_AP_plot_widget.axes.legend()
+        self.average_AP_plot_widget.canvas.draw()
+        
+        print("move to right")
+        
 
 
 
@@ -1786,8 +1887,27 @@ class OMAAS(QWidget):
     #     self.average_tracce_pop_pup_window.setGeometry(QRect(100, 100, 400, 200))
     #     self.average_tracce_pop_pup_window.show()
     def _slider_N_APs_changed_func(self):
+        time = self.data_main_canvas["x"][0]
+        new_time_len = self.splitted_stack.shape[-1]
+        time = time[:new_time_len]
+        # self._preview_multiples_traces_func()
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.add_single_axes()
+        
+        for indx, array in progress(enumerate(self.splitted_stack)):
+            # handle higlighting of selected AP
+            if indx == self.slider_N_APs.value():
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+            else:
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+            
+        if self.remove_mean_check.isChecked():
+            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+
+        self.average_AP_plot_widget.axes.legend()
+        self.average_AP_plot_widget.canvas.draw()
         print("update plot")
-        self._preview_multiples_traces_func()
+        # self._preview_multiples_traces_func()
 
 
 @magic_factory

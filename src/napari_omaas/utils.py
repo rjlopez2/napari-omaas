@@ -847,7 +847,7 @@ def extract_ROI_time_series(img_layer, shape_layer, idx_shape, roi_mode, xscale 
         return add_index_dim(mode_dict[roi_mode](img_layer.data[mask].reshape(dshape[0], -1), axis=1), xscale)
 
 
-def split_peaks_1d_traces(my_1d_array, promi = 0.03):
+def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
     """
     This function takes a 1d array trace, compute the peaks
     and return the ini, end, and peak indexes of n numbers of peaks found.
@@ -886,19 +886,22 @@ def split_peaks_1d_traces(my_1d_array, promi = 0.03):
 def split_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
     """
     This function takes a 1d or 3D array, ini index, end index of ap 
-    previously computed with function 'split_peaks_1d_traces' 
+    previously computed with function 'return_AP_ini_end_indx_func' 
     and return the splitted arrays for each AP.
     """
     # must check that all len are the same
     n_peaks = len(ini_i)
     
+    splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
+    # take the small trace len and adjust the other traces to that
+    min_dim = np.min([trace[0].shape for trace in splitted_traces])
+    splitted_traces = [trace[0][:min_dim] for trace in splitted_traces]
+
     if type == "1d":
-        splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
         splitted_traces = np.array(splitted_traces).reshape(n_peaks, -1)
     
     elif type == "3d":
         img_dim_x, img_dim_y = trace.shape[-2:]
-        splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
         splitted_traces = np.array(splitted_traces).reshape( n_peaks, -1, img_dim_x, img_dim_y)
     
 
@@ -907,8 +910,6 @@ def split_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
         
     
     return splitted_traces
-
-
 
 
 
