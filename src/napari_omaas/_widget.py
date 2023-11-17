@@ -628,6 +628,9 @@ class OMAAS(QWidget):
         self.mv_righ_AP_btn.setArrowType(QtCore.Qt.RightArrow)
         self.average_trace_group.glayout.addWidget(self.mv_righ_AP_btn, 6, 2, 1, 1)
 
+        self.create_AP_gradient_btn = QPushButton("Make Activation Map")
+        self.average_trace_group.glayout.addWidget(self.create_AP_gradient_btn, 7, 0, 1, 1)
+
 
 
 
@@ -818,6 +821,7 @@ class OMAAS(QWidget):
         self.mv_righ_AP_btn.clicked.connect(self._on_click_mv_right_AP_btn_func)
         self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
         self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
+        self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_btn)
         
         
         
@@ -1908,6 +1912,21 @@ class OMAAS(QWidget):
         self.average_AP_plot_widget.canvas.draw()
         print("update plot")
         # self._preview_multiples_traces_func()
+    
+    def _on_click_create_AP_gradient_btn(self):
+        current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+        current_img_selection = self.viewer.layers[current_img_selection_name]
+        dim_shape = dim_shape = current_img_selection.data.shape[1:]
+        results = np.gradient(current_img_selection.data, axis=0)
+        # make activation time mask using the gradien
+        act_map_mask = results == results.max(axis = 0)
+        act_map_rslt = current_img_selection.data[act_map_mask]
+        act_map_rslt = act_map_rslt.reshape( dim_shape[0], dim_shape[1])
+        
+        self.add_result_img(result_img=results, img_custom_name=current_img_selection.name, single_label_sufix="Gradt", add_to_metadata = f"Gradient along Axis '0'")
+        self.add_result_img(result_img=act_map_rslt, img_custom_name=current_img_selection.name, single_label_sufix="ActMap", add_to_metadata = f"Activation Map")
+        
+        print("Gradient computed")
 
 
 @magic_factory
