@@ -14,18 +14,20 @@ from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
-    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton
     )
+from superqt import QLabeledSlider
 from qtpy import QtWidgets
 from warnings import warn
-from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
-from PyQt5.QtGui import QIntValidator
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
+from PyQt5.QtGui import QIntValidator, QPainter
 from numpy import ndarray as numpy_ndarray
 # import pyqtgraph as pg
 # from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import BaseNapariMPLWidget
 from napari.layers import Shapes, Image
 import matplotlib.pyplot as plt
+from napari.utils import progress
 
 import copy
 import subprocess
@@ -80,6 +82,12 @@ class OMAAS(QWidget):
         self.motion_correction.setLayout(self._motion_correction_layout)
         self.tabs.addTab(self.motion_correction, 'Mot-Correction') # this tab is just ok!
 
+        ######## Mapping tab ########
+        self.mapping_processing = QWidget()
+        self._mapping_processing_layout = QVBoxLayout()
+        self.mapping_processing.setLayout(self._mapping_processing_layout)
+        self.tabs.addTab(self.mapping_processing, 'Mapping') # this tab is just ok!
+
         ######## APD analysis tab ########
         self.APD_analysis = QWidget()
         self._APD_analysis_layout = QVBoxLayout()
@@ -105,20 +113,23 @@ class OMAAS(QWidget):
 
         ######## pre-processing btns ########
         self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 3, 1, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 1, 1, 1, 1)
 
         self.inv_data_btn = QPushButton("Invert signal")
         self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
-        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 2, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 1, 2, 1, 1)
 
-        self.norm_data_btn = QPushButton("Normalize (loc max)")        
-        self.pre_processing_group.glayout.addWidget(self.norm_data_btn, 3, 3, 1, 1)
+        self.loc_norm_data_btn = QPushButton("Normalize (loc max)")        
+        self.pre_processing_group.glayout.addWidget(self.loc_norm_data_btn, 2, 1, 1, 1)
 
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
         self.splt_chann_btn = QPushButton("Split Channels")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 3, 4, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 1, 3, 1, 1)
+
+        self.glob_norm_data_btn = QPushButton("Normalize (global)")
+        self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
  
         ######## Filters group ########
         # QCollapsible creates a collapse container for inner widgets
@@ -195,7 +206,7 @@ class OMAAS(QWidget):
         self.spac_filter_group.glayout.addWidget(self.spatial_filt_type_label, 0, 0, 1, 1)
         
         self.spat_filter_types = QComboBox()
-        self.spat_filter_types.addItems(["Gaussian", "Box Filter", "Laplace Filter", "Median"])
+        self.spat_filter_types.addItems(["Gaussian", "Box", "Laplace", "Median"])
         self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 0, 1, 1, 1)
 
         self.sigma_label = QLabel("Sigma")
@@ -468,6 +479,7 @@ class OMAAS(QWidget):
         self.slider_APD_thres_max_range = 10000
         self.slider_APD_detection_threshold.setRange(1, 1000)
         self.slider_APD_detection_threshold.setValue(500)
+        self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
         self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 1, 1, 1)
         
         self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
@@ -554,6 +566,76 @@ class OMAAS(QWidget):
         self.save_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
         self.APD_export_group.glayout.addWidget(self.save_APD_rslts_btn, 4, 2, 1, 2)
 
+
+        ######## Mapping tab ########
+        # ####################################
+        self._mapping_processing_layout.setAlignment(Qt.AlignTop)
+
+        ##### APD_plot_group ########
+        self.average_trace_group = VHGroup('Average individual AP traces', orientation='G')
+        self._mapping_processing_layout.addWidget(self.average_trace_group.gbox)
+
+        self.preview_AP_splitted_btn = QPushButton("Preview traces")
+        self.preview_AP_splitted_btn.setToolTip(("Preview the Ap traces from current image"))
+        self.average_trace_group.glayout.addWidget(self.preview_AP_splitted_btn, 1, 0, 1, 2)
+
+        self.clear_AP_splitted_btn = QPushButton("Clear Plot")
+        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 2)
+
+        self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
+        self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
+        self.average_trace_group.glayout.addWidget(self.slider_label_current_value_2, 2, 0, 1, 1)
+        
+        self.slider_APD_detection_threshold_2 = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_thres_max_range = 10000
+        self.slider_APD_detection_threshold_2.setRange(1, 1000)
+        self.slider_APD_detection_threshold_2.setValue(500)
+        self.average_trace_group.glayout.addWidget(self.slider_APD_detection_threshold_2, 2, 1, 1, 1)
+
+        self.APD_peaks_help_box_label_2 = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
+        self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
+        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 2, 2, 1, 1)
+
+        self.create_average_AP_btn = QPushButton("Average traces")
+        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 3, 0, 1, 4)
+
+        self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 4, 0, 1, 4)
+
+        self.slider_N_APs_label = QLabel("Slide to select your current AP")
+        self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
+
+        self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.slider_N_APs.setValue(0)
+        self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
+
+        self.remove_mean_label = QLabel("Display mean")
+        self.average_trace_group.glayout.addWidget(self.remove_mean_label, 5, 2, 1, 1)
+
+        self.remove_mean_check = QCheckBox()
+        self.remove_mean_check.setChecked(True)
+        self.average_trace_group.glayout.addWidget(self.remove_mean_check, 5, 3, 1, 1)
+
+        self.shift_AP_label = QLabel("Shift selected AP")
+        self.average_trace_group.glayout.addWidget(self.shift_AP_label, 6, 0, 1, 1)
+
+        self.mv_left_AP_btn = QToolButton()
+        self.shif_trace = False
+        self.mv_left_AP_btn.setArrowType(QtCore.Qt.LeftArrow)
+        self.average_trace_group.glayout.addWidget(self.mv_left_AP_btn, 6, 1, 1, 1)
+        
+        self.mv_righ_AP_btn = QToolButton()
+        self.mv_righ_AP_btn.setArrowType(QtCore.Qt.RightArrow)
+        self.average_trace_group.glayout.addWidget(self.mv_righ_AP_btn, 6, 2, 1, 1)
+
+        self.create_AP_gradient_btn = QPushButton("Make Activation Map")
+        self.average_trace_group.glayout.addWidget(self.create_AP_gradient_btn, 7, 0, 1, 1)
+
+
+
+
+
+
         ######## Settings tab ########
         ####################################
 
@@ -562,23 +644,28 @@ class OMAAS(QWidget):
         self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
         self._settings_layout.addWidget(self.macro_group.gbox)
 
-        self.record_script_label = QLabel("Macro")
-        self.record_script_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
-        self.macro_group.glayout.addWidget(self.record_script_label, 3, 2, 1, 1)
+        self.record_script_label = QLabel("Your current actions")
+        self.record_script_label.setToolTip('Display bellow the recorded set of actions of your processing pipeline.')
+        self.macro_group.glayout.addWidget(self.record_script_label, 1, 0, 1, 4)
+       
+        self.macro_box_text = QPlainTextEdit()
+        self.macro_box_text.setStyleSheet("border: 1px solid black;") 
+        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
+        self.macro_group.glayout.addWidget(self.macro_box_text, 2, 0, 1, 4)
+
+        self.activate_macro_label = QLabel("Enable/disable Macro recording")
+        self.activate_macro_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
+        self.macro_group.glayout.addWidget(self.activate_macro_label, 3, 0, 1, 1)
         
         self.record_macro_check = QCheckBox()
         self.record_macro_check.setChecked(True) 
-        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 3, 1, 1)
+        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 1, 1, 1)
 
         self.clear_last_step_macro_btn = QPushButton("Delete last step")
-        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 4, 1, 1)
+        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 2, 1, 1)
         
         self.clear_macro_btn = QPushButton("Clear Macro")
-        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 5, 1, 1)       
-       
-        self.macro_box_text = QPlainTextEdit()
-        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
-        self.macro_group.glayout.addWidget(self.macro_box_text, 4, 2, 1, 1)
+        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 3, 1, 1)       
 
 
         
@@ -691,9 +778,10 @@ class OMAAS(QWidget):
         ##################################################################
         
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
-        self.norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
+        self.loc_norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
+        self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
         self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
         self.apply_spat_filt_btn.clicked.connect(self._on_click_apply_spat_filt_btn)
@@ -715,6 +803,7 @@ class OMAAS(QWidget):
         self.compute_APD_btn.clicked.connect(self._get_APD_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
+        self.slider_APD_detection_threshold_2.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
@@ -724,6 +813,16 @@ class OMAAS(QWidget):
         self.search_dir_APD_rslts_btn.clicked.connect(self._on_click_search_new_dir_APD_rslts_btn_func)
         self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
         self.APD_computing_method.activated.connect(self._get_APD_call_back)
+        # self.get_AP_btn.clicked.connect(self.show_pop_window_ave_trace)
+        self.preview_AP_splitted_btn.clicked.connect(self._preview_multiples_traces_func)
+        self.remove_mean_check.stateChanged.connect(self._remove_mean_check_func)
+        self.slider_N_APs.valueChanged.connect(self._slider_N_APs_changed_func)
+        self.mv_left_AP_btn.clicked.connect(self._on_click_mv_left_AP_btn_func)
+        self.mv_righ_AP_btn.clicked.connect(self._on_click_mv_right_AP_btn_func)
+        self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
+        self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
+        self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_btn)
+        
         
         
         
@@ -756,7 +855,7 @@ class OMAAS(QWidget):
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
             self.add_record_fun()
         else:
-            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+           return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_norm_data_btn(self):
@@ -765,10 +864,10 @@ class OMAAS(QWidget):
         if current_selection._type_string == "image":
             print(f'computing "local_normal_fun" to image {current_selection}')
             results = local_normal_fun(current_selection.data)
-            self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
+            self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
             self.add_record_fun()
         else:
-            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+           return  warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_inv_and_norm_data_btn(self):
@@ -792,6 +891,17 @@ class OMAAS(QWidget):
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+
+    def _on_click_glob_norm_data_btn(self):
+        current_selection = self.viewer.layers.selection.active
+        
+        if isinstance(current_selection, Image):
+            results = global_normal_fun(current_selection.data)
+            self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
+
+        else:
+            return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+
 
     
     def get_rois_list(self):
@@ -858,34 +968,35 @@ class OMAAS(QWidget):
 
     def _on_click_apply_spat_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
-        if current_selection._type_string == "image":
+        if isinstance(current_selection, Image):
         
             filter_type = self.spat_filter_types.currentText()
+            all_my_filters = [self.spat_filter_types.itemText(i) for i in range(self.spat_filter_types.count())]
             sigma = self.sigma_filt_param.value()
             kernel_size = self.filt_kernel_value.value()
             
-            if filter_type == "Gaussian":
-                print(f'applying "apply_gaussian_func" to image {current_selection}')
+            if filter_type == all_my_filters[0]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_gaussian_func(current_selection.data, 
                                             sigma= sigma, 
                                             kernel_size=kernel_size)
-                self.add_result_img(results, KrnlSiz = kernel_size, Sgma = sigma)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", KrnlSiz = kernel_size, Sgma = sigma, add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
 
             
-            if filter_type == "Median":
-                print(f'applying "apply_median_filt_func" to image {current_selection}')
+            elif filter_type == all_my_filters[3]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_median_filt_func(current_selection.data, kernel_size)
-                self.add_result_img(results, MednFilt = kernel_size)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", MednFilt = kernel_size, add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
 
-            if filter_type == "Box Filter":
-                print(f'applying "apply_box_filter" to image {current_selection}')
+            elif filter_type == all_my_filters[1]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_box_filter(current_selection.data, kernel_size)
-                self.add_result_img(results, BoxFilt = kernel_size)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", BoxFilt = kernel_size, add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
             
-            if filter_type == "Laplace Filter":
-                print(f'applying "apply_laplace_filter" to image {current_selection}')
+            elif filter_type == all_my_filters[2]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
-                self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", KrnlSiz = kernel_size, Widht = sigma, add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
             
             self.add_record_fun()
 
@@ -1005,19 +1116,31 @@ class OMAAS(QWidget):
 
     def _on_click_apply_temp_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
-        if self.viewer.layers.selection.active._type_string == "image":
-
+        
+        if isinstance(current_selection, Image):
+            filter_type = self.temp_filter_types.currentText()
+            all_my_filters = [self.temp_filter_types.itemText(i) for i in range(self.temp_filter_types.count())]
             cutoff_freq_value = self.butter_cutoff_freq_val.value()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
 
-            results = apply_butterworth_filt_func(current_selection.data, 
-                                                ac_freq=fps_val, 
-                                                cf_freq= cutoff_freq_value, 
-                                                fil_ord=order_value)
+            if filter_type == all_my_filters[0]:
 
-            self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
+                results = apply_butterworth_filt_func(current_selection.data, 
+                                                    ac_freq=fps_val, 
+                                                    cf_freq= cutoff_freq_value, 
+                                                    fil_ord=order_value)
+
+                # self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val), add_to_metadata=f"ButterworthFilt_acfreq{fps_val}_cffreq{cutoff_freq_value}_filtord{order_value}")
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", cffreq = cutoff_freq_value, ord = order_value, fps=round(fps_val), add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{cutoff_freq_value}_ord{order_value}")
+                
+            
+            elif filter_type == all_my_filters[1]:
+
+                return warn("Current filter '{filter_type}' is not supported.")
+            
             self.add_record_fun()
+
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
@@ -1126,7 +1249,7 @@ class OMAAS(QWidget):
             time = self.data_main_canvas["x"]
             rmp_method = self.APD_computing_method.currentText()
             apd_percentage = self.slider_APD_percentage.value()
-            prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+            # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             
             APD_props = []
             # get selection of images iand shape from the selector
@@ -1137,7 +1260,13 @@ class OMAAS(QWidget):
                 for shape_indx, shape in enumerate(selected_shps_list[0].data):
 
                     # update detected APs labels
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shape_indx])}')
+                    # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
+                    # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
+                    #                                           cycle_length_ms = self.xscale,
+                    #                                           promi=self.prominence)]
+                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
+                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
                     self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
@@ -1145,21 +1274,22 @@ class OMAAS(QWidget):
                     ##### catch error here and exit nicely for the user with a warning or so #####
                     try:
 
-                        props = compute_APD_props_func(traces[img_indx + shape_indx], 
+                        self.APs_props = compute_APD_props_func(traces[img_indx + shape_indx],
                                                         curr_img_name = img.name, 
                                                         # cycle_length_ms= self.curr_img_metadata["CycleTime"],
-                                                        cycle_length_ms= self.img_metadata_dict["CycleTime"],
-                                                        rmp_method = rmp_method, 
-                                                        apd_perc = apd_percentage, 
-                                                        promi=prominence, 
+                                                        cycle_length_ms= self.xscale,
+                                                        rmp_method = self.APD_computing_method.currentText(), 
+                                                        apd_perc = self.slider_APD_percentage.value(), 
+                                                        promi=self.prominence, 
                                                         roi_indx=shape_indx)
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
-                        ini_indx = props[-3]
-                        peak_indx = props[-2]
-                        end_indx = props[-1]
-                        dVdtmax = props[5]
-                        resting_V = props[8]
+                        ini_indx = self.APs_props[-3]
+                        peak_indx = self.APs_props[-2]
+                        end_indx = self.APs_props[-1]
+                        dVdtmax = self.APs_props[5]
+                        resting_V = self.APs_props[8]
                         y_min = resting_V
+
                         y_max = traces[img_indx + shape_indx][peak_indx]
                         # plot vline of AP start
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][ini_indx], 
@@ -1177,7 +1307,7 @@ class OMAAS(QWidget):
                                             xmax = time[img_indx + shape_indx][end_indx],
                                             linestyles='dashed', color = "grey", label=f'AP_base', lw = 0.5, alpha = 0.8)
 
-                        APD_props.append(props)
+                        APD_props.append(self.APs_props)
 
                     except Exception as e:
                         # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
@@ -1211,7 +1341,7 @@ class OMAAS(QWidget):
             self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
 
             # convert numeric values to ms and round then
-            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
+            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
 
             
             model = PandasModel(self.APD_props_df[["image_name",
@@ -1245,9 +1375,12 @@ class OMAAS(QWidget):
 
 
     def _get_APD_thre_slider_vlaue_func(self, value):
-        prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+        self.prominence = value / (self.slider_APD_thres_max_range)
+        self.slider_APD_detection_threshold.setValue(value)
+        self.slider_APD_detection_threshold_2.setValue(value)
 
-        self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {self.prominence}')
+        self.slider_label_current_value_2.setText(self.slider_label_current_value.text())
         
         # check that you have content in the graphics panel
         if len(self.plot_widget.figure.axes) > 0 :
@@ -1256,7 +1389,9 @@ class OMAAS(QWidget):
             for img_indx, img_name in enumerate(selected_img_list):
                 for shpae_indx, trace in enumerate(shapes[0].data):
                     traces[img_indx + shpae_indx]
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
+                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
+                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
@@ -1503,16 +1638,16 @@ class OMAAS(QWidget):
 
                         if "CycleTime" in self.img_metadata_dict:
                             self.plot_widget.axes.set_xlabel("Time (ms)")
-                            self.xscale = self.img_metadata_dict["CycleTime"]
+                            self.xscale = self.img_metadata_dict["CycleTime"] * 1000 
                         else:
-                            self.xscale = 1
                             self.plot_widget.axes.set_xlabel("Frames")
+                            self.xscale = 1
 
                         # loop over images
                         for img in img_layer:
                             # loop over shapes
                             for roi in range(n_shapes):
-                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale * 1000 )
+                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale)
                                 self.plot_widget.axes.plot(x, y, label= f"{img.name}_{shapes_items}_ROI:{roi}")
                                 self.plot_widget.axes.legend()                                
                                 self.draw()
@@ -1531,6 +1666,8 @@ class OMAAS(QWidget):
     
     def _data_changed_callback(self, event):
 
+        # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+        self._get_APD_thre_slider_vlaue_func(value=self.prominence * self.slider_APD_thres_max_range)
         self._retrieve_metadata_call_back(event)
         state = self.plot_profile_btn.isChecked()
         if state:
@@ -1538,7 +1675,258 @@ class OMAAS(QWidget):
             self.plot_widget.canvas.draw()
         else:
             warn("Please Check on 'Plot profile' to creaate the plot")
+        
+    def _preview_multiples_traces_func(self):
 
+        # self._data_changed_callback(event)
+        self.shape_layer.events.data.connect(self._data_changed_callback)
+        # prominence = self.slider_label_current_value / (self.slider_APD_thres_max_range)
+        
+        traces = self.data_main_canvas["y"][0]
+        time = self.data_main_canvas["x"][0]
+
+        try:
+            self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
+                                                                                #    cycle_length_ms = self.xscale, 
+                                                                                   promi= self.prominence)
+        except Exception as e:
+            print(f"You have the following error: --->> {e} <----")
+            return
+
+        self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
+        
+        if self.ini_i_spl_traces.size > 0:
+
+            # NOTE: need to fix this function
+            self.splitted_stack = split_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
+            new_time_len = self.splitted_stack.shape[-1]
+            time = time[:new_time_len]
+
+            self.average_AP_plot_widget.figure.clear()
+            self.average_AP_plot_widget.add_single_axes()
+
+            for indx, array in progress(enumerate(self.splitted_stack)):
+                # handle higlighting of selected AP
+                if indx == self.slider_N_APs.value():
+                    # if self.shif_trace:
+
+                    #     # NOTE!!!: eveytime the plotting is call it recalculate the peak index, etc and therefore no further shift happen if called multiples time.
+                    #     # need to find a way to store the data/canvas and thereafter manipulate/update the figure with the new data
+                    #     # functions affected by this behaviour are: _slider_N_APs_changed_func, _remove_mean_check_func, _on_click_mv_left_AP_btn_func and _on_click_mv_right_AP_btn_func
+                        
+                    #     # duplicate the last value and pad the tail with that
+                    #     if self.shift_to_left:
+                    #         y = array[-1]
+                    #         array = np.concatenate([array[1:], [y]])
+
+                    #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                            
+                    #         self.splitted_stack[indx] = array
+                    #         self.shif_trace = False
+                    #         self.shift_to_left = False
+                        
+                    #     elif  self.shift_to_right:
+                    #         y = array[0]
+                    #         array = np.concatenate([[y], array[:-1]])
+
+                    #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                            
+                    #         self.splitted_stack[indx] = array
+                    #         self.shif_trace = False
+                    #         self.shift_to_right = False
+                        
+                    # else:
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                else:
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+            
+            # plot the average
+            if self.remove_mean_check.isChecked():
+
+                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+            
+            self.average_AP_plot_widget.axes.legend()
+            self.average_AP_plot_widget.canvas.draw()
+
+            # first create remove the attributes if they already exist
+            # self._remove_attribute_widget()
+            # self.slider_N_APs_label = QLabel("Slide to select your current AP")
+            # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
+
+            # self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
+            
+            # self.slider_N_APs.setValue(0)
+            # self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
+
+            # self.remove_mean_label = QLabel("remove mean")
+            # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 2, 1, 1)
+
+            # self.remove_mean_check = QCheckBox()
+            # self.average_trace_group.glayout.addWidget(self.slider_N_APremove_mean_checks_label, 5, 3, 1, 1)
+            
+            print("Average trace created")
+
+        else:
+            self._on_click_clear_AP_splitted_btn_fun()
+            return warn("No AP detected")
+        
+        print("done")
+
+
+    def _remove_mean_check_func(self):
+        # print("lalala")
+        self._slider_N_APs_changed_func()
+        # if not self.remove_mean_check.isChecked():
+        #     self._preview_multiples_traces_func()
+        # else:
+        #     self._preview_multiples_traces_func()
+        # self._preview_multiples_traces_func()
+
+
+    
+    def _on_click_clear_AP_splitted_btn_fun(self):
+        # self._remove_attribute_widget()
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.canvas.draw()
+    
+    # this method can be reomoved
+    def _remove_attribute_widget(self):
+        my_attr_list = ["slider_N_APs", "slider_N_APs_label"]
+        for attr in my_attr_list:
+            if hasattr(self, attr):
+                for widget in list_of_widgets:
+                    widget.destroy() 
+
+        
+        
+        # [self.attr = None for attr in my_attr_list if hasattr(self, attr)]
+        # if hasattr(self, "slider_N_APs"):
+        #         self.slider_N_APs = None
+        #         self.slider_N_APs_label = None
+
+    
+    def _on_click_create_average_AP_btn_func(self):
+        # traces = self.data_main_canvas["y"][0]
+        # time = self.data_main_canvas["x"][0]
+        # NOTE: make new logic: fistr check that tupdated data is collected here: self.splitted_stack
+        # and then use this info for averaging teh full image stack
+
+
+        ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+
+        if ini_i.size > 0:
+
+            img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
+            results= split_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
+            self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
+            print("Average trace created")
+
+        else:
+            self._on_click_clear_AP_splitted_btn_fun()
+            return warn("No AP detected")
+
+
+    def _on_click_mv_left_AP_btn_func(self):
+        time = self.data_main_canvas["x"][0]
+        new_time_len = self.splitted_stack.shape[-1]
+        time = time[:new_time_len]
+        # self._preview_multiples_traces_func()
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.add_single_axes()
+
+        selected_AP = self.slider_N_APs.value()
+        # for the selected AP shift to the left 1 position and append the last value (to match size)
+        self.splitted_stack[selected_AP] = np.concatenate([ self.splitted_stack[selected_AP][1:], [self.splitted_stack[selected_AP][-1]] ])
+        
+        for indx, array in progress(enumerate(self.splitted_stack)):
+            # handle higlighting of selected AP
+            if indx == self.slider_N_APs.value():
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+            else:
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+            
+        if self.remove_mean_check.isChecked():
+            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+
+        self.average_AP_plot_widget.axes.legend()
+        self.average_AP_plot_widget.canvas.draw()
+
+        print("move to left")
+
+
+    def _on_click_mv_right_AP_btn_func(self):
+        time = self.data_main_canvas["x"][0]
+        new_time_len = self.splitted_stack.shape[-1]
+        time = time[:new_time_len]
+        # self._preview_multiples_traces_func()
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.add_single_axes()
+
+        selected_AP = self.slider_N_APs.value()
+        # for the selected AP shift to the left 1 position and append the last value (to match size)
+        self.splitted_stack[selected_AP] = np.concatenate([ [self.splitted_stack[selected_AP][0]], self.splitted_stack[selected_AP][:-1]  ])
+        
+        for indx, array in progress(enumerate(self.splitted_stack)):
+            # handle higlighting of selected AP
+            if indx == self.slider_N_APs.value():
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+            else:
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+            
+        if self.remove_mean_check.isChecked():
+            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+
+        self.average_AP_plot_widget.axes.legend()
+        self.average_AP_plot_widget.canvas.draw()
+        
+        print("move to right")
+        
+
+
+
+
+    # def show_pop_window_ave_trace(self):
+    #     print ("Opening a new popup window...")
+    #     self.average_tracce_pop_pup_window = MyPopup(self)
+    #     self.average_tracce_pop_pup_window.setGeometry(QRect(100, 100, 400, 200))
+    #     self.average_tracce_pop_pup_window.show()
+    def _slider_N_APs_changed_func(self):
+        time = self.data_main_canvas["x"][0]
+        new_time_len = self.splitted_stack.shape[-1]
+        time = time[:new_time_len]
+        # self._preview_multiples_traces_func()
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.add_single_axes()
+        
+        for indx, array in progress(enumerate(self.splitted_stack)):
+            # handle higlighting of selected AP
+            if indx == self.slider_N_APs.value():
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+            else:
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+            
+        if self.remove_mean_check.isChecked():
+            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+
+        self.average_AP_plot_widget.axes.legend()
+        self.average_AP_plot_widget.canvas.draw()
+        print("update plot")
+        # self._preview_multiples_traces_func()
+    
+    def _on_click_create_AP_gradient_btn(self):
+        current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+        current_img_selection = self.viewer.layers[current_img_selection_name]
+        dim_shape = dim_shape = current_img_selection.data.shape[1:]
+        results = np.gradient(current_img_selection.data, axis=0)
+        # make activation time mask using the gradien
+        act_map_mask = results == results.max(axis = 0)
+        act_map_rslt = current_img_selection.data[act_map_mask]
+        act_map_rslt = act_map_rslt.reshape( dim_shape[0], dim_shape[1])
+        
+        self.add_result_img(result_img=results, img_custom_name=current_img_selection.name, single_label_sufix="Gradt", add_to_metadata = f"Gradient along Axis '0'")
+        self.add_result_img(result_img=act_map_rslt, img_custom_name=current_img_selection.name, single_label_sufix="ActMap", add_to_metadata = f"Activation Map")
+        
+        print("Gradient computed")
 
 
 @magic_factory
@@ -1553,6 +1941,61 @@ def example_function_widget(img_layer: "napari.layers.Image"):
     print(f"you have selected {img_layer}")
 
 
+# class MyPopup(QWidget):
+#     def __init__(self, napari_viewer):
+#         super().__init__()
+#         # QWidget.__init__(self)
+#         self.viewer = napari_viewer
+#         self.main_layout = QVBoxLayout()
+#         self.setLayout(self.main_layout)
+
+#         # self.tabs = QTabWidget()
+#         # self.main_layout.addWidget(self.tabs)
+#         ######## pre-processing tab ########
+#         self.average_APs_widget = QWidget()
+#         self._pre_processing_layout = QVBoxLayout()
+#         self.average_APs_widget.setLayout(self._pre_processing_layout)
+#         # self.tabs.addTab(self.pre_processing_tab, 'Average Trace')
+#         # self.tabs.addTab(self.pre_processing_tab, 'Average Trace')
+#         self.main_layout.addWidget(self.average_APs_widget)
+
+
+#         ######## Pre-processing tab ########
+#         ####################################
+#         self._pre_processing_layout.setAlignment(Qt.AlignTop)
+        
+#         ######## pre-processing  group ########
+#         self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
+
+#         ######## pre-processing btns ########
+#         self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
+#         self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 0, 1, 1, 1)
+
+#         self.inv_data_btn = QPushButton("Invert signal")
+#         self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
+#         self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 1, 1, 1, 1) 
+
+#         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
+
+        
+#         self.plot_grpup = VHGroup('Plot profile', orientation='G')
+#         self.plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+#         self.plot_grpup.glayout.addWidget(self.plot_widget, 1, 1, 1, 2)
+#         self.main_layout.addWidget(self.average_APs_widget)
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+        
