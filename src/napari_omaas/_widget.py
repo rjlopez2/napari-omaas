@@ -630,6 +630,13 @@ class OMAAS(QWidget):
 
         self.create_AP_gradient_btn = QPushButton("Make Activation Map")
         self.average_trace_group.glayout.addWidget(self.create_AP_gradient_btn, 7, 0, 1, 1)
+        
+        self.make_interpolation_label = QLabel("Interpolate Activation")
+        self.average_trace_group.glayout.addWidget(self.make_interpolation_label, 7, 1, 1, 1)
+
+        self.make_interpolation_check = QCheckBox()
+        self.make_interpolation_check.setChecked(False)
+        self.average_trace_group.glayout.addWidget(self.make_interpolation_check, 7, 2, 1, 1)
 
 
 
@@ -863,7 +870,7 @@ class OMAAS(QWidget):
 
         if current_selection._type_string == "image":
             print(f'computing "local_normal_fun" to image {current_selection}')
-            results = local_normal_fun(current_selection.data)
+            results = local_normal_fun(current_selection)
             self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
             self.add_record_fun()
         else:
@@ -1916,16 +1923,27 @@ class OMAAS(QWidget):
     def _on_click_create_AP_gradient_btn(self):
         current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
         current_img_selection = self.viewer.layers[current_img_selection_name]
-        dim_shape = dim_shape = current_img_selection.data.shape[1:]
-        results = np.gradient(current_img_selection.data, axis=0)
+        # dim_shape = current_img_selection.data.shape[1:]
+        # results = np.gradient(current_img_selection.data, axis=0)
         # make activation time mask using the gradien
-        act_map_mask = results == results.max(axis = 0)
-        act_map_rslt = current_img_selection.data[act_map_mask]
-        act_map_rslt = act_map_rslt.reshape( dim_shape[0], dim_shape[1])
+        # act_map_mask = results == results.max(axis = 0)
+        # act_map_rslt = current_img_selection.data[act_map_mask]
+        # act_map_rslt = act_map_rslt.reshape( dim_shape[0], dim_shape[1])
         
-        self.add_result_img(result_img=results, img_custom_name=current_img_selection.name, single_label_sufix="Gradt", add_to_metadata = f"Gradient along Axis '0'")
-        self.add_result_img(result_img=act_map_rslt, img_custom_name=current_img_selection.name, single_label_sufix="ActMap", add_to_metadata = f"Activation Map")
+        # check for "CycleTime" in metadtata
+        if "CycleTime" in self.img_metadata_dict:
+            cycl_t = self.img_metadata_dict["CycleTime"]
+        else:
+            cycl_t = 1
+
+        results = return_act_maps(current_img_selection.data, cycle_time=cycl_t,  interpolate_df = self.make_interpolation_check.isChecked())
         
+        self.add_result_img(result_img=results, 
+                            img_custom_name=current_img_selection.name, 
+                            single_label_sufix="ActiMap", 
+                            add_to_metadata = f"ActiMap:cycle_time={cycl_t}, interpolate={self.make_interpolation_check.isChecked()}")
+        # self.add_result_img(result_img=act_map_rslt, img_custom_name=current_img_selection.name, single_label_sufix="ActMap", add_to_metadata = f"Activation Map")
+        self.add_record_fun()
         print("Gradient computed")
 
 
