@@ -613,7 +613,7 @@ class OMAAS(QWidget):
         self.average_trace_group.glayout.addWidget(self.remove_mean_label, 5, 2, 1, 1)
 
         self.remove_mean_check = QCheckBox()
-        self.remove_mean_check.setChecked(True)
+        self.remove_mean_check.setChecked(False)
         self.average_trace_group.glayout.addWidget(self.remove_mean_check, 5, 3, 1, 1)
 
         self.shift_AP_label = QLabel("Shift selected AP")
@@ -856,7 +856,7 @@ class OMAAS(QWidget):
     def _on_click_inv_data_btn(self):
         current_selection = self.viewer.layers.selection.active
 
-        if current_selection._type_string == "image":
+        if isinstance(current_selection, Image):
             print(f'computing "invert_signal" to image {current_selection}')
             results =invert_signal(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
@@ -868,9 +868,9 @@ class OMAAS(QWidget):
     def _on_click_norm_data_btn(self):
         current_selection = self.viewer.layers.selection.active
 
-        if current_selection._type_string == "image":
+        if isinstance(current_selection, Image):
             print(f'computing "local_normal_fun" to image {current_selection}')
-            results = local_normal_fun(current_selection)
+            results = local_normal_fun(current_selection.data)
             self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
             self.add_record_fun()
         else:
@@ -885,7 +885,7 @@ class OMAAS(QWidget):
     def _on_click_splt_chann(self):
         current_selection = self.viewer.layers.selection.active
 
-        if current_selection._type_string == "image":
+        if isinstance(current_selection, Image):
             print(f'applying "split_channels" to image {current_selection}')
             my_splitted_images = split_channels_fun(current_selection.data)
             curr_img_name = current_selection.name
@@ -1702,15 +1702,30 @@ class OMAAS(QWidget):
 
         self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
         
-        if self.ini_i_spl_traces.size > 0:
+        # re-create canvas
+        self.average_AP_plot_widget.figure.clear()
+        self.average_AP_plot_widget.add_single_axes()
+        
+        if self.ini_i_spl_traces.size == 1:
+            self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]", alpha = 0.8)
+            # remove splitted_stack value if exists
+            try:
+                if hasattr(self, "splitted_stack"):
+                    # del self.splitted_stack
+                    self.splitted_stack = traces
+                else:
+                    raise AttributeError
+            except Exception as e:
+                print(f">>>>> this is your error: {e}")
+            
+
+            print("Preview trace created")
+        elif self.ini_i_spl_traces.size > 1:
 
             # NOTE: need to fix this function
             self.splitted_stack = split_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
             new_time_len = self.splitted_stack.shape[-1]
-            time = time[:new_time_len]
-
-            self.average_AP_plot_widget.figure.clear()
-            self.average_AP_plot_widget.add_single_axes()
+            time = time[:new_time_len]            
 
             for indx, array in progress(enumerate(self.splitted_stack)):
                 # handle higlighting of selected AP
@@ -1752,8 +1767,8 @@ class OMAAS(QWidget):
 
                 self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
             
-            self.average_AP_plot_widget.axes.legend()
-            self.average_AP_plot_widget.canvas.draw()
+        
+        
 
             # first create remove the attributes if they already exist
             # self._remove_attribute_widget()
@@ -1771,11 +1786,14 @@ class OMAAS(QWidget):
             # self.remove_mean_check = QCheckBox()
             # self.average_trace_group.glayout.addWidget(self.slider_N_APremove_mean_checks_label, 5, 3, 1, 1)
             
-            print("Average trace created")
+            print("Preview trace created")
 
         else:
             self._on_click_clear_AP_splitted_btn_fun()
             return warn("No AP detected")
+    
+        self.average_AP_plot_widget.axes.legend()
+        self.average_AP_plot_widget.canvas.draw()
         
         print("done")
 
@@ -1905,15 +1923,21 @@ class OMAAS(QWidget):
         self.average_AP_plot_widget.figure.clear()
         self.average_AP_plot_widget.add_single_axes()
         
-        for indx, array in progress(enumerate(self.splitted_stack)):
-            # handle higlighting of selected AP
-            if indx == self.slider_N_APs.value():
-                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-            else:
-                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
-            
-        if self.remove_mean_check.isChecked():
-            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+        if self.splitted_stack.ndim > 1:
+
+            for indx, array in progress(enumerate(self.splitted_stack)):
+                # handle higlighting of selected AP
+                if indx == self.slider_N_APs.value():
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                else:
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+                
+            if self.remove_mean_check.isChecked():
+                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+        else:
+            array = self.splitted_stack
+            self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{0}]", alpha = 0.8)
+            warn("Cannot average from a single AP")
 
         self.average_AP_plot_widget.axes.legend()
         self.average_AP_plot_widget.canvas.draw()

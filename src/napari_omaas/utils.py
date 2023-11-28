@@ -63,7 +63,7 @@ def invert_signal(
    
 @macro.record
 def local_normal_fun(
-    data: "napari.types.ImageData")-> "napari.types.ImageData":
+    image: "napari.types.ImageData")-> "napari.types.ImageData":
 
     """Normalize traces pixelwise along the time dimension.
 
@@ -77,7 +77,7 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    results = (data - np.min(data, axis = 0)) / np.max(data, axis=0)
+    results = (image - np.min(image, axis = 0)) / np.max(image, axis=0)
     results = np.nan_to_num(results, nan=0)
     return results
 
@@ -859,25 +859,31 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
                                                       prominence=promi) # use Solaiy filter as Callum
     
 
-    bcl_list = np.diff(AP_peaks_indx) 
-    bcl_list = np.median(bcl_list).astype(np.uint16)
-    half_bcl_list = np.round(bcl_list // 2 )
+       # handle case when theere is ony one peak found
+    if len(AP_peaks_indx) == 1:
+        bcl_list = len(my_1d_array) - AP_peaks_indx[0] 
+        end_ap_indx = len(my_1d_array)
+        ini_ap_indx = AP_peaks_indx
+        # set promi to 100
+    elif len(AP_peaks_indx) > 1:
+        bcl_list = np.diff(AP_peaks_indx) 
+        bcl_list = np.median(bcl_list).astype(np.uint16)
+        half_bcl_list = np.round(bcl_list // 2 )
 
-    
-    end_ap_indx = AP_peaks_indx + half_bcl_list
-    ini_ap_indx = AP_peaks_indx - half_bcl_list
+        end_ap_indx = AP_peaks_indx + half_bcl_list
+        ini_ap_indx = AP_peaks_indx - half_bcl_list
 
-    for indx, indx_peak in enumerate(AP_peaks_indx):
-        # handeling first trace
-        if ini_ap_indx[indx] < 0 :
-            
-            half_bcl_list = half_bcl_list + ini_ap_indx[indx]        
-            ini_ap_indx = AP_peaks_indx - half_bcl_list
+        for indx, indx_peak in enumerate(AP_peaks_indx):
+            # handeling first trace
+            if ini_ap_indx[indx] < 0 :
+                
+                half_bcl_list = half_bcl_list + ini_ap_indx[indx]        
+                ini_ap_indx = AP_peaks_indx - half_bcl_list
 
-        # handeling last trace NOTE: no sure if this make sense, need to teste with real data
-        if end_ap_indx[indx] > len(my_1d_array):
-            half_bcl_list = half_bcl_list - end_ap_indx[indx]
-            end_ap_indx = AP_peaks_indx - half_bcl_list
+            # handeling last trace NOTE: no sure if this make sense, need to teste with real data
+            if end_ap_indx[indx] > len(my_1d_array):
+                half_bcl_list = half_bcl_list - end_ap_indx[indx]
+                end_ap_indx = AP_peaks_indx - half_bcl_list
 
     # return splited_arrays
     return ini_ap_indx, AP_peaks_indx, end_ap_indx
