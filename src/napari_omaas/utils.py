@@ -888,8 +888,9 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
     # return splited_arrays
     return ini_ap_indx, AP_peaks_indx, end_ap_indx
     
-    
-def split_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
+
+@macro.record
+def split_AP_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
     """
     This function takes a 1d or 3D array, ini index, end index of ap 
     previously computed with function 'return_AP_ini_end_indx_func' 

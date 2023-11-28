@@ -1723,7 +1723,7 @@ class OMAAS(QWidget):
         elif self.ini_i_spl_traces.size > 1:
 
             # NOTE: need to fix this function
-            self.splitted_stack = split_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
+            self.splitted_stack = split_AP_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
             new_time_len = self.splitted_stack.shape[-1]
             time = time[:new_time_len]            
 
@@ -1835,6 +1835,13 @@ class OMAAS(QWidget):
         # time = self.data_main_canvas["x"][0]
         # NOTE: make new logic: fistr check that tupdated data is collected here: self.splitted_stack
         # and then use this info for averaging teh full image stack
+        # current_selection = self.viewer.layers.selection.active
+
+        # if isinstance(current_selection, Image):
+        #     print(f'computing "local_normal_fun" to image {current_selection}')
+        #     results = local_normal_fun(current_selection.data)
+        #     self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
+        #     self.add_record_fun()
 
 
         ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
@@ -1842,9 +1849,10 @@ class OMAAS(QWidget):
         if ini_i.size > 0:
 
             img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
-            results= split_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
+            results= split_AP_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
             self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
             print("Average trace created")
+            self.add_record_fun()
 
         else:
             self._on_click_clear_AP_splitted_btn_fun()
@@ -1965,7 +1973,7 @@ class OMAAS(QWidget):
         self.add_result_img(result_img=results, 
                             img_custom_name=current_img_selection.name, 
                             single_label_sufix="ActiMap", 
-                            add_to_metadata = f"ActiMap:cycle_time={cycl_t}, interpolate={self.make_interpolation_check.isChecked()}")
+                            add_to_metadata = f"Activationn Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
         # self.add_result_img(result_img=act_map_rslt, img_custom_name=current_img_selection.name, single_label_sufix="ActMap", add_to_metadata = f"Activation Map")
         self.add_record_fun()
         print("Gradient computed")
