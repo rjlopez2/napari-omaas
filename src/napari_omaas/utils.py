@@ -63,7 +63,7 @@ def invert_signal(
    
 @macro.record
 def local_normal_fun(
-    data: "napari.types.ImageData")-> "napari.types.ImageData":
+    image: "napari.types.ImageData")-> "napari.types.ImageData":
 
     """Normalize traces pixelwise along the time dimension.
 
@@ -77,7 +77,7 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    results = (data - np.min(data, axis = 0)) / np.max(data, axis=0)
+    results = (image - np.min(image, axis = 0)) / np.max(image, axis=0)
     results = np.nan_to_num(results, nan=0)
     return results
 
@@ -859,31 +859,38 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
                                                       prominence=promi) # use Solaiy filter as Callum
     
 
-    bcl_list = np.diff(AP_peaks_indx) 
-    bcl_list = np.median(bcl_list).astype(np.uint16)
-    half_bcl_list = np.round(bcl_list // 2 )
+       # handle case when theere is ony one peak found
+    if len(AP_peaks_indx) == 1:
+        bcl_list = len(my_1d_array) - AP_peaks_indx[0] 
+        end_ap_indx = len(my_1d_array)
+        ini_ap_indx = AP_peaks_indx
+        # set promi to 100
+    elif len(AP_peaks_indx) > 1:
+        bcl_list = np.diff(AP_peaks_indx) 
+        bcl_list = np.median(bcl_list).astype(np.uint16)
+        half_bcl_list = np.round(bcl_list // 2 )
 
-    
-    end_ap_indx = AP_peaks_indx + half_bcl_list
-    ini_ap_indx = AP_peaks_indx - half_bcl_list
+        end_ap_indx = AP_peaks_indx + half_bcl_list
+        ini_ap_indx = AP_peaks_indx - half_bcl_list
 
-    for indx, indx_peak in enumerate(AP_peaks_indx):
-        # handeling first trace
-        if ini_ap_indx[indx] < 0 :
-            
-            half_bcl_list = half_bcl_list + ini_ap_indx[indx]        
-            ini_ap_indx = AP_peaks_indx - half_bcl_list
+        for indx, indx_peak in enumerate(AP_peaks_indx):
+            # handeling first trace
+            if ini_ap_indx[indx] < 0 :
+                
+                half_bcl_list = half_bcl_list + ini_ap_indx[indx]        
+                ini_ap_indx = AP_peaks_indx - half_bcl_list
 
-        # handeling last trace NOTE: no sure if this make sense, need to teste with real data
-        if end_ap_indx[indx] > len(my_1d_array):
-            half_bcl_list = half_bcl_list - end_ap_indx[indx]
-            end_ap_indx = AP_peaks_indx - half_bcl_list
+            # handeling last trace NOTE: no sure if this make sense, need to teste with real data
+            if end_ap_indx[indx] > len(my_1d_array):
+                half_bcl_list = half_bcl_list - end_ap_indx[indx]
+                end_ap_indx = AP_peaks_indx - half_bcl_list
 
     # return splited_arrays
     return ini_ap_indx, AP_peaks_indx, end_ap_indx
     
-    
-def split_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
+
+@macro.record
+def split_AP_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
     """
     This function takes a 1d or 3D array, ini index, end index of ap 
     previously computed with function 'return_AP_ini_end_indx_func' 
@@ -912,6 +919,72 @@ def split_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
     return splitted_traces
 
 
+@macro.record
+def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 512,  interpolate_df = False) -> "napari.types.ImageData":
+    # data: "napari.types.ImageData")-> "napari.types.ImageData":
+    
+    """
+        Find the DF/Dt max using 1st derivative of a given average trace.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            3D stack image of a single AP. ussually teh result from 
+            averageing multiple APs.
+
+        Returns
+        -------
+        inverted_signal : np.ndarray
+            The image with inverted fluorescence values
+
+    """
+
+    # 1. Get gradient and normalize it
+    dfdt = np.gradient(image.data, axis=0)
+    dfdt = (dfdt - np.min(dfdt)) / np.max(dfdt)
+    dfdt = np.nan_to_num(dfdt, nan=0)
+    # dfdt = local_normal_fun(dfdt)
+    start_indices = np.argmax(dfdt, axis=0)
+    activation_times = np.full_like(start_indices, fill_value= np.nan,  dtype=np.float64)
+    # 2. get time vector
+    n_frames, y_size, x_size = image.shape
+    time = np.arange(0, n_frames) * cycle_time
+    # 3. define points around the 'dfdtmax' to be used for interpolation
+    delta = 2; # the larger this value the more zeros around the max you catch, so keep this low 
+    
+    # 4. main loop to build Activation map 
+    for y_px  in progress(range(y_size)):
+        for x_px in range(x_size):
+            idx_max = start_indices[y_px, x_px]
+            
+            # NOTE: this is giving some odd results probably due to large size of "delta" (points around the 'dfdtmax' to be used for interpolation)
+            if interpolate_df  == True:
+                if idx_max > delta and idx_max+delta < time.size:
+                    dfdt_mn = dfdt[:, y_px, x_px];
+                    dfdt_mn = dfdt_mn.reshape(-1)
+                    # generate fine grid for interpolation in ms
+                    ini_indx = idx_max - delta
+                    end_indx = idx_max + delta
+                    # time_fine_grid = (time_fine_grid * cycle_time ) + time[ini_indx]
+                    time_fine_grid = np.linspace(time[ini_indx], time[end_indx], interp_points);
+                    # print(f" ini_indx shape: {ini_indx}, end_indx shape: {end_indx}")
+                    # interpolate around the previously found start index                
+                    interpolation_f = CubicSpline(time[ini_indx:end_indx],  dfdt_mn[ini_indx:end_indx],  extrapolate=True)
+                    dfdt_mn_interpolated = interpolation_f(time_fine_grid)
+                    # print(dfdt_mn_interpolated)
+                    # find new dfdt max
+                    idx_max_interpolated = np.argmax(dfdt_mn_interpolated)
+                    # print(idx_max_interpolated)
+                    activation_times[y_px, x_px] = time_fine_grid[idx_max_interpolated]
+            else:
+                activation_times[y_px, x_px] = time[idx_max]
+        
+                
+    # activation_times[activation_times == 0] = np.nan # remove zeros
+    if cycle_time == 1:
+        return activation_times
+    else:
+        return activation_times * 1000 # convert to ms
 
 
 
