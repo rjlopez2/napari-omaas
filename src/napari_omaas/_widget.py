@@ -1405,6 +1405,7 @@ class OMAAS(QWidget):
                     n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
                     self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
                     self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
+                break
 
     def _get_APD_percent_slider_vlaue_func(self, value):
         self.slider_APD_perc_label.setText(f'APD percentage: {value}')
