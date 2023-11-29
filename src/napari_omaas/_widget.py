@@ -578,11 +578,16 @@ class OMAAS(QWidget):
         self._mapping_processing_layout.addWidget(self.average_trace_group.gbox)
 
         self.preview_AP_splitted_btn = QPushButton("Preview traces")
-        self.preview_AP_splitted_btn.setToolTip(("Preview the Ap traces from current image"))
-        self.average_trace_group.glayout.addWidget(self.preview_AP_splitted_btn, 1, 0, 1, 2)
+        self.preview_AP_splitted_btn.setToolTip(("Preview individual overlaper AP detected from the current trace"))
+        self.average_trace_group.glayout.addWidget(self.preview_AP_splitted_btn, 1, 0, 1, 1)
 
         self.clear_AP_splitted_btn = QPushButton("Clear Plot")
-        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 2)
+        self.clear_AP_splitted_btn.setToolTip(("Clear the current trace"))
+        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 1, 1, 1)
+
+        self.create_average_AP_btn = QPushButton("Average traces")
+        self.create_average_AP_btn.setToolTip(("Create a single AP by averaging the from the individula APs displayed"))
+        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 1, 2, 1, 2)
 
         self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
         self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
@@ -596,10 +601,7 @@ class OMAAS(QWidget):
 
         self.APD_peaks_help_box_label_2 = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
         self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
-        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 2, 2, 1, 1)
-
-        self.create_average_AP_btn = QPushButton("Average traces")
-        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 3, 0, 1, 4)
+        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 2, 2, 1, 2)
 
         self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
         self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 4, 0, 1, 4)
