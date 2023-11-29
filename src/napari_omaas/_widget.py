@@ -1250,6 +1250,7 @@ class OMAAS(QWidget):
 
     def _get_APD_call_back(self, event):
 
+        # assert that there is a trace in the main plotting canvas
         if len(self.plot_widget.figure.axes) > 0 :
 
             self._APD_plot_widget.figure.clear()
@@ -1365,6 +1366,8 @@ class OMAAS(QWidget):
             print("APD computed")
 
             self.add_record_fun()
+        else:
+            return warn("Create a trace first by clicking on 'Plot Profile'") 
 
                 
 
@@ -1671,6 +1674,8 @@ class OMAAS(QWidget):
             # print('Unchecked')
             self.plot_widget.figure.clear()
             self.draw()
+            # reset some variables
+            del self.data_main_canvas
 
         
     
@@ -1688,117 +1693,122 @@ class OMAAS(QWidget):
         
     def _preview_multiples_traces_func(self):
 
-        # self._data_changed_callback(event)
-        self.shape_layer.events.data.connect(self._data_changed_callback)
-        # prominence = self.slider_label_current_value / (self.slider_APD_thres_max_range)
-        
-        traces = self.data_main_canvas["y"][0]
-        time = self.data_main_canvas["x"][0]
+        # assert that there is a trace in the main plotting canvas
+        if len(self.plot_widget.figure.axes) > 0 :
 
-        try:
-            self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
-                                                                                #    cycle_length_ms = self.xscale, 
-                                                                                   promi= self.prominence)
-        except Exception as e:
-            print(f"You have the following error: --->> {e} <----")
-            return
+            # self._data_changed_callback(event)
+            self.shape_layer.events.data.connect(self._data_changed_callback)
+            # prominence = self.slider_label_current_value / (self.slider_APD_thres_max_range)
+            
+            traces = self.data_main_canvas["y"][0]
+            time = self.data_main_canvas["x"][0]
 
-        self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
-        
-        # re-create canvas
-        self.average_AP_plot_widget.figure.clear()
-        self.average_AP_plot_widget.add_single_axes()
-        
-        if self.ini_i_spl_traces.size == 1:
-            self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]", alpha = 0.8)
-            # remove splitted_stack value if exists
             try:
-                if hasattr(self, "splitted_stack"):
-                    # del self.splitted_stack
-                    self.splitted_stack = traces
-                else:
-                    raise AttributeError
+                self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
+                                                                                    #    cycle_length_ms = self.xscale, 
+                                                                                    promi= self.prominence)
             except Exception as e:
-                print(f">>>>> this is your error: {e}")
+                print(f"You have the following error: --->> {e} <----")
+                return
+
+            self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
             
+            # re-create canvas
+            self.average_AP_plot_widget.figure.clear()
+            self.average_AP_plot_widget.add_single_axes()
+            
+            if self.ini_i_spl_traces.size == 1:
+                self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]", alpha = 0.8)
+                # remove splitted_stack value if exists
+                try:
+                    if hasattr(self, "splitted_stack"):
+                        # del self.splitted_stack
+                        self.splitted_stack = traces
+                    else:
+                        raise AttributeError
+                except Exception as e:
+                    print(f">>>>> this is your error: {e}")
+                
 
-            print("Preview trace created")
-        elif self.ini_i_spl_traces.size > 1:
+                print("Preview trace created")
+            elif self.ini_i_spl_traces.size > 1:
 
-            # NOTE: need to fix this function
-            self.splitted_stack = split_AP_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
-            new_time_len = self.splitted_stack.shape[-1]
-            time = time[:new_time_len]            
+                # NOTE: need to fix this function
+                self.splitted_stack = split_AP_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
+                new_time_len = self.splitted_stack.shape[-1]
+                time = time[:new_time_len]            
 
-            for indx, array in progress(enumerate(self.splitted_stack)):
-                # handle higlighting of selected AP
-                if indx == self.slider_N_APs.value():
-                    # if self.shif_trace:
+                for indx, array in progress(enumerate(self.splitted_stack)):
+                    # handle higlighting of selected AP
+                    if indx == self.slider_N_APs.value():
+                        # if self.shif_trace:
 
-                    #     # NOTE!!!: eveytime the plotting is call it recalculate the peak index, etc and therefore no further shift happen if called multiples time.
-                    #     # need to find a way to store the data/canvas and thereafter manipulate/update the figure with the new data
-                    #     # functions affected by this behaviour are: _slider_N_APs_changed_func, _remove_mean_check_func, _on_click_mv_left_AP_btn_func and _on_click_mv_right_AP_btn_func
-                        
-                    #     # duplicate the last value and pad the tail with that
-                    #     if self.shift_to_left:
-                    #         y = array[-1]
-                    #         array = np.concatenate([array[1:], [y]])
-
-                    #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                        #     # NOTE!!!: eveytime the plotting is call it recalculate the peak index, etc and therefore no further shift happen if called multiples time.
+                        #     # need to find a way to store the data/canvas and thereafter manipulate/update the figure with the new data
+                        #     # functions affected by this behaviour are: _slider_N_APs_changed_func, _remove_mean_check_func, _on_click_mv_left_AP_btn_func and _on_click_mv_right_AP_btn_func
                             
-                    #         self.splitted_stack[indx] = array
-                    #         self.shif_trace = False
-                    #         self.shift_to_left = False
-                        
-                    #     elif  self.shift_to_right:
-                    #         y = array[0]
-                    #         array = np.concatenate([[y], array[:-1]])
+                        #     # duplicate the last value and pad the tail with that
+                        #     if self.shift_to_left:
+                        #         y = array[-1]
+                        #         array = np.concatenate([array[1:], [y]])
 
-                    #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                        #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                                
+                        #         self.splitted_stack[indx] = array
+                        #         self.shif_trace = False
+                        #         self.shift_to_left = False
                             
-                    #         self.splitted_stack[indx] = array
-                    #         self.shif_trace = False
-                    #         self.shift_to_right = False
-                        
-                    # else:
-                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-                else:
-                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
-            
-            # plot the average
-            if self.remove_mean_check.isChecked():
+                        #     elif  self.shift_to_right:
+                        #         y = array[0]
+                        #         array = np.concatenate([[y], array[:-1]])
 
-                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+                        #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                                
+                        #         self.splitted_stack[indx] = array
+                        #         self.shif_trace = False
+                        #         self.shift_to_right = False
+                            
+                        # else:
+                        self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                    else:
+                        self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+                
+                # plot the average
+                if self.remove_mean_check.isChecked():
+
+                    self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+                
             
+            
+
+                # first create remove the attributes if they already exist
+                # self._remove_attribute_widget()
+                # self.slider_N_APs_label = QLabel("Slide to select your current AP")
+                # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
+
+                # self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
+                
+                # self.slider_N_APs.setValue(0)
+                # self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
+
+                # self.remove_mean_label = QLabel("remove mean")
+                # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 2, 1, 1)
+
+                # self.remove_mean_check = QCheckBox()
+                # self.average_trace_group.glayout.addWidget(self.slider_N_APremove_mean_checks_label, 5, 3, 1, 1)
+                
+                print("Preview trace created")
+
+            else:
+                self._on_click_clear_AP_splitted_btn_fun()
+                return warn("No AP detected")
         
-        
-
-            # first create remove the attributes if they already exist
-            # self._remove_attribute_widget()
-            # self.slider_N_APs_label = QLabel("Slide to select your current AP")
-            # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
-
-            # self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
-            
-            # self.slider_N_APs.setValue(0)
-            # self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
-
-            # self.remove_mean_label = QLabel("remove mean")
-            # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 2, 1, 1)
-
-            # self.remove_mean_check = QCheckBox()
-            # self.average_trace_group.glayout.addWidget(self.slider_N_APremove_mean_checks_label, 5, 3, 1, 1)
-            
-            print("Preview trace created")
+            self.average_AP_plot_widget.axes.legend()
+            self.average_AP_plot_widget.canvas.draw()             
+            print("done")
 
         else:
-            self._on_click_clear_AP_splitted_btn_fun()
-            return warn("No AP detected")
-    
-        self.average_AP_plot_widget.axes.legend()
-        self.average_AP_plot_widget.canvas.draw()
-        
-        print("done")
+            return warn("Create a trace first by clicking on 'Plot Profile'") 
 
 
     def _remove_mean_check_func(self):
