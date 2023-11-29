@@ -581,13 +581,13 @@ class OMAAS(QWidget):
         self.preview_AP_splitted_btn.setToolTip(("Preview individual overlaper AP detected from the current trace"))
         self.average_trace_group.glayout.addWidget(self.preview_AP_splitted_btn, 1, 0, 1, 1)
 
-        self.clear_AP_splitted_btn = QPushButton("Clear Plot")
-        self.clear_AP_splitted_btn.setToolTip(("Clear the current trace"))
-        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 1, 1, 1)
-
         self.create_average_AP_btn = QPushButton("Average traces")
         self.create_average_AP_btn.setToolTip(("Create a single AP by averaging the from the individula APs displayed"))
-        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 1, 2, 1, 2)
+        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 1, 1, 1, 2)
+
+        self.clear_AP_splitted_btn = QPushButton("Clear Plot")
+        self.clear_AP_splitted_btn.setToolTip(("Clear the current trace"))
+        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 1)
 
         self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
         self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
@@ -632,15 +632,18 @@ class OMAAS(QWidget):
         self.mv_righ_AP_btn.setArrowType(QtCore.Qt.RightArrow)
         self.average_trace_group.glayout.addWidget(self.mv_righ_AP_btn, 6, 2, 1, 1)
 
-        self.create_AP_gradient_btn = QPushButton("Make Activation Map")
+        self.create_AP_gradient_btn = QPushButton("Check Activation times")
         self.average_trace_group.glayout.addWidget(self.create_AP_gradient_btn, 7, 0, 1, 1)
         
+        self.make_activation_maps_btn = QPushButton("Make Activation Map")
+        self.average_trace_group.glayout.addWidget(self.make_activation_maps_btn, 7, 1, 1, 1)
+        
         self.make_interpolation_label = QLabel("Interpolate Activation")
-        self.average_trace_group.glayout.addWidget(self.make_interpolation_label, 7, 1, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.make_interpolation_label, 7, 2, 1, 1)
 
         self.make_interpolation_check = QCheckBox()
         self.make_interpolation_check.setChecked(False)
-        self.average_trace_group.glayout.addWidget(self.make_interpolation_check, 7, 2, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.make_interpolation_check, 7, 3, 1, 1)
 
 
 
@@ -832,7 +835,8 @@ class OMAAS(QWidget):
         self.mv_righ_AP_btn.clicked.connect(self._on_click_mv_right_AP_btn_func)
         self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
         self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
-        self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_btn)
+        self.make_activation_maps_btn.clicked.connect(self._on_click_make_activation_maps_btn_func)
+        self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_bt_func)
         
         
         
@@ -1865,20 +1869,25 @@ class OMAAS(QWidget):
         #     self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
         #     self.add_record_fun()
 
+        
+        # assert that you have content in the canvas
+        if len(self.average_AP_plot_widget.figure.axes) != 0:            
 
-        ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+            ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
 
-        if ini_i.size > 0:
+            if ini_i.size > 0:
 
-            img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
-            results= split_AP_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
-            self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
-            print("Average trace created")
-            self.add_record_fun()
+                img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
+                results= split_AP_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
+                self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
+                print("Average trace created")
+                self.add_record_fun()
 
+            else:
+                self._on_click_clear_AP_splitted_btn_fun()
+                return warn("No AP detected")
         else:
-            self._on_click_clear_AP_splitted_btn_fun()
-            return warn("No AP detected")
+            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
 
 
     def _on_click_mv_left_AP_btn_func(self):
@@ -1974,15 +1983,12 @@ class OMAAS(QWidget):
         print("update plot")
         # self._preview_multiples_traces_func()
     
-    def _on_click_create_AP_gradient_btn(self):
+    def _on_click_make_activation_maps_btn_func(self):
+        # NOTE: you need to decide if you use image form the selector o from the 
+        # the napary layer list!!! and assert accordingly the image properties
+
         current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
         current_img_selection = self.viewer.layers[current_img_selection_name]
-        # dim_shape = current_img_selection.data.shape[1:]
-        # results = np.gradient(current_img_selection.data, axis=0)
-        # make activation time mask using the gradien
-        # act_map_mask = results == results.max(axis = 0)
-        # act_map_rslt = current_img_selection.data[act_map_mask]
-        # act_map_rslt = act_map_rslt.reshape( dim_shape[0], dim_shape[1])
         
         # check for "CycleTime" in metadtata
         if "CycleTime" in self.img_metadata_dict:
@@ -1996,9 +2002,25 @@ class OMAAS(QWidget):
                             img_custom_name=current_img_selection.name, 
                             single_label_sufix="ActiMap", 
                             add_to_metadata = f"Activationn Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-        # self.add_result_img(result_img=act_map_rslt, img_custom_name=current_img_selection.name, single_label_sufix="ActMap", add_to_metadata = f"Activation Map")
         self.add_record_fun()
         print("Gradient computed")
+    
+    def _on_click_create_AP_gradient_bt_func(self):
+        current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+        current_img_selection = self.viewer.layers[current_img_selection_name]
+        dim_shape = current_img_selection.data.shape[1:]
+        results = np.gradient(current_img_selection.data, axis=0)
+        # make activation time mask using the gradien
+        # act_map_mask = results == results.max(axis = 0)
+        # act_map_rslt = current_img_selection.data[act_map_mask]
+        # act_map_rslt = act_map_rslt.reshape( dim_shape[0], dim_shape[1])
+        
+        self.add_result_img(result_img=results, 
+                            img_custom_name=current_img_selection.name, 
+                            single_label_sufix="ActTime", 
+                            add_to_metadata = f"Activation Time")
+
+        
 
 
 @magic_factory
