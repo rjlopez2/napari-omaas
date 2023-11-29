@@ -294,11 +294,13 @@ class OMAAS(QWidget):
         ############ create Shape selector widget ############
         ######################################################
         
+        self.selector_group = VHGroup('Image/Shapes selector', orientation='G')        
+        self.main_layout.addWidget(self.selector_group.gbox)
+        
         self.listShapeswidget = QListWidget()
-
         self.listShapeswidget_label = QLabel("Select *Shape* for plotting profile")
-        self.plot_grpup.glayout.addWidget(self.listShapeswidget_label, 3, 2, 1, 1)
-        self.plot_grpup.glayout.addWidget(self.listShapeswidget, 4, 2, 1, 1)
+        self.selector_group.glayout.addWidget(self.listShapeswidget_label, 3, 2, 1, 1)
+        self.selector_group.glayout.addWidget(self.listShapeswidget, 4, 2, 1, 1)
 
         ######################################################
         ############ create Image selector widget ############
@@ -310,8 +312,8 @@ class OMAAS(QWidget):
         )
 
         self.listImagewidget_label = QLabel("Select *Image* for plotting profile")
-        self.plot_grpup.glayout.addWidget(self.listImagewidget_label, 3, 1, 1, 1)
-        self.plot_grpup.glayout.addWidget(self.listImagewidget, 4, 1, 1, 1)
+        self.selector_group.glayout.addWidget(self.listImagewidget_label, 3, 1, 1, 1)
+        self.selector_group.glayout.addWidget(self.listImagewidget, 4, 1, 1, 1)
 
 
         ######################################################
@@ -453,7 +455,7 @@ class OMAAS(QWidget):
         # self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
         self.compute_APD_btn = QPushButton("Compute APDs")
-        self.compute_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
+        self.compute_APD_btn.setToolTip(("Plot APDs detected in the selected Image in the selector"))
         self.APD_plot_group.glayout.addWidget(self.compute_APD_btn, 3, 0, 1, 1)
 
         self.clear_plot_APD_btn = QPushButton("Clear traces")
@@ -1285,8 +1287,8 @@ class OMAAS(QWidget):
                                                         curr_img_name = img.name, 
                                                         # cycle_length_ms= self.curr_img_metadata["CycleTime"],
                                                         cycle_length_ms= self.xscale,
-                                                        rmp_method = self.APD_computing_method.currentText(), 
-                                                        apd_perc = self.slider_APD_percentage.value(), 
+                                                        rmp_method = rmp_method, 
+                                                        apd_perc = apd_percentage, 
                                                         promi=self.prominence, 
                                                         roi_indx=shape_indx)
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
@@ -1360,6 +1362,7 @@ class OMAAS(QWidget):
                                             "BasCycLength_bcl"]])
                 # self.APD_propert_table = QTableView()
             self.APD_propert_table.setModel(model)
+            print("APD computed")
 
             self.add_record_fun()
 
