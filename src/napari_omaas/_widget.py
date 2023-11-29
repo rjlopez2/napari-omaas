@@ -321,7 +321,7 @@ class OMAAS(QWidget):
         ######################################################
 
         # self.plot_profile_btn = QPushButton("Plot profile")
-        self.plot_profile_btn = QCheckBox("Plot profile")
+        self.plot_profile_btn = QCheckBox("Display profile")
         self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
         self.plot_grpup.glayout.addWidget(self.plot_profile_btn, 2, 1, 1, 1)
@@ -1367,7 +1367,7 @@ class OMAAS(QWidget):
 
             self.add_record_fun()
         else:
-            return warn("Create a trace first by clicking on 'Plot Profile'") 
+            return warn("Create a trace first by clicking on 'Display Profile'") 
 
                 
 
@@ -1660,7 +1660,11 @@ class OMAAS(QWidget):
                         for img in img_layer:
                             # loop over shapes
                             for roi in range(n_shapes):
-                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale)
+                                x, y = extract_ROI_time_series(img_layer = img, 
+                                                               shape_layer = self.shape_layer, 
+                                                               idx_shape = roi, 
+                                                               roi_mode="Mean", 
+                                                               xscale = self.xscale)
                                 self.plot_widget.axes.plot(x, y, label= f"{img.name}_{shapes_items}_ROI:{roi}")
                                 self.plot_widget.axes.legend()                                
                                 self.draw()
@@ -1675,7 +1679,8 @@ class OMAAS(QWidget):
             self.plot_widget.figure.clear()
             self.draw()
             # reset some variables
-            del self.data_main_canvas
+            if hasattr(self, "data_main_canvas"):
+                del self.data_main_canvas
 
         
     
@@ -1689,7 +1694,8 @@ class OMAAS(QWidget):
             self._on_click_plot_profile_btn_func()
             self.plot_widget.canvas.draw()
         else:
-            warn("Please Check on 'Plot profile' to creaate the plot")
+            # warn("Please Check on 'Plot profile' to creaate the plot")
+            return
         
     def _preview_multiples_traces_func(self):
 
