@@ -583,11 +583,11 @@ class OMAAS(QWidget):
 
         self.create_average_AP_btn = QPushButton("Average traces")
         self.create_average_AP_btn.setToolTip(("Create a single AP by averaging the from the individula APs displayed"))
-        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 1, 1, 1, 2)
+        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 1, 1, 1, 1)
 
         self.clear_AP_splitted_btn = QPushButton("Clear Plot")
         self.clear_AP_splitted_btn.setToolTip(("Clear the current trace"))
-        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 2)
 
         self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
         self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
@@ -1891,59 +1891,71 @@ class OMAAS(QWidget):
 
 
     def _on_click_mv_left_AP_btn_func(self):
-        time = self.data_main_canvas["x"][0]
-        new_time_len = self.splitted_stack.shape[-1]
-        time = time[:new_time_len]
-        # self._preview_multiples_traces_func()
-        self.average_AP_plot_widget.figure.clear()
-        self.average_AP_plot_widget.add_single_axes()
-
-        selected_AP = self.slider_N_APs.value()
-        # for the selected AP shift to the left 1 position and append the last value (to match size)
-        self.splitted_stack[selected_AP] = np.concatenate([ self.splitted_stack[selected_AP][1:], [self.splitted_stack[selected_AP][-1]] ])
         
-        for indx, array in progress(enumerate(self.splitted_stack)):
-            # handle higlighting of selected AP
-            if indx == self.slider_N_APs.value():
-                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-            else:
-                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+        if hasattr(self, "data_main_canvas"):
+             
+            time = self.data_main_canvas["x"][0]
+            new_time_len = self.splitted_stack.shape[-1]
+            time = time[:new_time_len]
+            # self._preview_multiples_traces_func()
+            self.average_AP_plot_widget.figure.clear()
+            self.average_AP_plot_widget.add_single_axes()
+
+            selected_AP = self.slider_N_APs.value()
+            # for the selected AP shift to the left 1 position and append the last value (to match size)
+            self.splitted_stack[selected_AP] = np.concatenate([ self.splitted_stack[selected_AP][1:], [self.splitted_stack[selected_AP][-1]] ])
             
-        if self.remove_mean_check.isChecked():
-            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+            for indx, array in progress(enumerate(self.splitted_stack)):
+                # handle higlighting of selected AP
+                if indx == self.slider_N_APs.value():
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                else:
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+                
+            if self.remove_mean_check.isChecked():
+                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
 
-        self.average_AP_plot_widget.axes.legend()
-        self.average_AP_plot_widget.canvas.draw()
+            self.average_AP_plot_widget.axes.legend()
+            self.average_AP_plot_widget.canvas.draw()
 
-        print("move to left")
+            print("move to left")
+        
+        else:
+            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
 
 
     def _on_click_mv_right_AP_btn_func(self):
-        time = self.data_main_canvas["x"][0]
-        new_time_len = self.splitted_stack.shape[-1]
-        time = time[:new_time_len]
-        # self._preview_multiples_traces_func()
-        self.average_AP_plot_widget.figure.clear()
-        self.average_AP_plot_widget.add_single_axes()
 
-        selected_AP = self.slider_N_APs.value()
-        # for the selected AP shift to the left 1 position and append the last value (to match size)
-        self.splitted_stack[selected_AP] = np.concatenate([ [self.splitted_stack[selected_AP][0]], self.splitted_stack[selected_AP][:-1]  ])
-        
-        for indx, array in progress(enumerate(self.splitted_stack)):
-            # handle higlighting of selected AP
-            if indx == self.slider_N_APs.value():
-                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-            else:
-                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+        if hasattr(self, "data_main_canvas"):
+
+            time = self.data_main_canvas["x"][0]
+            new_time_len = self.splitted_stack.shape[-1]
+            time = time[:new_time_len]
+            # self._preview_multiples_traces_func()
+            self.average_AP_plot_widget.figure.clear()
+            self.average_AP_plot_widget.add_single_axes()
+
+            selected_AP = self.slider_N_APs.value()
+            # for the selected AP shift to the left 1 position and append the last value (to match size)
+            self.splitted_stack[selected_AP] = np.concatenate([ [self.splitted_stack[selected_AP][0]], self.splitted_stack[selected_AP][:-1]  ])
             
-        if self.remove_mean_check.isChecked():
-            self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+            for indx, array in progress(enumerate(self.splitted_stack)):
+                # handle higlighting of selected AP
+                if indx == self.slider_N_APs.value():
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                else:
+                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+                
+            if self.remove_mean_check.isChecked():
+                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
 
-        self.average_AP_plot_widget.axes.legend()
-        self.average_AP_plot_widget.canvas.draw()
+            self.average_AP_plot_widget.axes.legend()
+            self.average_AP_plot_widget.canvas.draw()
+            
+            print("move to right")
         
-        print("move to right")
+        else:
+            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
         
 
 
@@ -1955,33 +1967,41 @@ class OMAAS(QWidget):
     #     self.average_tracce_pop_pup_window.setGeometry(QRect(100, 100, 400, 200))
     #     self.average_tracce_pop_pup_window.show()
     def _slider_N_APs_changed_func(self):
-        time = self.data_main_canvas["x"][0]
-        new_time_len = self.splitted_stack.shape[-1]
-        time = time[:new_time_len]
-        # self._preview_multiples_traces_func()
-        self.average_AP_plot_widget.figure.clear()
-        self.average_AP_plot_widget.add_single_axes()
-        
-        if self.splitted_stack.ndim > 1:
+        if hasattr(self, "data_main_canvas"):
 
-            for indx, array in progress(enumerate(self.splitted_stack)):
-                # handle higlighting of selected AP
-                if indx == self.slider_N_APs.value():
-                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-                else:
-                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
-                
-            if self.remove_mean_check.isChecked():
-                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+            time = self.data_main_canvas["x"][0]
+            new_time_len = self.splitted_stack.shape[-1]
+            time = time[:new_time_len]
+            # self._preview_multiples_traces_func()
+            self.average_AP_plot_widget.figure.clear()
+            self.average_AP_plot_widget.add_single_axes()
+            
+            if self.splitted_stack.ndim > 1:
+
+                for indx, array in progress(enumerate(self.splitted_stack)):
+                    # handle higlighting of selected AP
+                    if indx == self.slider_N_APs.value():
+                        self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
+                    else:
+                        self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
+                    
+                if self.remove_mean_check.isChecked():
+                    self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
+            else:
+                array = self.splitted_stack
+                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{0}]", alpha = 0.8)
+                warn("Cannot average from a single AP")
+
+            self.average_AP_plot_widget.axes.legend()
+            self.average_AP_plot_widget.canvas.draw()
+            print("update plot")
+
         else:
-            array = self.splitted_stack
-            self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{0}]", alpha = 0.8)
-            warn("Cannot average from a single AP")
 
-        self.average_AP_plot_widget.axes.legend()
-        self.average_AP_plot_widget.canvas.draw()
-        print("update plot")
+            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
         # self._preview_multiples_traces_func()
+
+
     
     def _on_click_make_activation_maps_btn_func(self):
         # NOTE: you need to decide if you use image form the selector o from the 
