@@ -26,7 +26,6 @@ from numpy import ndarray as numpy_ndarray
 # from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import BaseNapariMPLWidget
 from napari.layers import Shapes, Image
-import matplotlib.pyplot as plt
 from napari.utils import progress
 
 import copy
@@ -147,8 +146,8 @@ class OMAAS(QWidget):
         self.filter_group = VHGroup('Filter Image', orientation='G')
         # self._pre_processing_layout.addWidget(self.filter_group.gbox)
 
-        self._collapse2 = QCollapsible('Filters', self)
-        self._collapse2.addWidget(self.filter_group.gbox)
+        self._collapse_filter_group = QCollapsible('Filters', self)
+        self._collapse_filter_group.addWidget(self.filter_group.gbox)
 
 
         ####### temporal filter subgroup #######     
@@ -242,7 +241,34 @@ class OMAAS(QWidget):
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
         self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 2, 0, 1, 4)
 
-       
+        
+        
+        self.segmentation_group = VHGroup('Segment heart views', orientation='G')
+        # self._pre_processing_layout.addWidget(self.filter_group.gbox)
+
+        self._collapse_segmentation_group = QCollapsible('Segmentation', self)
+        self._collapse_segmentation_group.addWidget(self.segmentation_group.gbox)
+
+        self.segmentation_methods_lable = QLabel("Method")
+        self.segmentation_group.glayout.addWidget(self.segmentation_methods_lable, 0, 0, 1, 1)
+
+        self.segmentation_methods = QComboBox()
+        self.segmentation_methods.addItems(["threshold_triangle", "GHT"])
+        self.segmentation_group.glayout.addWidget(self.segmentation_methods, 0, 1, 1, 1)
+
+        self.return_img_no_backg_btn = QCheckBox("Return image")
+        self.return_img_no_backg_btn.setChecked(True)
+        self.return_img_no_backg_btn.setToolTip(("Draw current selection as plot profile"))
+        # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
+        self.segmentation_group.glayout.addWidget(self.return_img_no_backg_btn, 0, 2, 1, 1)
+
+        self.apply_segmentation_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 1, 1, 1, 1)
+
+
+
+
+
         ######## Load spool data btns Group ########
         self.load_spool_group = VHGroup('Load Spool data', orientation='G')
 
@@ -341,7 +367,8 @@ class OMAAS(QWidget):
         ########################################################
         self._pre_processing_layout.addWidget(self.load_spool_group.gbox)
         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
-        self._pre_processing_layout.addWidget(self._collapse2)
+        self._pre_processing_layout.addWidget(self._collapse_filter_group)
+        self._pre_processing_layout.addWidget(self._collapse_segmentation_group)
         self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
 
         ######## Shapes tab ########
@@ -847,6 +874,7 @@ class OMAAS(QWidget):
         self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
         self.make_activation_maps_btn.clicked.connect(self._on_click_make_activation_maps_btn_func)
         self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_bt_func)
+        self.apply_segmentation_btn.clicked.connect(self._on_click_apply_segmentation_btn_fun)
         
         
         
@@ -2055,6 +2083,59 @@ class OMAAS(QWidget):
                             img_custom_name=current_img_selection.name, 
                             single_label_sufix="ActTime", 
                             add_to_metadata = f"Activation Time")
+        
+
+    def _on_click_apply_segmentation_btn_fun(self):
+        current_selection = self.viewer.layers.selection.active
+        if isinstance(current_selection, Image):
+        
+            segmentation_method_selected = self.segmentation_methods.currentText()
+            segmentation_methods = [self.segmentation_methods.itemText(i) for i in range(self.segmentation_methods.count())]
+
+            sigma = self.sigma_filt_spatial_value.value()
+            kernel_size = self.filt_kernel_value.value()
+            sigma_col = self.sigma_filt_color_value.value()
+            
+            if segmentation_method_selected == segmentation_methods[0]:
+                print(f'applying "{segmentation_method_selected}" method to image {current_selection}')
+                mask = segment_image_triangle(current_selection.data)
+                mask = polish_mask(mask)
+
+                
+            elif segmentation_method_selected == segmentation_methods[1]:
+                mask, threshold = segment_image_GHT(current_selection.data, return_threshold=True)
+                mask = polish_mask(mask)
+                print(f'Segmenting using "{segmentation_method_selected}" method to image {current_selection} with threshold: {threshold}')
+
+                
+            else:
+                return warn( f"selected filter '{segmentation_method_selected}' no known.")
+            
+            
+            # return results
+            self.viewer.add_labels(mask,
+                                       name = f"Heart_labels")
+            if self.return_img_no_backg_btn.isChecked():
+                # 8. remove background using mask
+                n_frames =current_selection.data.shape[0]
+                masked_image = current_selection.data.copy()
+                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+
+                # 9. subtract bacground from original image 
+                background = np.nanmean(masked_image)
+                
+                masked_image = masked_image - background
+
+                self.add_result_img(masked_image, 
+                                    img_custom_name=current_selection.name, 
+                                    single_label_sufix = f"NullBckgrnd", 
+                                    add_to_metadata = f"Background image masked")
+                 
+                    
+            self.add_record_fun()
+
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
         
 

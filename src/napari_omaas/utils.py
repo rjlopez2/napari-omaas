@@ -1,11 +1,11 @@
 from qtpy import QtCore, QtGui
 import numpy as np
-from skimage.filters import gaussian, threshold_triangle, median, rank
+from skimage.filters import gaussian, threshold_triangle, median, rank, sobel
+from skimage.measure import label
 from skimage.filters.rank import mean_bilateral
-from skimage.morphology import disk
+from skimage.morphology import disk, binary_closing, remove_small_objects, closing
 from skimage.registration import optical_flow_ilk
-from skimage import transform
-from skimage import morphology, registration, segmentation
+from skimage import transform, exposure, morphology, registration, segmentation
 from skimage.restoration import denoise_bilateral
 import warnings
 from napari.layers import Image
@@ -14,7 +14,7 @@ from numba import njit
 import tqdm.auto as tqdm
 from napari.utils import progress
 from time import time
-
+from optimap.image import detect_background_threshold
 
 from napari_macrokit import get_macro
 
@@ -961,10 +961,10 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
 
     # 1. Get gradient and normalize it
     dfdt = np.gradient(image.data, axis=0)
-    dfdt = (dfdt - np.min(dfdt)) / np.max(dfdt)
+    dfdt = (dfdt - np.nanmin(dfdt)) / np.nanmax(dfdt)
     dfdt = np.nan_to_num(dfdt, nan=0)
     # dfdt = local_normal_fun(dfdt)
-    start_indices = np.argmax(dfdt, axis=0)
+    start_indices = np.nanargmax(dfdt, axis=0)
     activation_times = np.full_like(start_indices, fill_value= np.nan,  dtype=np.float64)
     # 2. get time vector
     n_frames, y_size, x_size = image.shape
@@ -993,7 +993,9 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
                     dfdt_mn_interpolated = interpolation_f(time_fine_grid)
                     # print(dfdt_mn_interpolated)
                     # find new dfdt max
-                    idx_max_interpolated = np.argmax(dfdt_mn_interpolated)
+                    idx_max_interpolated = np.nanargmax(dfdt_mn_interpolated)
+                    # if np.isnan(time_fine_grid[idx_max_interpolated]):
+                    #     print(f"catch a nan at pixel y:{y_px}, x:{x_px} ")
                     # print(idx_max_interpolated)
                     activation_times[y_px, x_px] = time_fine_grid[idx_max_interpolated]
             else:
@@ -1005,6 +1007,137 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
         return activation_times
     else:
         return activation_times * 1000 # convert to ms
+
+def segment_image_triangle(np_array, 
+                 ):
+    """Segment an image using an intensity threshold determined via
+    triangle method.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be segmented
+
+    Returns
+    -------
+    label_image : np.ndarray
+        The resulting image where each detected object labeled with a unique integer.
+    
+    cleared : np.ndarray bool
+        Mask as a boolean array of the detected segments
+
+    selection : np.ndarray
+        Image with segments and bacgorund removed.
+    """
+    # create copy of dataset
+    # masked_image = np_array.copy()
+    # n_frames = masked_image.shape[0]
+    
+    # select one frame
+    # one_frame_img = np_array[0]
+
+    # 1. make a elevation map
+    # elevation_map = sobel(one_frame_img)
+
+    # Global equalize histogram to enhance contrast (ok)
+    
+    # img_glo_eq = exposure.equalize_hist(elevation_map)
+    # # Local equalize histogram to enhance contrast (not good)
+    # footprint = disk(disk_s)
+    # img_loc_eq = rank.equalize(elevation_map, footprint=footprint)
+    
+    # 2. Local equalize histogram to enhance contrast (best)
+    # img_adapteq = exposure.equalize_adapthist(elevation_map, clip_limit=clip_limit_s)
+    
+    
+    # 3. apply threshold
+    # thresh = threshold_otsu(img_adapteq)
+    # thresh = threshold_li(one_frame_img)
+    thresh = threshold_triangle(np_array)
+    # # thresh = threshold_sauvola(one_frame_img, window_size=wind_s)
+    # # thresh = threshold_niblack(one_frame_img, window_size=wind_s)
+
+    # 4.  create mask
+    # mask = one_frame_img > thresh
+    mask = np_array.mean(axis = 0) > thresh
+    # bw = closing(mask, square(square_s))
+
+    # # remove artifacts connected to image border
+    
+    # 5. remove small objects from aoutside heart siluete
+    # cleared = remove_small_objects(mask, small_obj_s)
+    
+    # # 6. fill smaall holes ininside regions objects
+    # footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
+    # cleared = binary_closing(cleared, footprint=footprint)
+    # # cleared = clear_border(bw)
+
+    # # 7.  label image regions
+    # label_image = label(cleared)
+
+    # 8. remove background using mask
+    # selection[~np.tile(cleared, (n_frames, 1, 1))] = None
+
+    # # 9. subtract bacground from original image 
+    # background = selection[np.tile(cleared, (n_frames, 1, 1))].mean()
+    
+    # selection = selection - background
+
+    # return label_image
+    return mask
+
+
+
+def segment_image_GHT(image, threshold=None, return_threshold=False,
+                       small_obj_s = 500,  
+                #   square_s = 15,  
+                  small_holes_s = 5,):
+    """Create a foreground mask for an image using a threshold.
+
+    If no threshold is given, the background threshold is detected using the GHT algorithm :cite:p:`Barron2020`.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Image to create background mask for.
+    threshold : float or int, optional
+        Background threshold, by default None
+    return_threshold : bool, optional
+        If True, return the threshold as well, by default False
+
+    Returns
+    -------
+    mask : np.ndarray
+        Background mask.
+    threshold : float or int
+        Background threshold, only if ``return_threshold`` is True.
+    """
+    
+    if threshold is None:
+        threshold = detect_background_threshold(image)
+        print(f"Creating mask with detected threshold {threshold}")
+
+    mask = image.mean(axis = 0) > threshold
+    
+    if return_threshold:
+        return mask, threshold
+    else:
+        return mask
+
+
+def polish_mask(mask, small_obj_s = 500, small_holes_s = 5):
+
+    cleared = remove_small_objects(mask, small_obj_s)
+    
+    # 6. fill smaall holes ininside regions objects
+    footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
+    cleared = binary_closing(cleared, footprint=footprint)
+    # cleared = clear_border(bw)
+
+    # 7.  label image regions
+    label_image = label(cleared)
+
+    return label_image
 
 
 
