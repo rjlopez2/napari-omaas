@@ -1,16 +1,19 @@
 from qtpy import QtCore, QtGui
 import numpy as np
 from skimage.filters import gaussian, threshold_triangle, median, rank
+from skimage.filters.rank import mean_bilateral
 from skimage.morphology import disk
 from skimage.registration import optical_flow_ilk
 from skimage import transform
 from skimage import morphology, registration, segmentation
+from skimage.restoration import denoise_bilateral
 import warnings
 from napari.layers import Image
 import sif_parser
 from numba import njit
 import tqdm.auto as tqdm
 from napari.utils import progress
+from time import time
 
 
 from napari_macrokit import get_macro
@@ -594,6 +597,23 @@ def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
 
     # print(f'applying "apply_laplace_filter" to image {image.active}')
 
+    return (out_img)
+
+
+@macro.record
+def apply_bilateral_filter(data: "napari.types.ImageData", wind_size, sigma_col, sigma_spa):
+
+    out_img = np.empty_like(data)
+    start = time()
+    for plane, img in enumerate(progress(data)):
+        # out_img[plane] = mean_bilateral(data[plane], disk(disk_size), s0=5, s1=5) this requires the image to be a uint8/uint16
+        out_img[plane] = denoise_bilateral(data[plane], 
+                                           win_size = wind_size, 
+                                           sigma_color = sigma_col, 
+                                           sigma_spatial = sigma_spa, 
+                                           bins = 1024)
+    end = time()
+    print(f"elapsed time: {round((end - start)/60, 1)} min")
     return (out_img)
 
 @macro.record

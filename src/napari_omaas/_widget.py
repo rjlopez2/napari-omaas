@@ -206,19 +206,19 @@ class OMAAS(QWidget):
         self.spac_filter_group.glayout.addWidget(self.spatial_filt_type_label, 0, 0, 1, 1)
         
         self.spat_filter_types = QComboBox()
-        self.spat_filter_types.addItems(["Gaussian", "Box", "Laplace", "Median"])
+        self.spat_filter_types.addItems(["Gaussian", "Box", "Laplace", "Median", "Bilateral"])
         self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 0, 1, 1, 1)
 
         self.sigma_label = QLabel("Sigma")
         self.spac_filter_group.glayout.addWidget(self.sigma_label, 0, 2, 1, 1)
 
-        self.sigma_filt_param = QDoubleSpinBox()
-        self.sigma_filt_param.setSingleStep(1)
-        self.sigma_filt_param.setSingleStep(0.1)
-        self.sigma_filt_param.setValue(1)
-        self.spac_filter_group.glayout.addWidget(self.sigma_filt_param, 0, 3, 1, 1)
+        self.sigma_filt_spatial_value = QDoubleSpinBox()
+        self.sigma_filt_spatial_value.setSingleStep(1)
+        self.sigma_filt_spatial_value.setSingleStep(0.1)
+        self.sigma_filt_spatial_value.setValue(1)
+        self.spac_filter_group.glayout.addWidget(self.sigma_filt_spatial_value, 0, 3, 1, 1)
 
-        self.kernels_label = QLabel("Kernel size")
+        self.kernels_label = QLabel("Kernel/window size")
         self.spac_filter_group.glayout.addWidget(self.kernels_label, 1, 2, 1, 1)
 
         self.filt_kernel_value = QSpinBox()
@@ -226,6 +226,16 @@ class OMAAS(QWidget):
         self.filt_kernel_value.setSingleStep(1)
         self.filt_kernel_value.setValue(5)
         self.spac_filter_group.glayout.addWidget(self.filt_kernel_value, 1, 3, 1, 1)
+
+        self.disk_label = QLabel("Sigma 2 (color)")
+        self.disk_label.setToolTip(("Use this only in Bilateral filter"))
+        self.spac_filter_group.glayout.addWidget(self.disk_label, 1, 0, 1, 1)
+
+        self.sigma_filt_color_value = QDoubleSpinBox()
+        self.sigma_filt_color_value.setSingleStep(1)
+        self.sigma_filt_color_value.setSingleStep(0.1)
+        self.sigma_filt_color_value.setValue(1)
+        self.spac_filter_group.glayout.addWidget(self.sigma_filt_color_value, 1, 1, 1, 1)
 
 
         self.apply_spat_filt_btn = QPushButton("apply")
@@ -987,8 +997,9 @@ class OMAAS(QWidget):
         
             filter_type = self.spat_filter_types.currentText()
             all_my_filters = [self.spat_filter_types.itemText(i) for i in range(self.spat_filter_types.count())]
-            sigma = self.sigma_filt_param.value()
+            sigma = self.sigma_filt_spatial_value.value()
             kernel_size = self.filt_kernel_value.value()
+            sigma_col = self.sigma_filt_color_value.value()
             
             if filter_type == all_my_filters[0]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
@@ -1012,6 +1023,11 @@ class OMAAS(QWidget):
                 print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
                 self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", KrnlSiz = kernel_size, Widht = sigma, add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
+            
+            elif filter_type == all_my_filters[4]:
+                print(f'applying "{filter_type}" filter to image {current_selection}')
+                results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
+                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", WindSiz = kernel_size, sigma_spa = sigma,  sigma_col = sigma_col, add_to_metadata = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
             
             self.add_record_fun()
 
