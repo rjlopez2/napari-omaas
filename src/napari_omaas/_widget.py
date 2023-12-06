@@ -1101,6 +1101,50 @@ class OMAAS(QWidget):
             self.viewer.add_image(result_img,
                         colormap = colormap,
                         name = img_name)
+        
+
+
+    def add_result_label(self, result_labl, 
+                         single_label_sufix = None, 
+                         metadata = True, 
+                         add_to_metadata = None, 
+                         colormap="turbo", 
+                         img_custom_name = None, 
+                         **label_and_value_sufix):
+        
+        if img_custom_name is not None:
+            img_name = img_custom_name
+        else:
+            img_name = self.viewer.layers.selection.active.name
+
+        self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
+
+        key_name = "Processing_method"
+        if key_name not in self.curr_img_metadata:
+            self.curr_img_metadata[key_name] = []
+
+        if add_to_metadata is not None:            
+            self.curr_img_metadata[key_name].append(add_to_metadata)
+
+
+        if single_label_sufix is not None:
+            # for value in single_label_sufix:
+            img_name += f"_{single_label_sufix}"
+
+        if label_and_value_sufix is not None:
+            for key, value in label_and_value_sufix.items():
+                img_name += f"_{key}{value}"
+        
+        
+        if metadata:
+            self.viewer.add_labels(result_labl, 
+                        metadata = self.curr_img_metadata,
+                        name = img_name)
+
+        else: 
+            self.viewer.add_labels(result_labl,
+                        name = img_name)
+    
 
 
 
@@ -2113,8 +2157,15 @@ class OMAAS(QWidget):
             
             
             # return results
-            self.viewer.add_labels(mask,
-                                       name = f"Heart_labels")
+
+            # self.viewer.add_labels(mask,
+            #                        name = f"Heart_labels", 
+            #                        metadata = current_selection.metadata)
+            self.add_result_label(mask, 
+                                    img_custom_name="Heart_labels", 
+                                    single_label_sufix = f"NullBckgrnd", 
+                                    add_to_metadata = f"Background image masked")
+
             if self.return_img_no_backg_btn.isChecked():
                 # 8. remove background using mask
                 n_frames =current_selection.data.shape[0]
@@ -2128,10 +2179,11 @@ class OMAAS(QWidget):
 
                 self.add_result_img(masked_image, 
                                     img_custom_name=current_selection.name, 
-                                    single_label_sufix = f"NullBckgrnd", 
-                                    add_to_metadata = f"Background image masked")
+                                    single_label_sufix = f"NullBckgrnd",
+                                    add_to_metadata = f"Background subtracted")
                  
                     
+            
             self.add_record_fun()
 
         else:
