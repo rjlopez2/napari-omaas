@@ -975,31 +975,32 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
     # 4. main loop to build Activation map 
     for y_px  in progress(range(y_size)):
         for x_px in range(x_size):
-            idx_max = start_indices[y_px, x_px]
             
-            # NOTE: this is giving some odd results probably due to large size of "delta" (points around the 'dfdtmax' to be used for interpolation)
-            if interpolate_df  == True:
-                if idx_max > delta and idx_max+delta < time.size:
-                    dfdt_mn = dfdt[:, y_px, x_px];
-                    dfdt_mn = dfdt_mn.reshape(-1)
-                    # generate fine grid for interpolation in ms
-                    ini_indx = idx_max - delta
-                    end_indx = idx_max + delta
-                    # time_fine_grid = (time_fine_grid * cycle_time ) + time[ini_indx]
-                    time_fine_grid = np.linspace(time[ini_indx], time[end_indx], interp_points);
-                    # print(f" ini_indx shape: {ini_indx}, end_indx shape: {end_indx}")
-                    # interpolate around the previously found start index                
-                    interpolation_f = CubicSpline(time[ini_indx:end_indx],  dfdt_mn[ini_indx:end_indx],  extrapolate=True)
-                    dfdt_mn_interpolated = interpolation_f(time_fine_grid)
-                    # print(dfdt_mn_interpolated)
-                    # find new dfdt max
-                    idx_max_interpolated = np.nanargmax(dfdt_mn_interpolated)
-                    # if np.isnan(time_fine_grid[idx_max_interpolated]):
-                    #     print(f"catch a nan at pixel y:{y_px}, x:{x_px} ")
-                    # print(idx_max_interpolated)
-                    activation_times[y_px, x_px] = time_fine_grid[idx_max_interpolated]
-            else:
-                activation_times[y_px, x_px] = time[idx_max]
+            idx_max = start_indices[y_px, x_px]
+            if time[idx_max] != 0:
+                
+                # NOTE: this is giving some odd results probably due to large size of "delta" (points around the 'dfdtmax' to be used for interpolation)
+                if interpolate_df  == True:
+                    if idx_max > delta and idx_max+delta < time.size:
+                        dfdt_mn = dfdt[:, y_px, x_px];
+                        dfdt_mn = dfdt_mn.reshape(-1)
+                        # generate fine grid for interpolation in ms
+                        ini_indx = idx_max - delta
+                        end_indx = idx_max + delta
+                        time_fine_grid = np.linspace(time[ini_indx], time[end_indx], interp_points)
+                        # interpolate around the previously found start index                
+                        interpolation_f = CubicSpline(time[ini_indx:end_indx],  dfdt_mn[ini_indx:end_indx],  extrapolate=True)
+                        dfdt_mn_interpolated = interpolation_f(time_fine_grid)
+                        # find new dfdt max
+                        idx_max_interpolated = np.nanargmax(dfdt_mn_interpolated)
+                        # if np.isnan(time_fine_grid[idx_max_interpolated]):
+                        #     print(f"catch a nan at pixel y:{y_px}, x:{x_px} ")
+                        # print(idx_max_interpolated)
+                        activation_times[y_px, x_px] = time_fine_grid[idx_max_interpolated]
+                else:
+                    # if time[idx_max] != 0:
+                    #     print(f"time = {time[idx_max]}, y {y_px}, x = {x_px}")
+                    activation_times[y_px, x_px] = time[idx_max]
         
                 
     # activation_times[activation_times == 0] = np.nan # remove zeros
