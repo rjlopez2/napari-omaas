@@ -940,7 +940,7 @@ def split_AP_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
 
 
 @macro.record
-def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 512,  interpolate_df = False) -> "napari.types.ImageData":
+def return_maps(image: "napari.types.ImageData", cycle_time, percentage, interp_points= 512,  interpolate_df = False, map_type = 0) -> "napari.types.ImageData":
     # data: "napari.types.ImageData")-> "napari.types.ImageData":
     
     """
@@ -951,6 +951,7 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
         image : np.ndarray
             3D stack image of a single AP. ussually teh result from 
             averageing multiple APs.
+        map_type = 0 for Aactvation time maps, 2 for APD maps
 
         Returns
         -------
@@ -1004,10 +1005,70 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
         
                 
     # activation_times[activation_times == 0] = np.nan # remove zeros
-    if cycle_time == 1:
-        return activation_times
+    if map_type == 0:
+
+        if cycle_time == 1:
+            return activation_times
+        else:
+            return activation_times * 1000 # convert to ms
+    
+    elif map_type ==2:
+
+        max_v = np.max(image, axis = 0)
+        APD = np.full_like(max_v, fill_value= np.nan,  dtype=np.float64)
+
+        for y_px  in progress(range(y_size)):
+            for x_px in range(x_size):
+                
+                if  (~np.isnan(start_indices[y_px, x_px])) and (start_indices[y_px, x_px] + delta < n_frames) and (start_indices[y_px, x_px] > delta):
+                    Vm_signal = image[:, y_px, x_px]                    
+                    # Calculate resting membrane potential from start to 5 ms before AP upstroke. there are more cases. See matlab app.                
+                    # print(f"{start_indices[y_px, x_px]}")
+                    resting_V = np.nanmean( image[:start_indices[y_px, x_px] - int(np.ceil(0.005 / cycle_time) ), y_px, x_px] )
+                    
+                    # multiples cases here above?
+                    
+                    
+                    
+                    amp_V = ( ((100 - percentage)/ 100) * (max_v[y_px, x_px] - resting_V)) + resting_V
+                    mask_repol_indx =  np.nanargmax(image[start_indices[y_px, x_px] + 1:, y_px, x_px] <= amp_V) # <- here is the problem
+                    repol_index= start_indices[y_px, x_px] + min(mask_repol_indx, image[start_indices[y_px, x_px]:, y_px, x_px].size) 
+                    pre_repol_index = repol_index - 1
+                    
+                    if repol_index <= n_frames:
+                        APD[y_px, x_px] = time[repol_index] - activation_times[y_px, x_px] 
+                    else:
+                        APD[y_px, x_px] = np.nan
+        
+        if cycle_time == 1:
+            return APD
+        else:
+            return APD * 1000 # convert to ms
+
+
+        
     else:
-        return activation_times * 1000 # convert to ms
+
+        return warnings.warn(" NO type of map found")
+
+@macro.record
+def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df = False, percentage = 75):
+    
+    n_frames, y_size, x_size = image.shape
+    
+    # Find peak and resting membrane voltages
+    
+    max_v = np.nanmax(image, axis = 0)
+    APD = np.full_like(max_v, fill_value= np.nan,  dtype=np.float64)
+
+    for y_px  in progress(range(y_size)):
+        for x_px in range(x_size):
+
+            print("lalal")
+
+
+
+
 
 def segment_image_triangle(np_array, 
                  ):

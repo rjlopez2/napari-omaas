@@ -14,8 +14,10 @@ from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
-    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton, 
     )
+
+from qtwidgets import Toggle
 from superqt import QLabeledSlider
 from qtpy import QtWidgets
 from warnings import warn
@@ -672,15 +674,34 @@ class OMAAS(QWidget):
         self.create_AP_gradient_btn = QPushButton("Check Activation times")
         self.average_trace_group.glayout.addWidget(self.create_AP_gradient_btn, 7, 0, 1, 1)
         
-        self.make_activation_maps_btn = QPushButton("Make Activation Map")
-        self.average_trace_group.glayout.addWidget(self.make_activation_maps_btn, 7, 1, 1, 1)
-        
-        self.make_interpolation_label = QLabel("Interpolate Activation")
+        self.make_interpolation_label = QLabel("Interpolate Maps")
         self.average_trace_group.glayout.addWidget(self.make_interpolation_label, 7, 2, 1, 1)
 
         self.make_interpolation_check = QCheckBox()
         self.make_interpolation_check.setChecked(False)
         self.average_trace_group.glayout.addWidget(self.make_interpolation_check, 7, 3, 1, 1)
+
+        self.activation_map_percentage_label = QLabel("APD Map percentage")
+        self.average_trace_group.glayout.addWidget(self.activation_map_percentage_label, 8, 0, 1, 1)
+
+        self.slider_APD_map_percentage = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_map_percentage.setRange(5, 100)
+        self.slider_APD_map_percentage.setValue(75)
+        self.slider_APD_map_percentage.setSingleStep(5)
+        self.average_trace_group.glayout.addWidget(self.slider_APD_map_percentage, 8, 1, 1, 1)
+        
+        self.activation_map_label = QLabel("Activation Maps")
+        self.average_trace_group.glayout.addWidget(self.activation_map_label, 9, 0, 1, 1)
+        
+        self.toggle_map_type = Toggle(checked_color = Qt.gray)
+        self.average_trace_group.glayout.addWidget(self.toggle_map_type, 9, 1, 1, 1)
+
+        self.APD_map_label = QLabel("APD Maps")
+        self.average_trace_group.glayout.addWidget(self.APD_map_label, 9, 2, 1, 1)
+        
+        self.make_maps_btn = QPushButton("Make Maps")
+        self.average_trace_group.glayout.addWidget(self.make_maps_btn, 10, 0, 1, 4)
+
 
 
 
@@ -872,7 +893,7 @@ class OMAAS(QWidget):
         self.mv_righ_AP_btn.clicked.connect(self._on_click_mv_right_AP_btn_func)
         self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
         self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
-        self.make_activation_maps_btn.clicked.connect(self._on_click_make_activation_maps_btn_func)
+        self.make_maps_btn.clicked.connect(self._on_click_make_maps_btn_func)
         self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_bt_func)
         self.apply_segmentation_btn.clicked.connect(self._on_click_apply_segmentation_btn_fun)
         
@@ -1685,7 +1706,7 @@ class OMAAS(QWidget):
                 curr_item = self.listShapeswidget.takeItem(item_row)
                 del curr_item
        # control selection of Image Layers
-        elif isinstance(value, Image):
+        elif isinstance(value, Image) and value.ndim > 2:
             if etype  == 'inserted':
                 item = QtWidgets.QListWidgetItem(value.name)
                 self.listImagewidget.addItem(item)
@@ -2091,12 +2112,16 @@ class OMAAS(QWidget):
 
 
     
-    def _on_click_make_activation_maps_btn_func(self):
+    def _on_click_make_maps_btn_func(self):
         # NOTE: you need to decide if you use image form the selector o from the 
         # the napary layer list!!! and assert accordingly the image properties
 
+        percentage = self.slider_APD_map_percentage.value()
         current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
         current_img_selection = self.viewer.layers[current_img_selection_name]
+
+        # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
+        map_type = self.toggle_map_type.checkState()
         
         # check for "CycleTime" in metadtata
         if "CycleTime" in self.img_metadata_dict:
@@ -2104,14 +2129,49 @@ class OMAAS(QWidget):
         else:
             cycl_t = 1
 
-        results = return_act_maps(current_img_selection.data, cycle_time=cycl_t,  interpolate_df = self.make_interpolation_check.isChecked())
+        results = return_maps(current_img_selection.data, 
+                              cycle_time=cycl_t,  
+                              interpolate_df = self.make_interpolation_check.isChecked(), 
+                              map_type = map_type, 
+                              percentage = percentage)
         
-        self.add_result_img(result_img=results, 
+        if map_type == 0:
+            self.add_result_img(result_img=results, 
                             img_custom_name=current_img_selection.name, 
-                            single_label_sufix="ActiMap", 
-                            add_to_metadata = f"Activationn Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                            single_label_sufix=f"ActMap", 
+                            add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+        elif map_type == 2:
+            self.add_result_img(result_img=results, 
+                            img_custom_name=current_img_selection.name, 
+                            single_label_sufix=f"APDMap{percentage}", 
+                            add_to_metadata = f"APD{percentage} Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+
+
         self.add_record_fun()
-        print("Gradient computed")
+        print("Map generated")
+
+    # def _on_click_make_APD_maps_btn_func(self):
+    #     percentage = self.slider_APD_map_percentage.value()
+
+    #     current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+    #     current_img_selection = self.viewer.layers[current_img_selection_name]
+        
+    #     # check for "CycleTime" in metadtata
+    #     if "CycleTime" in self.img_metadata_dict:
+    #         cycl_t = self.img_metadata_dict["CycleTime"]
+    #     else:
+    #         cycl_t = 1
+
+    #     results = return_APD_maps(current_img_selection.data, cycle_time=cycl_t,  interpolate_df = self.make_interpolation_check.isChecked(), percentage = percentage)
+        
+    #     self.add_result_img(result_img=results, 
+    #                         img_custom_name=current_img_selection.name, 
+    #                         single_label_sufix=f"APDMap{percentage}", 
+    #                         add_to_metadata = f"Activationn Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}, APD_percentage={percentage}")
+    #     self.add_record_fun()
+        
+        
+    #     print("APD map generated")
     
     def _on_click_create_AP_gradient_bt_func(self):
         current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
