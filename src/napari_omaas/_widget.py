@@ -626,7 +626,10 @@ class OMAAS(QWidget):
 
         self.clear_AP_splitted_btn = QPushButton("Clear Plot")
         self.clear_AP_splitted_btn.setToolTip(("Clear the current trace"))
-        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 2)
+        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 1)
+
+        self.create_AP_gradient_btn = QPushButton("Check Activation times")
+        self.average_trace_group.glayout.addWidget(self.create_AP_gradient_btn, 1, 3, 1, 2)
 
         self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
         self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
@@ -640,67 +643,64 @@ class OMAAS(QWidget):
 
         self.APD_peaks_help_box_label_2 = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
         self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
-        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 2, 2, 1, 2)
-
-        self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 4, 0, 1, 4)
-
-        self.slider_N_APs_label = QLabel("Slide to select your current AP")
-        self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
-
-        self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.slider_N_APs.setValue(0)
-        self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 2, 2, 1, 1)
 
         self.remove_mean_label = QLabel("Display mean")
-        self.average_trace_group.glayout.addWidget(self.remove_mean_label, 5, 2, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.remove_mean_label, 2, 3, 1, 1)
 
         self.remove_mean_check = QCheckBox()
         self.remove_mean_check.setChecked(False)
-        self.average_trace_group.glayout.addWidget(self.remove_mean_check, 5, 3, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.remove_mean_check, 2, 4, 1, 1)
+
+        self.slider_N_APs_label = QLabel("Slide to select your current AP")
+        self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 3, 0, 1, 1)
+
+        self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.slider_N_APs.setValue(0)
+        self.average_trace_group.glayout.addWidget(self.slider_N_APs, 3, 1, 1, 1)
 
         self.shift_AP_label = QLabel("Shift selected AP")
-        self.average_trace_group.glayout.addWidget(self.shift_AP_label, 6, 0, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.shift_AP_label, 3, 2, 1, 1)
 
         self.mv_left_AP_btn = QToolButton()
         self.shif_trace = False
         self.mv_left_AP_btn.setArrowType(QtCore.Qt.LeftArrow)
-        self.average_trace_group.glayout.addWidget(self.mv_left_AP_btn, 6, 1, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.mv_left_AP_btn, 3, 3, 1, 1)
         
         self.mv_righ_AP_btn = QToolButton()
         self.mv_righ_AP_btn.setArrowType(QtCore.Qt.RightArrow)
-        self.average_trace_group.glayout.addWidget(self.mv_righ_AP_btn, 6, 2, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.mv_righ_AP_btn, 3, 4, 1, 1)
 
-        self.create_AP_gradient_btn = QPushButton("Check Activation times")
-        self.average_trace_group.glayout.addWidget(self.create_AP_gradient_btn, 7, 0, 1, 1)
+        self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 4, 0, 1, 5)
+        
+        self.activation_map_label = QLabel("Activation Maps")
+        self.average_trace_group.glayout.addWidget(self.activation_map_label, 5, 0, 1, 1)
+        
+        self.toggle_map_type = Toggle(checked_color = Qt.gray)
+        self.average_trace_group.glayout.addWidget(self.toggle_map_type, 5, 1, 1, 1)
+
+        self.APD_map_label = QLabel("APD Maps")
+        self.average_trace_group.glayout.addWidget(self.APD_map_label, 5, 2, 1, 1)
         
         self.make_interpolation_label = QLabel("Interpolate Maps")
-        self.average_trace_group.glayout.addWidget(self.make_interpolation_label, 7, 2, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.make_interpolation_label, 5, 3, 1, 1)
 
         self.make_interpolation_check = QCheckBox()
         self.make_interpolation_check.setChecked(False)
-        self.average_trace_group.glayout.addWidget(self.make_interpolation_check, 7, 3, 1, 1)
-
+        self.average_trace_group.glayout.addWidget(self.make_interpolation_check, 5, 4, 1, 1)
+        
         self.activation_map_percentage_label = QLabel("APD Map percentage")
-        self.average_trace_group.glayout.addWidget(self.activation_map_percentage_label, 8, 0, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.activation_map_percentage_label, 6, 0, 1, 1)
 
         self.slider_APD_map_percentage = QLabeledSlider(Qt.Orientation.Horizontal)
         self.slider_APD_map_percentage.setRange(5, 100)
         self.slider_APD_map_percentage.setValue(75)
         self.slider_APD_map_percentage.setSingleStep(5)
-        self.average_trace_group.glayout.addWidget(self.slider_APD_map_percentage, 8, 1, 1, 1)
+        self.average_trace_group.glayout.addWidget(self.slider_APD_map_percentage, 6, 1, 1, 1)
         
-        self.activation_map_label = QLabel("Activation Maps")
-        self.average_trace_group.glayout.addWidget(self.activation_map_label, 9, 0, 1, 1)
-        
-        self.toggle_map_type = Toggle(checked_color = Qt.gray)
-        self.average_trace_group.glayout.addWidget(self.toggle_map_type, 9, 1, 1, 1)
-
-        self.APD_map_label = QLabel("APD Maps")
-        self.average_trace_group.glayout.addWidget(self.APD_map_label, 9, 2, 1, 1)
-        
-        self.make_maps_btn = QPushButton("Make Maps")
-        self.average_trace_group.glayout.addWidget(self.make_maps_btn, 10, 0, 1, 4)
+        self.make_maps_btn = QPushButton("Create Maps")
+        self.average_trace_group.glayout.addWidget(self.make_maps_btn, 6, 2, 1, 3)
 
 
 
