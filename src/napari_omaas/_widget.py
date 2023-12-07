@@ -702,6 +702,8 @@ class OMAAS(QWidget):
         self.make_maps_btn = QPushButton("Create Maps")
         self.average_trace_group.glayout.addWidget(self.make_maps_btn, 6, 2, 1, 3)
 
+        self.average_roi_on_map_btn = QPushButton("Average ROI")
+        self.average_trace_group.glayout.addWidget(self.average_roi_on_map_btn, 7, 0, 1, 1)
 
 
 
@@ -896,6 +898,7 @@ class OMAAS(QWidget):
         self.make_maps_btn.clicked.connect(self._on_click_make_maps_btn_func)
         self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_bt_func)
         self.apply_segmentation_btn.clicked.connect(self._on_click_apply_segmentation_btn_fun)
+        self.average_roi_on_map_btn.clicked.connect(self._on_click_average_roi_on_map_btn_fun)
         
         
         
@@ -1433,6 +1436,8 @@ class OMAAS(QWidget):
                                             linestyles='dashed', color = "grey", label=f'AP_base', lw = 0.5, alpha = 0.8)
 
                         APD_props.append(self.APs_props)
+                        
+                        print(f"APD computed on image '{img.name}' with roi: {shape_indx}")
 
                     except Exception as e:
                         # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
@@ -1478,7 +1483,6 @@ class OMAAS(QWidget):
                                             "BasCycLength_bcl"]])
                 # self.APD_propert_table = QTableView()
             self.APD_propert_table.setModel(model)
-            print("APD computed")
 
             self.add_record_fun()
         else:
@@ -2168,28 +2172,73 @@ class OMAAS(QWidget):
         else:
             return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
 
-    # def _on_click_make_APD_maps_btn_func(self):
-    #     percentage = self.slider_APD_map_percentage.value()
 
-    #     current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
-    #     current_img_selection = self.viewer.layers[current_img_selection_name]
+    def _on_click_average_roi_on_map_btn_fun(self):
         
-    #     # check for "CycleTime" in metadtata
-    #     if "CycleTime" in self.img_metadata_dict:
-    #         cycl_t = self.img_metadata_dict["CycleTime"]
-    #     else:
-    #         cycl_t = 1
+        _, shapes_items = self._get_imgs_and_shpes_items(return_img=True)
+        current_img_selected = self.viewer.layers.selection.active
 
-    #     results = return_APD_maps(current_img_selection.data, cycle_time=cycl_t,  interpolate_df = self.make_interpolation_check.isChecked(), percentage = percentage)
+        if isinstance(current_img_selected, Image) and current_img_selected.ndim == 2:
+            ndim = current_img_selected.ndim
+            dshape = current_img_selected.data.shape
+            masks = shapes_items[0].to_masks(dshape)
+            
+            if masks.ndim == 3:
+                for indx_roi, roi in enumerate(masks):
+                    
+                    results = np.nanmean(current_img_selected.data[roi])
+                    print(f"mean of roi: '{indx_roi}' in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
+                return            
+            
+            elif masks.ndim == 2:
+                
+                results = np.nanmean(current_img_selected.data[masks])
+                return print(f"mean of roi in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
+            else:
+                warn(f" you seem to have an issue with your shapes")
         
-    #     self.add_result_img(result_img=results, 
-    #                         img_custom_name=current_img_selection.name, 
-    #                         single_label_sufix=f"APDMap{percentage}", 
-    #                         add_to_metadata = f"Activationn Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}, APD_percentage={percentage}")
-    #     self.add_record_fun()
-        
-        
-    #     print("APD map generated")
+        else:
+            
+            return warn(f"No an image selected or image: '{current_img_selected.name}' has ndim = {current_img_selected.ndim }. Select an 2d image retunred from a map.")
+
+
+
+# def extract_ROI_time_series(img_layer, shape_layer, idx_shape, roi_mode, xscale = 1):
+#     """Extract the array element values inside a ROI along the first axis of a napari viewer layer.
+
+#     :param current_step: napari viewer current step
+#     :param layer: a napari image layer
+#     :param labels: 2D label array derived from a shapes layer (Shapes.to_labels())
+#     :param idx_shape: the index value for a given shape
+#     :param roi_mode: defines how to handle the values inside of the ROI -> calc mean (default), median, sum or std
+#     :return: shape index, ROI mean time series
+#     :rtype: np.ndarray
+#     """
+
+#     ndim = img_layer.ndim
+#     dshape = img_layer.data.shape
+
+#     mode_dict = dict(
+#         Min=np.min,
+#         Max=np.max,
+#         Mean=np.mean,
+#         Median=np.median,
+#         Sum=np.sum,
+#         Std=np.std,
+#     )
+#     # convert ROI label to mask
+#     if ndim == 3:    
+#         label = shape_layer.to_labels(dshape[-2:])
+#         mask = np.tile(label == (idx_shape + 1), (dshape[0], 1, 1))
+
+#     if mask.any():
+#         return add_index_dim(mode_dict[roi_mode](img_layer.data[mask].reshape(dshape[0], -1), axis=1), xscale)
+    
+
+
+
+
+
     
     def _on_click_create_AP_gradient_bt_func(self):
         current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
