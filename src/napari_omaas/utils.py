@@ -1033,11 +1033,24 @@ def return_maps(image: "napari.types.ImageData", cycle_time, percentage, interp_
                     amp_V = ( ((100 - percentage)/ 100) * (max_v[y_px, x_px] - resting_V)) + resting_V
                     mask_repol_indx =  np.nanargmax(image[start_indices[y_px, x_px] + 1:, y_px, x_px] <= amp_V) # <- here is the problem
                     repol_index= start_indices[y_px, x_px] + min(mask_repol_indx, image[start_indices[y_px, x_px]:, y_px, x_px].size) 
-                    pre_repol_index = repol_index - 1
+                    pre_repol_index = repol_index - 2
                     
                     if repol_index <= n_frames:
-                        APD[y_px, x_px] = time[repol_index] - activation_times[y_px, x_px] 
+                       
+                       if interpolate_df  == True:
+                           
+                           time_fine_grid = np.linspace(time[pre_repol_index], time[repol_index], interp_points)
+                           interpolation_f = CubicSpline(time[pre_repol_index:repol_index],  Vm_signal[pre_repol_index:repol_index],  extrapolate=True)
+                           Vm_interpolated = interpolation_f(time_fine_grid)                            
+                           repol_index_interpolated = min(np.nanargmax(Vm_interpolated <= amp_V), len(time_fine_grid))
+                           repol_time = time_fine_grid[repol_index_interpolated]
+                           APD[y_px, x_px] = repol_time - activation_times[y_px, x_px] 
+                       
+                       else:
+                           
+                           APD[y_px, x_px] = time[repol_index] - activation_times[y_px, x_px] 
                     else:
+
                         APD[y_px, x_px] = np.nan
         
         if cycle_time == 1:
