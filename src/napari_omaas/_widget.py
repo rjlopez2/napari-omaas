@@ -2116,39 +2116,57 @@ class OMAAS(QWidget):
         # NOTE: you need to decide if you use image form the selector o from the 
         # the napary layer list!!! and assert accordingly the image properties
 
-        percentage = self.slider_APD_map_percentage.value()
-        current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
-        current_img_selection = self.viewer.layers[current_img_selection_name]
-
-        # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
-        map_type = self.toggle_map_type.checkState()
         
-        # check for "CycleTime" in metadtata
-        if "CycleTime" in self.img_metadata_dict:
-            cycl_t = self.img_metadata_dict["CycleTime"]
+        # assert that a profile was created
+        if hasattr(self, "data_main_canvas"):
+
+            time = self.data_main_canvas["x"][0]
+            _, AP_peaks_indx, _ = return_AP_ini_end_indx_func(self.data_main_canvas["y"][0], promi=self.prominence)
+            # assert that you have a single AP detected
+            if len(AP_peaks_indx) == 1:
+
+                #########################
+                #  start computing maps #
+                #########################
+
+                percentage = self.slider_APD_map_percentage.value()
+                current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+                current_img_selection = self.viewer.layers[current_img_selection_name]
+
+                # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
+                map_type = self.toggle_map_type.checkState()
+                
+                # check for "CycleTime" in metadtata
+                if "CycleTime" in self.img_metadata_dict:
+                    cycl_t = self.img_metadata_dict["CycleTime"]
+                else:
+                    cycl_t = 1
+
+                results = return_maps(current_img_selection.data, 
+                                    cycle_time=cycl_t,  
+                                    interpolate_df = self.make_interpolation_check.isChecked(), 
+                                    map_type = map_type, 
+                                    percentage = percentage)
+                
+                if map_type == 0:
+                    self.add_result_img(result_img=results, 
+                                    img_custom_name=current_img_selection.name, 
+                                    single_label_sufix=f"ActMap", 
+                                    add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                elif map_type == 2:
+                    self.add_result_img(result_img=results, 
+                                    img_custom_name=current_img_selection.name, 
+                                    single_label_sufix=f"APDMap{percentage}", 
+                                    add_to_metadata = f"APD{percentage} Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+
+
+                self.add_record_fun()
+                print("Map generated")
+            else:
+                return warn("Either non or more than 1 AP detected. Please average your traces, clip 1 AP or make sure you have at least one AP detected by changing the 'Sensitivity threshold'.") 
+       
         else:
-            cycl_t = 1
-
-        results = return_maps(current_img_selection.data, 
-                              cycle_time=cycl_t,  
-                              interpolate_df = self.make_interpolation_check.isChecked(), 
-                              map_type = map_type, 
-                              percentage = percentage)
-        
-        if map_type == 0:
-            self.add_result_img(result_img=results, 
-                            img_custom_name=current_img_selection.name, 
-                            single_label_sufix=f"ActMap", 
-                            add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-        elif map_type == 2:
-            self.add_result_img(result_img=results, 
-                            img_custom_name=current_img_selection.name, 
-                            single_label_sufix=f"APDMap{percentage}", 
-                            add_to_metadata = f"APD{percentage} Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-
-
-        self.add_record_fun()
-        print("Map generated")
+            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
 
     # def _on_click_make_APD_maps_btn_func(self):
     #     percentage = self.slider_APD_map_percentage.value()
