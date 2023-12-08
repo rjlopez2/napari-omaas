@@ -10,7 +10,7 @@ from skimage.restoration import denoise_bilateral
 import warnings
 from napari.layers import Image
 import sif_parser
-from numba import njit
+# from numba import njit
 import tqdm.auto as tqdm
 from napari.utils import progress
 from time import time
