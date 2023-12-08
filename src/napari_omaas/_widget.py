@@ -22,10 +22,8 @@ from superqt import QLabeledSlider
 from qtpy import QtWidgets
 from warnings import warn
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
-from PyQt5.QtGui import QIntValidator, QPainter
+from qtpy.QtGui import QIntValidator
 from numpy import ndarray as numpy_ndarray
-# import pyqtgraph as pg
-# from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import BaseNapariMPLWidget
 from napari.layers import Shapes, Image
 from napari.utils import progress
