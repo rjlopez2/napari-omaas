@@ -700,7 +700,7 @@ class OMAAS(QWidget):
         self.make_maps_btn = QPushButton("Create Maps")
         self.average_trace_group.glayout.addWidget(self.make_maps_btn, 6, 2, 1, 3)
 
-        self.average_roi_on_map_btn = QPushButton("Average ROI")
+        self.average_roi_on_map_btn = QPushButton("ROI mean")
         self.average_trace_group.glayout.addWidget(self.average_roi_on_map_btn, 7, 0, 1, 1)
 
 
@@ -1422,17 +1422,23 @@ class OMAAS(QWidget):
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][ini_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
-                                            linestyles='dashed', color = "green", label=f'AP_ini', lw = 0.5, alpha = 0.8)
+                                            linestyles='dashed', color = "green", 
+                                            # label=f'AP_ini',
+                                            lw = 0.5, alpha = 0.8)
                         # plot vline of AP end
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][end_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
-                                            linestyles='dashed', color = "red", label=f'AP_end', lw = 0.5, alpha = 0.8)
+                                            linestyles='dashed', color = "red", 
+                                            # label=f'AP_end',
+                                            lw = 0.5, alpha = 0.8)
                         # plot hline of AP baseline
                         self._APD_plot_widget.axes.hlines(resting_V,
                                             xmin = time[img_indx + shape_indx][ini_indx],
                                             xmax = time[img_indx + shape_indx][end_indx],
-                                            linestyles='dashed', color = "grey", label=f'AP_base', lw = 0.5, alpha = 0.8)
+                                            linestyles='dashed', color = "grey", 
+                                            # label=f'AP_base',
+                                            lw = 0.5, alpha = 0.8)
 
                         APD_props.append(self.APs_props)
                         
