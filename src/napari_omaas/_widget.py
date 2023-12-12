@@ -1529,7 +1529,7 @@ class OMAAS(QWidget):
                         self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
                     except Exception as e:
-                        print(f">>>>> this is a know error when computing peaks found while creating shapes interactively: {e}")
+                        print(f">>>>> this is a known error when computing peaks found while creating shapes interactively: '{e}'")
 
                 break
 
@@ -1991,7 +1991,7 @@ class OMAAS(QWidget):
 
         
         # assert that you have content in the canvas
-        if len(self.average_AP_plot_widget.figure.axes) != 0:            
+        if len(self.average_AP_plot_widget.figure.axes) != 0 and hasattr(self, "data_main_canvas"):            
 
             ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
 
