@@ -1505,6 +1505,7 @@ class OMAAS(QWidget):
 
 
     def _get_APD_thre_slider_vlaue_func(self, value):
+        value = int(value)
         self.prominence = value / (self.slider_APD_thres_max_range)
         self.slider_APD_detection_threshold.setValue(value)
         self.slider_APD_detection_threshold_2.setValue(value)
