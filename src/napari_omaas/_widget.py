@@ -1395,7 +1395,8 @@ class OMAAS(QWidget):
                     self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
-                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
+                    # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
+                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'ROI-{shape_indx}', alpha=0.8)
 
                     ##### catch error here and exit nicely for the user with a warning or so #####
                     try:
@@ -1456,7 +1457,7 @@ class OMAAS(QWidget):
                          "indx_at_AP_upstroke",
                          "indx_at_AP_peak",
                          "indx_at_AP_end"]
-            # self._APD_plot_widget.axes.legend()
+            self._APD_plot_widget.axes.legend()
             self._APD_plot_widget.canvas.draw()
 
 
@@ -1518,7 +1519,8 @@ class OMAAS(QWidget):
             traces = self.data_main_canvas["y"]
             selected_img_list, shapes = self._get_imgs_and_shpes_items(return_img=True)
             for img_indx, img_name in enumerate(selected_img_list):
-                for shpae_indx, trace in enumerate(shapes[0].data):
+                for shpae_indx, shape in enumerate(shapes[0].data):
+
                     traces[img_indx + shpae_indx]
                     n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
                     self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
