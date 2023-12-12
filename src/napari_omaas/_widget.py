@@ -1521,10 +1521,16 @@ class OMAAS(QWidget):
             for img_indx, img_name in enumerate(selected_img_list):
                 for shpae_indx, shape in enumerate(shapes[0].data):
 
-                    traces[img_indx + shpae_indx]
-                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
-                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
+                    try:
+
+                        traces[img_indx + shpae_indx]
+                        n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
+                        self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                        self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
+
+                    except Exception as e:
+                        print(f">>>>> this is a know error when computing peaks found while creating shapes interactively: {e}")
+
                 break
 
     def _get_APD_percent_slider_vlaue_func(self, value):
