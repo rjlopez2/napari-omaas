@@ -36,8 +36,10 @@ import pandas as pd
 # import cupyx
 # from cucim.skimage import registration as registration_gpu
 # from cucim.skimage import transform as transform_gpu
-from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QGroupBox, QGridLayout
-from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
+from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QGroupBox, QGridLayout, QCheckBox
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect, QPropertyAnimation, QPoint, QEasingCurve, Property
+# from qtpy.QtCore import *
+from qtpy.QtGui import QColor, QPainter
 
 
 # instanciate a macro object
@@ -1305,3 +1307,73 @@ class PandasModel(QAbstractTableModel):
                 return str(self._dataframe.index[section])
 
         return None
+
+
+
+class ToggleButton(QCheckBox):
+    def __init__(
+        self,
+        width=140,
+        bgColor="#777",
+        circleColor="#DDD",
+        activeColor="#00BCff",
+        animationCurve=QEasingCurve.OutBounce,
+    ):
+        QCheckBox.__init__(self)
+        self.setFixedSize(width, 25)
+        self.setCursor(Qt.PointingHandCursor)
+
+        self._bg_color = bgColor
+        self._circle_color = circleColor
+        self._active_color = activeColor
+        self._circle_position = 3
+        self.animation = QPropertyAnimation(self, b"circle_position")
+
+        self.animation.setEasingCurve(animationCurve)
+        self.animation.setDuration(100)
+        self.stateChanged.connect(self.start_transition)
+
+    @Property(int)
+    def circle_position(self):
+        return self._circle_position
+
+    @circle_position.setter
+    def circle_position(self, pos):
+        self._circle_position = pos
+        self.update()
+
+    def start_transition(self, value):
+        self.animation.setStartValue(self.circle_position)
+        if value:
+            self.animation.setEndValue(self.width() - 20 )
+        else:
+            self.animation.setEndValue(3)
+        self.animation.start()
+
+    def hitButton(self, pos: QPoint):
+        return self.contentsRect().contains(pos)
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+
+        p.setPen(Qt.NoPen)
+
+        rect = QRect(0, 0, self.width(), self.height())
+
+        if not self.isChecked():
+            p.setBrush(QColor(self._bg_color))
+            p.drawRoundedRect(
+                0, 0, rect.width(), self.height(), self.height() / 2, self.height() / 2
+            )
+
+            p.setBrush(QColor(self._circle_color))
+            p.drawEllipse(self._circle_position, 3, 16, 16)
+        else:
+            p.setBrush(QColor(self._active_color))
+            p.drawRoundedRect(
+                0, 0, rect.width(), self.height(), self.height() / 2, self.height() / 2
+            )
+
+            p.setBrush(QColor(self._circle_color))
+            p.drawEllipse(self._circle_position, 3, 16, 16)

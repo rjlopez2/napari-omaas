@@ -17,7 +17,6 @@ from qtpy.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton, 
     )
 
-from qtwidgets import Toggle
 from superqt import QLabeledSlider
 from qtpy import QtWidgets
 from warnings import warn
@@ -676,7 +675,8 @@ class OMAAS(QWidget):
         self.activation_map_label = QLabel("Activation Maps")
         self.average_trace_group.glayout.addWidget(self.activation_map_label, 5, 0, 1, 1)
         
-        self.toggle_map_type = Toggle(checked_color = Qt.gray)
+        # self.toggle_map_type = Toggle()
+        self.toggle_map_type = ToggleButton()
         self.average_trace_group.glayout.addWidget(self.toggle_map_type, 5, 1, 1, 1)
 
         self.APD_map_label = QLabel("APD Maps")
