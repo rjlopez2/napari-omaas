@@ -152,7 +152,7 @@ class OMAAS(QWidget):
 
         ####### temporal filter subgroup #######     
         self.temp_filter_group = VHGroup('Temporal Filters', orientation='G')
-        self.filter_group.glayout.addWidget(self.temp_filter_group.gbox)
+        self.filter_group.glayout.addWidget(self.temp_filter_group.gbox, 1, 0)
 
         ######## temporal Filters btns ########
         self.temp_filt_type_label = QLabel("Filter type")
@@ -194,7 +194,7 @@ class OMAAS(QWidget):
 
         ####### spatial filter subgroup #######
         self.spac_filter_group = VHGroup('Spatial Filters', orientation='G')
-        self.filter_group.glayout.addWidget(self.spac_filter_group.gbox)
+        self.filter_group.glayout.addWidget(self.spac_filter_group.gbox, 0, 0)
 
         
         ######## spatial Filters btns ########
