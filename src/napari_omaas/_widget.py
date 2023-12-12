@@ -1987,7 +1987,7 @@ class OMAAS(QWidget):
 
             ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
 
-            if ini_i.size > 0:
+            if ini_i.size > 1:
 
                 img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
                 results= split_AP_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
@@ -1995,9 +1995,12 @@ class OMAAS(QWidget):
                 print("Average trace created")
                 self.add_record_fun()
 
-            else:
+            elif ini_i.size == 1:
+                return warn(f"Only {ini_i.size} AP detected. No average computed.")
+            elif ini_i.size < 1:
                 self._on_click_clear_AP_splitted_btn_fun()
                 return warn("No AP detected")
+
         else:
             return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
 

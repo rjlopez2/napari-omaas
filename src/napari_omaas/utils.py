@@ -881,11 +881,14 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
 
        # handle case when theere is ony one peak found
     if len(AP_peaks_indx) == 1:
+        
         bcl_list = len(my_1d_array) - AP_peaks_indx[0] 
         end_ap_indx = len(my_1d_array)
         ini_ap_indx = AP_peaks_indx
+        return ini_ap_indx, AP_peaks_indx, end_ap_indx
         # set promi to 100
     elif len(AP_peaks_indx) > 1:
+
         bcl_list = np.diff(AP_peaks_indx) 
         bcl_list = np.median(bcl_list).astype(np.uint16)
         half_bcl_list = np.round(bcl_list // 2 )
@@ -904,9 +907,14 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
             if end_ap_indx[indx] > len(my_1d_array):
                 half_bcl_list = half_bcl_list - end_ap_indx[indx]
                 end_ap_indx = AP_peaks_indx - half_bcl_list
+        return ini_ap_indx, AP_peaks_indx, end_ap_indx
+    
+    elif len(AP_peaks_indx) < 1:
+
+        return ValueError(f"Number of AP founds  = {len(my_1d_array)}. Change the threshold, ROI or check your image")
+
 
     # return splited_arrays
-    return ini_ap_indx, AP_peaks_indx, end_ap_indx
     
 
 @macro.record
