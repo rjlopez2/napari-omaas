@@ -316,14 +316,26 @@ class OMAAS(QWidget):
         self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
 
          ######## Plotting Group ########
-        self.plot_grpup = VHGroup('Plot profile', orientation='G')
+        self.plot_group = VHGroup('Plot profile', orientation='G')
         # self.main_layout.addWidget(self.plot_grpup.gbox)
 
         ############################################
         ############ create plot widget ############
         ############################################
+
         self.plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.plot_grpup.glayout.addWidget(self.plot_widget, 1, 1, 1, 2)
+        self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
+
+
+        ######################################################
+        ############ create plotting button widget ###########
+        ######################################################
+
+        # self.plot_profile_btn = QPushButton("Plot profile")
+        self.plot_profile_btn = QCheckBox("Display profile")
+        self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
+        # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
+        self.plot_group.glayout.addWidget(self.plot_profile_btn, 1, 1, 1, 1)
 
 
         ######################################################
@@ -335,8 +347,8 @@ class OMAAS(QWidget):
         
         self.listShapeswidget = QListWidget()
         self.listShapeswidget_label = QLabel("Select *Shape* for plotting profile")
-        self.selector_group.glayout.addWidget(self.listShapeswidget_label, 3, 2, 1, 1)
-        self.selector_group.glayout.addWidget(self.listShapeswidget, 4, 2, 1, 1)
+        self.selector_group.glayout.addWidget(self.listShapeswidget_label, 0, 2, 1, 1)
+        self.selector_group.glayout.addWidget(self.listShapeswidget, 1, 2, 1, 1)
 
         ######################################################
         ############ create Image selector widget ############
@@ -348,19 +360,8 @@ class OMAAS(QWidget):
         )
 
         self.listImagewidget_label = QLabel("Select *Image* for plotting profile")
-        self.selector_group.glayout.addWidget(self.listImagewidget_label, 3, 1, 1, 1)
-        self.selector_group.glayout.addWidget(self.listImagewidget, 4, 1, 1, 1)
-
-
-        ######################################################
-        ############ create plotting button widget ###########
-        ######################################################
-
-        # self.plot_profile_btn = QPushButton("Plot profile")
-        self.plot_profile_btn = QCheckBox("Display profile")
-        self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
-        # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
-        self.plot_grpup.glayout.addWidget(self.plot_profile_btn, 2, 1, 1, 1)
+        self.selector_group.glayout.addWidget(self.listImagewidget_label, 0, 1, 1, 1)
+        self.selector_group.glayout.addWidget(self.listImagewidget, 1, 1, 1, 1)
 
         ########################################################
         # set the layout of the plotting group in the given order
@@ -369,7 +370,7 @@ class OMAAS(QWidget):
         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
         self._pre_processing_layout.addWidget(self._collapse_filter_group)
         self._pre_processing_layout.addWidget(self._collapse_segmentation_group)
-        self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
+        self._pre_processing_layout.addWidget(self.plot_group.gbox)
 
         ######## Shapes tab ########
         ############################
@@ -1793,12 +1794,15 @@ class OMAAS(QWidget):
                         for img in img_layer:
                             # loop over shapes
                             for roi in range(n_shapes):
-                                x, y = extract_ROI_time_series(img_layer = img, 
-                                                               shape_layer = self.shape_layer, 
-                                                               idx_shape = roi, 
-                                                               roi_mode="Mean", 
-                                                               xscale = self.xscale)
-                                self.plot_widget.axes.plot(x, y, label= f"{img.name}_{shapes_items}_ROI:{roi}")
+                                img_label = f"{img.name}_{shapes_items}_ROI:{roi}"
+                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale)
+                                if len(img_label) > 40:
+                                    img_label = img.name[4:][:12] + "..." + img.name[-12:]
+                                    self.plot_widget.axes.plot(x, y, label= img_label)
+                                    # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
+                                else:
+                                    self.plot_widget.axes.plot(x, y, label= img_label)
+
                                 self.plot_widget.axes.legend()                                
                                 self.draw()
 
