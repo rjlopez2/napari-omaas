@@ -1,17 +1,20 @@
 from qtpy import QtCore, QtGui
 import numpy as np
-from skimage.filters import gaussian, threshold_triangle, median, rank
-from skimage.morphology import disk
+from skimage.filters import gaussian, threshold_triangle, median, rank, sobel
+from skimage.measure import label
+from skimage.filters.rank import mean_bilateral
+from skimage.morphology import disk, binary_closing, remove_small_objects, closing
 from skimage.registration import optical_flow_ilk
-from skimage import transform
-from skimage import morphology, registration, segmentation
+from skimage import transform, exposure, morphology, registration, segmentation
+from skimage.restoration import denoise_bilateral
 import warnings
 from napari.layers import Image
 import sif_parser
-from numba import njit
+# from numba import njit
 import tqdm.auto as tqdm
 from napari.utils import progress
-
+from time import time
+from optimap.image import detect_background_threshold
 
 from napari_macrokit import get_macro
 
@@ -596,6 +599,23 @@ def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
 
     return (out_img)
 
+
+@macro.record
+def apply_bilateral_filter(data: "napari.types.ImageData", wind_size, sigma_col, sigma_spa):
+
+    out_img = np.empty_like(data)
+    start = time()
+    for plane, img in enumerate(progress(data)):
+        # out_img[plane] = mean_bilateral(data[plane], disk(disk_size), s0=5, s1=5) this requires the image to be a uint8/uint16
+        out_img[plane] = denoise_bilateral(data[plane], 
+                                           win_size = wind_size, 
+                                           sigma_color = sigma_col, 
+                                           sigma_spatial = sigma_spa, 
+                                           bins = 1024)
+    end = time()
+    print(f"elapsed time: {round((end - start)/60, 1)} min")
+    return (out_img)
+
 @macro.record
 def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0):
     
@@ -861,11 +881,14 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
 
        # handle case when theere is ony one peak found
     if len(AP_peaks_indx) == 1:
+        
         bcl_list = len(my_1d_array) - AP_peaks_indx[0] 
         end_ap_indx = len(my_1d_array)
         ini_ap_indx = AP_peaks_indx
+        return ini_ap_indx, AP_peaks_indx, end_ap_indx
         # set promi to 100
     elif len(AP_peaks_indx) > 1:
+
         bcl_list = np.diff(AP_peaks_indx) 
         bcl_list = np.median(bcl_list).astype(np.uint16)
         half_bcl_list = np.round(bcl_list // 2 )
@@ -884,9 +907,14 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
             if end_ap_indx[indx] > len(my_1d_array):
                 half_bcl_list = half_bcl_list - end_ap_indx[indx]
                 end_ap_indx = AP_peaks_indx - half_bcl_list
+        return ini_ap_indx, AP_peaks_indx, end_ap_indx
+    
+    elif len(AP_peaks_indx) < 1:
+
+        return ValueError(f"Number of AP founds  = {len(my_1d_array)}. Change the threshold, ROI or check your image")
+
 
     # return splited_arrays
-    return ini_ap_indx, AP_peaks_indx, end_ap_indx
     
 
 @macro.record
@@ -920,7 +948,7 @@ def split_AP_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
 
 
 @macro.record
-def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 512,  interpolate_df = False) -> "napari.types.ImageData":
+def return_maps(image: "napari.types.ImageData", cycle_time, percentage, interp_points= 512,  interpolate_df = False, map_type = 0) -> "napari.types.ImageData":
     # data: "napari.types.ImageData")-> "napari.types.ImageData":
     
     """
@@ -931,6 +959,7 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
         image : np.ndarray
             3D stack image of a single AP. ussually teh result from 
             averageing multiple APs.
+        map_type = 0 for Aactvation time maps, 2 for APD maps
 
         Returns
         -------
@@ -941,10 +970,10 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
 
     # 1. Get gradient and normalize it
     dfdt = np.gradient(image.data, axis=0)
-    dfdt = (dfdt - np.min(dfdt)) / np.max(dfdt)
+    dfdt = (dfdt - np.nanmin(dfdt)) / np.nanmax(dfdt)
     dfdt = np.nan_to_num(dfdt, nan=0)
     # dfdt = local_normal_fun(dfdt)
-    start_indices = np.argmax(dfdt, axis=0)
+    start_indices = np.nanargmax(dfdt, axis=0)
     activation_times = np.full_like(start_indices, fill_value= np.nan,  dtype=np.float64)
     # 2. get time vector
     n_frames, y_size, x_size = image.shape
@@ -955,36 +984,243 @@ def return_act_maps(image: "napari.types.ImageData", cycle_time, interp_points= 
     # 4. main loop to build Activation map 
     for y_px  in progress(range(y_size)):
         for x_px in range(x_size):
-            idx_max = start_indices[y_px, x_px]
             
-            # NOTE: this is giving some odd results probably due to large size of "delta" (points around the 'dfdtmax' to be used for interpolation)
-            if interpolate_df  == True:
-                if idx_max > delta and idx_max+delta < time.size:
-                    dfdt_mn = dfdt[:, y_px, x_px];
-                    dfdt_mn = dfdt_mn.reshape(-1)
-                    # generate fine grid for interpolation in ms
-                    ini_indx = idx_max - delta
-                    end_indx = idx_max + delta
-                    # time_fine_grid = (time_fine_grid * cycle_time ) + time[ini_indx]
-                    time_fine_grid = np.linspace(time[ini_indx], time[end_indx], interp_points);
-                    # print(f" ini_indx shape: {ini_indx}, end_indx shape: {end_indx}")
-                    # interpolate around the previously found start index                
-                    interpolation_f = CubicSpline(time[ini_indx:end_indx],  dfdt_mn[ini_indx:end_indx],  extrapolate=True)
-                    dfdt_mn_interpolated = interpolation_f(time_fine_grid)
-                    # print(dfdt_mn_interpolated)
-                    # find new dfdt max
-                    idx_max_interpolated = np.argmax(dfdt_mn_interpolated)
-                    # print(idx_max_interpolated)
-                    activation_times[y_px, x_px] = time_fine_grid[idx_max_interpolated]
-            else:
-                activation_times[y_px, x_px] = time[idx_max]
+            idx_max = start_indices[y_px, x_px]
+            if time[idx_max] != 0:
+                
+                # NOTE: this is giving some odd results probably due to large size of "delta" (points around the 'dfdtmax' to be used for interpolation)
+                if interpolate_df  == True:
+                    if idx_max > delta and idx_max+delta < time.size:
+                        dfdt_mn = dfdt[:, y_px, x_px];
+                        dfdt_mn = dfdt_mn.reshape(-1)
+                        # generate fine grid for interpolation in ms
+                        ini_indx = idx_max - delta
+                        end_indx = idx_max + delta
+                        time_fine_grid = np.linspace(time[ini_indx], time[end_indx], interp_points)
+                        # interpolate around the previously found start index                
+                        interpolation_f = CubicSpline(time[ini_indx:end_indx],  dfdt_mn[ini_indx:end_indx],  extrapolate=True)
+                        dfdt_mn_interpolated = interpolation_f(time_fine_grid)
+                        # find new dfdt max
+                        idx_max_interpolated = np.nanargmax(dfdt_mn_interpolated)
+                        # if np.isnan(time_fine_grid[idx_max_interpolated]):
+                        #     print(f"catch a nan at pixel y:{y_px}, x:{x_px} ")
+                        # print(idx_max_interpolated)
+                        activation_times[y_px, x_px] = time_fine_grid[idx_max_interpolated]
+                else:
+                    # if time[idx_max] != 0:
+                    #     print(f"time = {time[idx_max]}, y {y_px}, x = {x_px}")
+                    activation_times[y_px, x_px] = time[idx_max]
         
                 
     # activation_times[activation_times == 0] = np.nan # remove zeros
-    if cycle_time == 1:
-        return activation_times
+    if map_type == 0:
+
+        if cycle_time == 1:
+            return activation_times
+        else:
+            return activation_times * 1000 # convert to ms
+    
+    elif map_type ==2:
+
+        max_v = np.max(image, axis = 0)
+        APD = np.full_like(max_v, fill_value= np.nan,  dtype=np.float64)
+
+        for y_px  in progress(range(y_size)):
+            for x_px in range(x_size):
+                
+                if  (~np.isnan(start_indices[y_px, x_px])) and (start_indices[y_px, x_px] + delta < n_frames) and (start_indices[y_px, x_px] > delta):
+                    Vm_signal = image[:, y_px, x_px]                    
+                    # Calculate resting membrane potential from start to 5 ms before AP upstroke. there are more cases. See matlab app.                
+                    # print(f"{start_indices[y_px, x_px]}")
+                    resting_V = np.nanmean( image[:start_indices[y_px, x_px] - int(np.ceil(0.005 / cycle_time) ), y_px, x_px] )
+                    
+                    # multiples cases here above?
+                    
+                    
+                    
+                    amp_V = ( ((100 - percentage)/ 100) * (max_v[y_px, x_px] - resting_V)) + resting_V
+                    mask_repol_indx =  np.nanargmax(image[start_indices[y_px, x_px] + 1:, y_px, x_px] <= amp_V) # <- here is the problem
+                    repol_index= start_indices[y_px, x_px] + min(mask_repol_indx, image[start_indices[y_px, x_px]:, y_px, x_px].size) 
+                    pre_repol_index = repol_index - 2
+                    
+                    if repol_index <= n_frames:
+                       
+                       if interpolate_df  == True:
+                           
+                           time_fine_grid = np.linspace(time[pre_repol_index], time[repol_index], interp_points)
+                           interpolation_f = CubicSpline(time[pre_repol_index:repol_index],  Vm_signal[pre_repol_index:repol_index],  extrapolate=True)
+                           Vm_interpolated = interpolation_f(time_fine_grid)                            
+                           repol_index_interpolated = min(np.nanargmax(Vm_interpolated <= amp_V), len(time_fine_grid))
+                           repol_time = time_fine_grid[repol_index_interpolated]
+                           APD[y_px, x_px] = repol_time - activation_times[y_px, x_px] 
+                       
+                       else:
+                           
+                           APD[y_px, x_px] = time[repol_index] - activation_times[y_px, x_px] 
+                    else:
+
+                        APD[y_px, x_px] = np.nan
+        
+        if cycle_time == 1:
+            return APD
+        else:
+            return APD * 1000 # convert to ms
+
+
+        
     else:
-        return activation_times * 1000 # convert to ms
+
+        return warnings.warn(" NO type of map found")
+
+@macro.record
+def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df = False, percentage = 75):
+    
+    n_frames, y_size, x_size = image.shape
+    
+    # Find peak and resting membrane voltages
+    
+    max_v = np.nanmax(image, axis = 0)
+    APD = np.full_like(max_v, fill_value= np.nan,  dtype=np.float64)
+
+    for y_px  in progress(range(y_size)):
+        for x_px in range(x_size):
+
+            print("lalal")
+
+
+
+
+
+def segment_image_triangle(np_array, 
+                 ):
+    """Segment an image using an intensity threshold determined via
+    triangle method.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        The image to be segmented
+
+    Returns
+    -------
+    label_image : np.ndarray
+        The resulting image where each detected object labeled with a unique integer.
+    
+    cleared : np.ndarray bool
+        Mask as a boolean array of the detected segments
+
+    selection : np.ndarray
+        Image with segments and bacgorund removed.
+    """
+    # create copy of dataset
+    # masked_image = np_array.copy()
+    # n_frames = masked_image.shape[0]
+    
+    # select one frame
+    # one_frame_img = np_array[0]
+
+    # 1. make a elevation map
+    # elevation_map = sobel(one_frame_img)
+
+    # Global equalize histogram to enhance contrast (ok)
+    
+    # img_glo_eq = exposure.equalize_hist(elevation_map)
+    # # Local equalize histogram to enhance contrast (not good)
+    # footprint = disk(disk_s)
+    # img_loc_eq = rank.equalize(elevation_map, footprint=footprint)
+    
+    # 2. Local equalize histogram to enhance contrast (best)
+    # img_adapteq = exposure.equalize_adapthist(elevation_map, clip_limit=clip_limit_s)
+    
+    
+    # 3. apply threshold
+    # thresh = threshold_otsu(img_adapteq)
+    # thresh = threshold_li(one_frame_img)
+    thresh = threshold_triangle(np_array)
+    # # thresh = threshold_sauvola(one_frame_img, window_size=wind_s)
+    # # thresh = threshold_niblack(one_frame_img, window_size=wind_s)
+
+    # 4.  create mask
+    # mask = one_frame_img > thresh
+    mask = np_array.mean(axis = 0) > thresh
+    # bw = closing(mask, square(square_s))
+
+    # # remove artifacts connected to image border
+    
+    # 5. remove small objects from aoutside heart siluete
+    # cleared = remove_small_objects(mask, small_obj_s)
+    
+    # # 6. fill smaall holes ininside regions objects
+    # footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
+    # cleared = binary_closing(cleared, footprint=footprint)
+    # # cleared = clear_border(bw)
+
+    # # 7.  label image regions
+    # label_image = label(cleared)
+
+    # 8. remove background using mask
+    # selection[~np.tile(cleared, (n_frames, 1, 1))] = None
+
+    # # 9. subtract bacground from original image 
+    # background = selection[np.tile(cleared, (n_frames, 1, 1))].mean()
+    
+    # selection = selection - background
+
+    # return label_image
+    return mask
+
+
+
+def segment_image_GHT(image, threshold=None, return_threshold=False,
+                       small_obj_s = 500,  
+                #   square_s = 15,  
+                  small_holes_s = 5,):
+    """Create a foreground mask for an image using a threshold.
+
+    If no threshold is given, the background threshold is detected using the GHT algorithm :cite:p:`Barron2020`.
+
+    Parameters
+    ----------
+    image : np.ndarray
+        Image to create background mask for.
+    threshold : float or int, optional
+        Background threshold, by default None
+    return_threshold : bool, optional
+        If True, return the threshold as well, by default False
+
+    Returns
+    -------
+    mask : np.ndarray
+        Background mask.
+    threshold : float or int
+        Background threshold, only if ``return_threshold`` is True.
+    """
+    
+    if threshold is None:
+        threshold = detect_background_threshold(image)
+        print(f"Creating mask with detected threshold {threshold}")
+
+    mask = image.mean(axis = 0) > threshold
+    
+    if return_threshold:
+        return mask, threshold
+    else:
+        return mask
+
+
+def polish_mask(mask, small_obj_s = 500, small_holes_s = 5):
+
+    cleared = remove_small_objects(mask, small_obj_s)
+    
+    # 6. fill smaall holes ininside regions objects
+    footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
+    cleared = binary_closing(cleared, footprint=footprint)
+    # cleared = clear_border(bw)
+
+    # 7.  label image regions
+    label_image = label(cleared)
+
+    return label_image
 
 
 
