@@ -2387,7 +2387,7 @@ class OMAAS(QWidget):
 
         if not self.toggle_hist_data.isChecked():
             print("making histogram on current frame")
-            time_point, _, _ = self.viewer.dims.current_step
+            time_point = self.viewer.dims.current_step[0]
             # layer, _ = self._get_imgs_and_shpes_items(return_img=True)
             # layer = layer[0]
             layer = self.viewer.layers.selection.active
