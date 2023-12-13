@@ -315,15 +315,27 @@ class OMAAS(QWidget):
         self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
 
          ######## Plotting Group ########
-        self.plot_group = VHGroup('Plot profile', orientation='G')
+
+        self.plotting_tabs = QTabWidget()
+        self._plotting_profile_tabs_layout = VHGroup('Plot profile', orientation='V')
+        # self.plotting_tabs.setLayout(self._plotting_tabs_layout)
+        
+        # self._plotting_tabs_layout.setAlignment(Qt.AlignTop)
+        
+        
+        
+
+        # self.plot_group = VHGroup('Plot profile', orientation='G')
         # self.main_layout.addWidget(self.plot_grpup.gbox)
 
         ############################################
         ############ create plot widget ############
         ############################################
 
-        self.plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
+        self.main_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+        # self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
+        # self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.main_plot_widget)
 
 
         ######################################################
@@ -334,7 +346,33 @@ class OMAAS(QWidget):
         self.plot_profile_btn = QCheckBox("Display profile")
         self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
-        self.plot_group.glayout.addWidget(self.plot_profile_btn, 1, 1, 1, 1)
+        # self.plot_group.glayout.addWidget(self.plot_profile_btn, 1, 1, 1, 1)
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.plot_profile_btn)
+
+        self.plotting_tabs.addTab(self._plotting_profile_tabs_layout.gbox, 'Plot profile')
+
+
+        self._plotting_hisotgram_tabs_layout = VHGroup('Image histogram', orientation='G')
+        self.histogram_plot_widget =  BaseNapariMPLWidget(self.viewer)
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.histogram_plot_widget, 0, 0, 1, 5)
+        
+        self.hist_currf_label = QLabel("current frame")
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.hist_currf_label, 1, 0, 1, 1)
+        
+        self.toggle_hist_data = ToggleButton()
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.toggle_hist_data, 1, 1, 1, 1)
+
+        self.hist_currf_label = QLabel("all stack")
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.hist_currf_label, 1, 2, 1, 1)
+
+        self.plot_histogram_btn = QPushButton("Plot Histogram")
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.plot_histogram_btn, 1, 3, 1, 1)
+
+        self.clear_histogram_btn = QPushButton("Clear Plot")
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.clear_histogram_btn, 1, 4, 1, 1)
+
+
+        self.plotting_tabs.addTab(self._plotting_hisotgram_tabs_layout.gbox, 'Histogram')
 
 
         ######################################################
@@ -369,7 +407,8 @@ class OMAAS(QWidget):
         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
         self._pre_processing_layout.addWidget(self._collapse_filter_group)
         self._pre_processing_layout.addWidget(self._collapse_segmentation_group)
-        self._pre_processing_layout.addWidget(self.plot_group.gbox)
+        # self._pre_processing_layout.addWidget(self.plot_group.gbox)
+        self._pre_processing_layout.addWidget(self.plotting_tabs)
 
         ######## Shapes tab ########
         ############################
@@ -898,6 +937,8 @@ class OMAAS(QWidget):
         self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_bt_func)
         self.apply_segmentation_btn.clicked.connect(self._on_click_apply_segmentation_btn_fun)
         self.average_roi_on_map_btn.clicked.connect(self._on_click_average_roi_on_map_btn_fun)
+        self.plot_histogram_btn.clicked.connect(self._on_click_plot_histogram_btn_func)
+        self.clear_histogram_btn.clicked.connect(self._on_click_clear_histogram_btn_func)
         
         
         
@@ -1328,7 +1369,7 @@ class OMAAS(QWidget):
     def _get_current_selected_TSP_layer_callback(self, event):
         # this object is a list of image(s) selected from the Time_series_plotter pluggin layer selector
                 try:
-                    self.current_seleceted_layer_from_TSP = self.plot_widget.plotter.selector.model().get_checked()[0].name
+                    self.current_seleceted_layer_from_TSP = self.main_plot_widget.plotter.selector.model().get_checked()[0].name
                 except:
                     self.current_seleceted_layer_from_TSP = "ImageID"
                 
@@ -1368,7 +1409,7 @@ class OMAAS(QWidget):
     def _get_APD_call_back(self, event):
 
         # assert that there is a trace in the main plotting canvas
-        if len(self.plot_widget.figure.axes) > 0 :
+        if len(self.main_plot_widget.figure.axes) > 0 :
 
             self._APD_plot_widget.figure.clear()
             self._APD_plot_widget.add_single_axes()
@@ -1522,7 +1563,7 @@ class OMAAS(QWidget):
         self.slider_label_current_value_2.setText(self.slider_label_current_value.text())
         
         # check that you have content in the graphics panel
-        if len(self.plot_widget.figure.axes) > 0 :
+        if len(self.main_plot_widget.figure.axes) > 0 :
             traces = self.data_main_canvas["y"]
             selected_img_list, shapes = self._get_imgs_and_shpes_items(return_img=True)
             for img_indx, img_name in enumerate(selected_img_list):
@@ -1703,7 +1744,7 @@ class OMAAS(QWidget):
     
     def draw(self)-> None:
 
-        self.plot_widget.canvas.draw() # you must add this in order tp display the plot
+        self.main_plot_widget.canvas.draw() # you must add this in order tp display the plot
 
         
     def _layer_list_changed_callback(self, event):
@@ -1763,8 +1804,8 @@ class OMAAS(QWidget):
                     if n_shapes == 0:
                         warn("Draw a new square shape to plot profile in the current selected shape")
                     else:
-                        self.plot_widget.figure.clear()
-                        self.plot_widget.add_single_axes()
+                        self.main_plot_widget.figure.clear()
+                        self.main_plot_widget.add_single_axes()
                         # define container for data
                         self.data_main_canvas = {"x": [], "y": []}
                         # take a list of the images that contain "CycleTime" metadata
@@ -1784,10 +1825,10 @@ class OMAAS(QWidget):
                         
 
                         if "CycleTime" in self.img_metadata_dict:
-                            self.plot_widget.axes.set_xlabel("Time (ms)")
+                            self.main_plot_widget.axes.set_xlabel("Time (ms)")
                             self.xscale = self.img_metadata_dict["CycleTime"] * 1000 
                         else:
-                            self.plot_widget.axes.set_xlabel("Frames")
+                            self.main_plot_widget.axes.set_xlabel("Frames")
                             self.xscale = 1
 
                         # loop over images
@@ -1798,12 +1839,12 @@ class OMAAS(QWidget):
                                 x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale)
                                 if len(img_label) > 40:
                                     img_label = img.name[4:][:12] + "..." + img.name[-12:]
-                                    self.plot_widget.axes.plot(x, y, label= img_label)
+                                    self.main_plot_widget.axes.plot(x, y, label= img_label)
                                     # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
                                 else:
-                                    self.plot_widget.axes.plot(x, y, label= img_label)
+                                    self.main_plot_widget.axes.plot(x, y, label= img_label)
 
-                                self.plot_widget.axes.legend()                                
+                                self.main_plot_widget.axes.legend()                                
                                 self.draw()
 
                                 self.data_main_canvas["x"].append(x)
@@ -1813,7 +1854,7 @@ class OMAAS(QWidget):
                     print(f"You have the following error: --->> {e} <----")
         else:
             # print('Unchecked')
-            self.plot_widget.figure.clear()
+            self.main_plot_widget.figure.clear()
             self.draw()
             # reset some variables
             if hasattr(self, "data_main_canvas"):
@@ -1829,7 +1870,7 @@ class OMAAS(QWidget):
         state = self.plot_profile_btn.isChecked()
         if state:
             self._on_click_plot_profile_btn_func()
-            self.plot_widget.canvas.draw()
+            self.main_plot_widget.canvas.draw()
         else:
             # warn("Please Check on 'Plot profile' to creaate the plot")
             return
@@ -1837,7 +1878,7 @@ class OMAAS(QWidget):
     def _preview_multiples_traces_func(self):
 
         # assert that there is a trace in the main plotting canvas
-        if len(self.plot_widget.figure.axes) > 0 :
+        if len(self.main_plot_widget.figure.axes) > 0 :
 
             # self._data_changed_callback(event)
             self.shape_layer.events.data.connect(self._data_changed_callback)
@@ -2335,6 +2376,69 @@ class OMAAS(QWidget):
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+    
+
+
+    def _on_click_plot_histogram_btn_func(self):
+
+        self.histogram_plot_widget.figure.clear()
+        self.histogram_plot_widget.add_single_axes()
+        _COLORS = {"r": "tab:red", "g": "tab:green", "b": "tab:blue"}
+
+        if not self.toggle_hist_data.isChecked():
+            print("making histogram on current frame")
+            time_point, _, _ = self.viewer.dims.current_step
+            # layer, _ = self._get_imgs_and_shpes_items(return_img=True)
+            # layer = layer[0]
+            layer = self.viewer.layers.selection.active
+            # NOTE: assert here that layer is an image and you have layers
+
+            if layer.data.ndim - layer.rgb == 3:
+                # 3D data, can be single channel or RGB
+                data = layer.data[time_point]
+                self.histogram_plot_widget.axes.set_title(f"z={time_point}")
+            else:
+                data = layer.data
+            # Read data into memory if it's a dask array
+            data = np.asarray(data)
+
+            # Important to calculate bins after slicing 3D data, to avoid reading
+            # whole cube into memory.
+            bins = np.linspace(np.min(data), np.max(data), 256)
+
+            if layer.rgb:
+                # Histogram RGB channels independently
+                for i, c in enumerate("rgb"):
+                    self.histogram_plot_widget.axes.hist(
+                        data[..., i].ravel(),
+                        bins=bins,
+                        label=c,
+                        # histtype="step",
+                        edgecolor='white',
+                        # linewidth=1.2,
+                        color=_COLORS[c],
+                    )
+            else:
+                self.histogram_plot_widget.axes.hist(data.ravel(), 
+                                                     bins=bins, 
+                                                    #  histtype="step",
+                                                     edgecolor='white',
+                                                    #  linewidth=1.2,
+                                                     label=layer.name)
+
+            self.histogram_plot_widget.axes.legend()
+
+        else:
+            print("making histogram on full image stack")
+        
+        self.histogram_plot_widget.canvas.draw()
+    
+    def _on_click_clear_histogram_btn_func(self):
+        self.histogram_plot_widget.figure.clear()
+        self.histogram_plot_widget.canvas.draw()
+        print("Clearing Histogram plot")
+
+
 
         
 
