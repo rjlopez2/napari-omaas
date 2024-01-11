@@ -261,8 +261,8 @@ class OMAAS(QWidget):
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
         self.segmentation_group.glayout.addWidget(self.return_img_no_backg_btn, 0, 2, 1, 1)
 
-        self.apply_segmentation_btn = QPushButton("apply")
-        self.segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 1, 1, 1, 1)
+        self.apply_segmentation_btn = QPushButton("segment stack")
+        self.segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 0, 3, 1, 1)
 
 
 
