@@ -2389,66 +2389,71 @@ class OMAAS(QWidget):
 
     def _on_click_plot_histogram_btn_func(self):
 
-        self.histogram_plot_widget.figure.clear()
-        self.histogram_plot_widget.add_single_axes()
-        n_bins = self.slider_histogram_bins.value()
-        _COLORS = {"r": "tab:red", "g": "tab:green", "b": "tab:blue"}
-
         layer = self.viewer.layers.selection.active
+        # NOTE: assert here that layer is an image and you have layers
+        if isinstance(layer, Image):
 
-        if not self.toggle_hist_data.isChecked():
-            time_point = self.viewer.dims.current_step[0]
-            # layer, _ = self._get_imgs_and_shpes_items(return_img=True)
-            # layer = layer[0]
-            # NOTE: assert here that layer is an image and you have layers
+            self.histogram_plot_widget.figure.clear()
+            self.histogram_plot_widget.add_single_axes()
+            n_bins = self.slider_histogram_bins.value()
+            _COLORS = {"r": "tab:red", "g": "tab:green", "b": "tab:blue"}
+            
+            if not self.toggle_hist_data.isChecked():
+                time_point = self.viewer.dims.current_step[0]
+                # layer, _ = self._get_imgs_and_shpes_items(return_img=True)
+                # layer = layer[0]
 
-            if layer.data.ndim - layer.rgb == 3:
-                # 3D data, can be single channel or RGB
-                data = layer.data[time_point]
-                self.histogram_plot_widget.axes.set_title(f"z={time_point}")
+                if layer.data.ndim - layer.rgb == 3:
+                    # 3D data, can be single channel or RGB
+                    data = layer.data[time_point]
+                    self.histogram_plot_widget.axes.set_title(f"z={time_point}")
+                else:
+                    data = layer.data
+                # Read data into memory if it's a dask array
+                data = np.asarray(data)
+
+                # Important to calculate bins after slicing 3D data, to avoid reading
+                # whole cube into memory.
+                # bins = np.linspace(np.min(data), np.max(data), n_bins)
+
+                if layer.rgb:
+                    # Histogram RGB channels independently
+                    for i, c in enumerate("rgb"):
+                        self.histogram_plot_widget.axes.hist(
+                            data[..., i].ravel(),
+                            bins=n_bins,
+                            label=c,
+                            # histtype="step",
+                            edgecolor='white',
+                            # linewidth=1.2,
+                            color=_COLORS[c],
+                        )
+                else:
+                    self.histogram_plot_widget.axes.hist(data.ravel(), 
+                                                        bins=n_bins, 
+                                                        #  histtype="step",
+                                                        edgecolor='white',
+                                                        #  linewidth=1.2,
+                                                        label=layer.name)
+
+                self.histogram_plot_widget.axes.legend()
+                print(f"Histogram of frame: '{time_point}' created ")
+
             else:
                 data = layer.data
-            # Read data into memory if it's a dask array
-            data = np.asarray(data)
-
-            # Important to calculate bins after slicing 3D data, to avoid reading
-            # whole cube into memory.
-            # bins = np.linspace(np.min(data), np.max(data), n_bins)
-
-            if layer.rgb:
-                # Histogram RGB channels independently
-                for i, c in enumerate("rgb"):
-                    self.histogram_plot_widget.axes.hist(
-                        data[..., i].ravel(),
-                        bins=n_bins,
-                        label=c,
-                        # histtype="step",
-                        edgecolor='white',
-                        # linewidth=1.2,
-                        color=_COLORS[c],
-                    )
-            else:
+                # bins = np.linspace(np.min(data), np.max(data), n_bins)
                 self.histogram_plot_widget.axes.hist(data.ravel(), 
-                                                     bins=n_bins, 
-                                                    #  histtype="step",
-                                                     edgecolor='white',
-                                                    #  linewidth=1.2,
-                                                     label=layer.name)
-
-            self.histogram_plot_widget.axes.legend()
-            print(f"Histogram of frame: '{time_point}' created ")
-
+                                                        bins=n_bins, 
+                                                        #  histtype="step",
+                                                        edgecolor='white',
+                                                        #  linewidth=1.2,
+                                                        label=layer.name)
+                
+                print(f"Histogram of full stack ({data.shape[0]} frames) created ")
         else:
-            data = layer.data
-            # bins = np.linspace(np.min(data), np.max(data), n_bins)
-            self.histogram_plot_widget.axes.hist(data.ravel(), 
-                                                     bins=n_bins, 
-                                                    #  histtype="step",
-                                                     edgecolor='white',
-                                                    #  linewidth=1.2,
-                                                     label=layer.name)
-            
-            print(f"Histogram of full stack ({data.shape[0]} frames) created ")
+            return warn(f"Select an Image layer to display histogrma. \nThe selected layer: '{layer}' is of type: '{layer._type_string}'")
+
+
 
         
         self.histogram_plot_widget.canvas.draw()
