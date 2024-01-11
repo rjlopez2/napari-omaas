@@ -2385,12 +2385,12 @@ class OMAAS(QWidget):
         self.histogram_plot_widget.add_single_axes()
         _COLORS = {"r": "tab:red", "g": "tab:green", "b": "tab:blue"}
 
+        layer = self.viewer.layers.selection.active
+
         if not self.toggle_hist_data.isChecked():
-            print("making histogram on current frame")
             time_point = self.viewer.dims.current_step[0]
             # layer, _ = self._get_imgs_and_shpes_items(return_img=True)
             # layer = layer[0]
-            layer = self.viewer.layers.selection.active
             # NOTE: assert here that layer is an image and you have layers
 
             if layer.data.ndim - layer.rgb == 3:
@@ -2427,9 +2427,20 @@ class OMAAS(QWidget):
                                                      label=layer.name)
 
             self.histogram_plot_widget.axes.legend()
+            print(f"Histogram of frame: '{time_point}' created ")
 
         else:
-            print("making histogram on full image stack")
+            data = layer.data
+            bins = np.linspace(np.min(data), np.max(data), 256)
+            self.histogram_plot_widget.axes.hist(data.ravel(), 
+                                                     bins=bins, 
+                                                    #  histtype="step",
+                                                     edgecolor='white',
+                                                    #  linewidth=1.2,
+                                                     label=layer.name)
+            
+            print(f"Histogram of full stack ({data.shape[0]} frames ) created ")
+
         
         self.histogram_plot_widget.canvas.draw()
     
