@@ -1092,7 +1092,7 @@ def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df
 
 
 
-
+@macro.record
 def segment_image_triangle(np_array, 
                  ):
     """Segment an image using an intensity threshold determined via
@@ -1172,7 +1172,7 @@ def segment_image_triangle(np_array,
     return mask
 
 
-
+@macro.record
 def segment_image_GHT(image, threshold=None, return_threshold=False,
                        small_obj_s = 500,  
                 #   square_s = 15,  
@@ -1209,7 +1209,7 @@ def segment_image_GHT(image, threshold=None, return_threshold=False,
     else:
         return mask
 
-
+@macro.record
 def polish_mask(mask, small_obj_s = 500, small_holes_s = 5):
 
     cleared = remove_small_objects(mask, small_obj_s)
