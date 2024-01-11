@@ -354,7 +354,7 @@ class OMAAS(QWidget):
 
         self._plotting_hisotgram_tabs_layout = VHGroup('Image histogram', orientation='G')
         self.histogram_plot_widget =  BaseNapariMPLWidget(self.viewer)
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.histogram_plot_widget, 0, 0, 1, 5)
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.histogram_plot_widget, 0, 0, 1, 7)
         
         self.hist_currf_label = QLabel("current frame")
         self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.hist_currf_label, 1, 0, 1, 1)
@@ -365,11 +365,19 @@ class OMAAS(QWidget):
         self.hist_currf_label = QLabel("all stack")
         self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.hist_currf_label, 1, 2, 1, 1)
 
+        self.hist_bins_label = QLabel("Bins")
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.hist_bins_label, 1, 3, 1, 1)
+
+        self.slider_histogram_bins = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.slider_histogram_bins.setRange(5, 256)
+        self.slider_histogram_bins.setValue(100)
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.slider_histogram_bins, 1, 4, 1, 1)
+
         self.plot_histogram_btn = QPushButton("Plot Histogram")
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.plot_histogram_btn, 1, 3, 1, 1)
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.plot_histogram_btn, 1, 5, 1, 1)
 
         self.clear_histogram_btn = QPushButton("Clear Plot")
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.clear_histogram_btn, 1, 4, 1, 1)
+        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.clear_histogram_btn, 1, 6, 1, 1)
 
 
         self.plotting_tabs.addTab(self._plotting_hisotgram_tabs_layout.gbox, 'Histogram')
@@ -2383,6 +2391,7 @@ class OMAAS(QWidget):
 
         self.histogram_plot_widget.figure.clear()
         self.histogram_plot_widget.add_single_axes()
+        n_bins = self.slider_histogram_bins.value()
         _COLORS = {"r": "tab:red", "g": "tab:green", "b": "tab:blue"}
 
         layer = self.viewer.layers.selection.active
@@ -2404,14 +2413,14 @@ class OMAAS(QWidget):
 
             # Important to calculate bins after slicing 3D data, to avoid reading
             # whole cube into memory.
-            bins = np.linspace(np.min(data), np.max(data), 256)
+            # bins = np.linspace(np.min(data), np.max(data), n_bins)
 
             if layer.rgb:
                 # Histogram RGB channels independently
                 for i, c in enumerate("rgb"):
                     self.histogram_plot_widget.axes.hist(
                         data[..., i].ravel(),
-                        bins=bins,
+                        bins=n_bins,
                         label=c,
                         # histtype="step",
                         edgecolor='white',
@@ -2420,7 +2429,7 @@ class OMAAS(QWidget):
                     )
             else:
                 self.histogram_plot_widget.axes.hist(data.ravel(), 
-                                                     bins=bins, 
+                                                     bins=n_bins, 
                                                     #  histtype="step",
                                                      edgecolor='white',
                                                     #  linewidth=1.2,
@@ -2431,15 +2440,15 @@ class OMAAS(QWidget):
 
         else:
             data = layer.data
-            bins = np.linspace(np.min(data), np.max(data), 256)
+            # bins = np.linspace(np.min(data), np.max(data), n_bins)
             self.histogram_plot_widget.axes.hist(data.ravel(), 
-                                                     bins=bins, 
+                                                     bins=n_bins, 
                                                     #  histtype="step",
                                                      edgecolor='white',
                                                     #  linewidth=1.2,
                                                      label=layer.name)
             
-            print(f"Histogram of full stack ({data.shape[0]} frames ) created ")
+            print(f"Histogram of full stack ({data.shape[0]} frames) created ")
 
         
         self.histogram_plot_widget.canvas.draw()
