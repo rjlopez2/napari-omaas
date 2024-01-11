@@ -2214,22 +2214,24 @@ class OMAAS(QWidget):
                     cycl_t = self.img_metadata_dict["CycleTime"]
                 else:
                     cycl_t = 1
+                
+                is_interpolated = self.make_interpolation_check.isChecked()
 
                 results = return_maps(current_img_selection.data, 
                                     cycle_time=cycl_t,  
-                                    interpolate_df = self.make_interpolation_check.isChecked(), 
+                                    interpolate_df = is_interpolated, 
                                     map_type = map_type, 
                                     percentage = percentage)
                 
                 if map_type == 0:
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
-                                    single_label_sufix=f"ActMap", 
+                                    single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
                                     add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
                 elif map_type == 2:
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
-                                    single_label_sufix=f"APDMap{percentage}", 
+                                    single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
                                     add_to_metadata = f"APD{percentage} Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
 
 
