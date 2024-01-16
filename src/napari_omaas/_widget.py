@@ -2500,6 +2500,8 @@ class OMAAS(QWidget):
                     results = image.data[start_indx:end_indx]
                     self.add_result_img(result_img=results, img_custom_name = image.name, single_label_sufix="TimeCrop", add_to_metadata = "TimeCrop")
                     # self.add_record_fun()
+                    # self.plot_profile_btn.setChecked(False)
+                    self.clip_label_range.setChecked(False)
                     print(f"image '{image.name}' clipped from {round(time[0][start_indx], 2)} to {round(time[0][end_indx], 2)}")
             else:
                 return warn("Preview the clipping range firts by ticking the 'Show region'.")
@@ -2521,7 +2523,7 @@ class OMAAS(QWidget):
             else:
                 return warn("Create a trace first by clicking on 'Display Profile'") 
         else:
-            if len(self.main_plot_widget.figure.axes[0].lines) > 1:
+            if len(self.main_plot_widget.figure.axes) > 0 and len(self.main_plot_widget.figure.axes[0].lines) > 1:
                 for i in range(2):
                     self.main_plot_widget.figure.axes[0].lines[-1].remove()
             self.main_plot_widget.canvas.draw()
