@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from superqt import QCollapsible
+from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
@@ -17,7 +17,6 @@ from qtpy.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton, 
     )
 
-from superqt import QLabeledSlider
 from qtpy import QtWidgets
 from warnings import warn
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
@@ -317,7 +316,7 @@ class OMAAS(QWidget):
          ######## Plotting Group ########
 
         self.plotting_tabs = QTabWidget()
-        self._plotting_profile_tabs_layout = VHGroup('Plot profile', orientation='V')
+        self._plotting_profile_tabs_layout = VHGroup('Plot profile', orientation='G')
         # self.plotting_tabs.setLayout(self._plotting_tabs_layout)
         
         # self._plotting_tabs_layout.setAlignment(Qt.AlignTop)
@@ -335,7 +334,7 @@ class OMAAS(QWidget):
         self.main_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
         # self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
         # self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.main_plot_widget)
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.main_plot_widget, 0, 0, 1, 3)
 
 
         ######################################################
@@ -347,7 +346,17 @@ class OMAAS(QWidget):
         self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
         # self.plot_group.glayout.addWidget(self.plot_profile_btn, 1, 1, 1, 1)
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.plot_profile_btn)
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.plot_profile_btn, 1, 0, 1, 1)
+        
+        self.clip_trace_btn = QPushButton("Clip Trace")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_trace_btn, 2, 0, 1, 1)
+        
+        self.clip_label_range = QCheckBox("Show range")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_label_range, 2, 1, 1, 1)
+
+        self.double_slider_clip_trace = QRangeSlider(Qt.Orientation.Horizontal)
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.double_slider_clip_trace, 2, 2, 1, 1)
+
 
         self.plotting_tabs.addTab(self._plotting_profile_tabs_layout.gbox, 'Plot profile')
 
@@ -947,6 +956,10 @@ class OMAAS(QWidget):
         self.average_roi_on_map_btn.clicked.connect(self._on_click_average_roi_on_map_btn_fun)
         self.plot_histogram_btn.clicked.connect(self._on_click_plot_histogram_btn_func)
         self.clear_histogram_btn.clicked.connect(self._on_click_clear_histogram_btn_func)
+        self.clip_trace_btn.clicked.connect(self._on_click_clip_trace_btn_func)
+        self.clip_label_range.stateChanged.connect(self._dsiplay_range_func)
+        self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
+        # self.double_slider_clip_trace.mouseReleaseEvent.connect(self._double_slider_clip_trace_func)
         
         
         
@@ -1857,6 +1870,10 @@ class OMAAS(QWidget):
 
                                 self.data_main_canvas["x"].append(x)
                                 self.data_main_canvas["y"].append(y)
+                        # update range for clipoing trace
+                        self.double_slider_clip_trace.setRange(0, x.size)
+                        self.double_slider_clip_trace.setValue((x.size * 0.2, x.size * 0.8))
+
                         self.shape_layer.events.data.connect(self._data_changed_callback)
                 except Exception as e:
                     print(f"You have the following error: --->> {e} <----")
@@ -2464,6 +2481,74 @@ class OMAAS(QWidget):
         self.histogram_plot_widget.figure.clear()
         self.histogram_plot_widget.canvas.draw()
         print("Clearing Histogram plot")
+    
+
+    def _on_click_clip_trace_btn_func(self):
+
+        # self.main_plot_widget.figure.clear()
+        # self.main_plot_widget.add_single_axes()
+
+        start_indx, end_indx = self.double_slider_clip_trace.value()
+        # assert that there is a trace in the main plotting canvas
+        if len(self.main_plot_widget.figure.axes) > 0 :
+            
+            if self.clip_label_range.isChecked():
+                
+                time = self.data_main_canvas["x"]
+                selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
+                for image in selected_img_list:
+                    results = image.data[start_indx:end_indx]
+                    self.add_result_img(result_img=results, img_custom_name = image.name, single_label_sufix="TimeCrop", add_to_metadata = "TimeCrop")
+                    # self.add_record_fun()
+                    print(f"image '{image.name}' clipped from {round(time[0][start_indx], 2)} to {round(time[0][end_indx], 2)}")
+            else:
+                return warn("Preview the clipping range firts by ticking the 'Show region'.")
+        else:
+            return warn("Create a trace first by clicking on 'Display Profile'") 
+    
+    def _dsiplay_range_func(self):
+        state = self.clip_label_range.isChecked()
+        
+        if state == True and self.plot_profile_btn.isChecked() :
+            start_indx, end_indx = self.double_slider_clip_trace.value()
+            # assert that there is a trace in the main plotting canvas
+            if len(self.main_plot_widget.figure.axes) > 0 :
+                time = self.data_main_canvas["x"]
+                selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
+                self.main_plot_widget.axes.axvline(start_indx * self.xscale, c = "w")
+                self.main_plot_widget.axes.axvline(end_indx * self.xscale, c = "w")
+                self.main_plot_widget.canvas.draw()
+            else:
+                return warn("Create a trace first by clicking on 'Display Profile'") 
+        else:
+            if len(self.main_plot_widget.figure.axes[0].lines) > 1:
+                for i in range(2):
+                    self.main_plot_widget.figure.axes[0].lines[-1].remove()
+            self.main_plot_widget.canvas.draw()
+
+            return
+    
+    def _double_slider_clip_trace_func(self):
+        state = self.clip_label_range.isChecked()
+        
+        if state == True and self.plot_profile_btn.isChecked():
+            # self._dsiplay_range_func()
+
+            for i in range(2):
+                self.main_plot_widget.figure.axes[0].lines[-1].remove()
+            
+            self._dsiplay_range_func()
+
+
+        else:
+            return
+        
+
+
+
+
+
+
 
 
 
