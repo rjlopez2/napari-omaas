@@ -1314,6 +1314,7 @@ class OMAAS(QWidget):
 
             if filter_type == all_my_filters[0]:
 
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_butterworth_filt_func(current_selection.data, 
                                                     ac_freq=fps_val, 
                                                     cf_freq= cutoff_freq_value, 
