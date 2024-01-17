@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider
+from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider, QDoubleRangeSlider
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
@@ -354,7 +354,7 @@ class OMAAS(QWidget):
         self.clip_label_range = QCheckBox("Show range")
         self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_label_range, 2, 1, 1, 1)
 
-        self.double_slider_clip_trace = QRangeSlider(Qt.Orientation.Horizontal)
+        self.double_slider_clip_trace = QDoubleRangeSlider(Qt.Orientation.Horizontal)
         self._plotting_profile_tabs_layout.glayout.addWidget(self.double_slider_clip_trace, 2, 2, 1, 1)
 
 
@@ -1871,9 +1871,10 @@ class OMAAS(QWidget):
 
                                 self.data_main_canvas["x"].append(x)
                                 self.data_main_canvas["y"].append(y)
-                        # update range for clipoing trace
-                        self.double_slider_clip_trace.setRange(0, x.size)
-                        self.double_slider_clip_trace.setValue((x.size * 0.2, x.size * 0.8))
+                        # update range for cliping trace
+                        max_range = x.size * self.xscale
+                        self.double_slider_clip_trace.setRange(0, max_range  )
+                        self.double_slider_clip_trace.setValue((max_range * 0.2, max_range * 0.8))
 
                         self.shape_layer.events.data.connect(self._data_changed_callback)
                 except Exception as e:
@@ -2490,6 +2491,8 @@ class OMAAS(QWidget):
         # self.main_plot_widget.add_single_axes()
 
         start_indx, end_indx = self.double_slider_clip_trace.value()
+        start_indx = int(start_indx / self.xscale)
+        end_indx = int(end_indx / self.xscale)
         # assert that there is a trace in the main plotting canvas
         if len(self.main_plot_widget.figure.axes) > 0 :
             
@@ -2503,7 +2506,7 @@ class OMAAS(QWidget):
                     # self.add_record_fun()
                     # self.plot_profile_btn.setChecked(False)
                     self.clip_label_range.setChecked(False)
-                    print(f"image '{image.name}' clipped from {round(time[0][start_indx], 2)} to {round(time[0][end_indx], 2)}")
+                    print(f"image '{image.name}' clipped from {round(start_indx * self.xscale, 2)} to {round(end_indx * self.xscale, 2)}")
             else:
                 return warn("Preview the clipping range firts by ticking the 'Show region'.")
         else:
@@ -2518,8 +2521,8 @@ class OMAAS(QWidget):
             if len(self.main_plot_widget.figure.axes) > 0 :
                 time = self.data_main_canvas["x"]
                 selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
-                self.main_plot_widget.axes.axvline(start_indx * self.xscale, c = "w")
-                self.main_plot_widget.axes.axvline(end_indx * self.xscale, c = "w")
+                self.main_plot_widget.axes.axvline(start_indx, c = "w")
+                self.main_plot_widget.axes.axvline(end_indx, c = "w")
                 self.main_plot_widget.canvas.draw()
             else:
                 return warn("Create a trace first by clicking on 'Display Profile'") 
