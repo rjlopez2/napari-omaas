@@ -2502,7 +2502,7 @@ class OMAAS(QWidget):
                 selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
                 for image in selected_img_list:
                     results = image.data[start_indx:end_indx]
-                    self.add_result_img(result_img=results, img_custom_name = image.name, single_label_sufix="TimeCrop", add_to_metadata = "TimeCrop")
+                    self.add_result_img(result_img=results, img_custom_name = image.name, single_label_sufix="TimeCrop", add_to_metadata = f"TimeCrop_at_Indx_[{start_indx}:{end_indx}]")
                     # self.add_record_fun()
                     # self.plot_profile_btn.setChecked(False)
                     self.clip_label_range.setChecked(False)
