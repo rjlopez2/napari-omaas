@@ -2521,8 +2521,8 @@ class OMAAS(QWidget):
             if len(self.main_plot_widget.figure.axes) > 0 :
                 time = self.data_main_canvas["x"]
                 selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
-                self.main_plot_widget.axes.axvline(start_indx, c = "w")
-                self.main_plot_widget.axes.axvline(end_indx, c = "w")
+                self.main_plot_widget.axes.axvline(start_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
+                self.main_plot_widget.axes.axvline(end_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
                 self.main_plot_widget.canvas.draw()
             else:
                 return warn("Create a trace first by clicking on 'Display Profile'") 
