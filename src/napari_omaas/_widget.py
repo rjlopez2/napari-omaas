@@ -33,6 +33,7 @@ import pandas as pd
 from .utils import *
 import os
 from pathlib import Path
+import h5py
 
 
 if TYPE_CHECKING:
@@ -826,7 +827,10 @@ class OMAAS(QWidget):
         # self.metadata_tree.setGeometry(30, 30, 300, 100)
         self.metadata_tree.setColumnCount(2)
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
-        self.metadata_display_group.glayout.addWidget(self.metadata_tree)
+        self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
+
+        self.export_processing_steps_btn = QPushButton("Export processing steps")
+        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
@@ -959,7 +963,7 @@ class OMAAS(QWidget):
         self.clip_trace_btn.clicked.connect(self._on_click_clip_trace_btn_func)
         self.clip_label_range.stateChanged.connect(self._dsiplay_range_func)
         self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
-        # self.double_slider_clip_trace.mouseReleaseEvent.connect(self._double_slider_clip_trace_func)
+        self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
         
         
         
@@ -2548,7 +2552,49 @@ class OMAAS(QWidget):
 
         else:
             return
+    
+    def _export_processing_steps_btn_func(self):
         
+        print("lalal")
+        current_selection = self.viewer.layers.selection.active
+        
+        if isinstance(current_selection, Image):
+            metadata = current_selection.metadata
+            key = "ProcessingSteps"
+
+            if key in metadata.keys():
+
+                fileName, _ = QFileDialog.getSaveFileName(self,
+                                                    "Save File",
+                                                        "",
+                                                        "Hierarchical Data Format (*.h5 *.hdf5);;Text Files (*.txt)")
+                if not len(fileName) == 0:
+
+                
+                    with h5py.File(fileName, "w") as hf:
+
+                        # hf.create_group("rocessing")
+                        
+                        hf.attrs.update({key:metadata[key]})
+                        
+                        # hf.close()
+
+
+
+                    # self.dir_box_text.setText(self.spool_dir)
+                    # self.load_current_spool_dir()
+
+                    # if not self.isWindowModified():
+                    #     return
+                    # if not self.fileName:
+                    #     self.saveAs()
+                    # else:
+                    #     with open(self.fileName, 'w') as f:
+                    #         f.write(self.editor.toPlainText())
+            else:
+                return warn("No 'Preprocessing' steps detected.")
+        else:
+            return warn("Please select an image leyer.")
 
 
 
