@@ -1159,7 +1159,7 @@ class OMAAS(QWidget):
 
         self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
 
-        key_name = "Processing_method"
+        key_name = "ProcessingSteps"
         if key_name not in self.curr_img_metadata:
             self.curr_img_metadata[key_name] = []
 
@@ -1204,7 +1204,7 @@ class OMAAS(QWidget):
 
         self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
 
-        key_name = "Processing_method"
+        key_name = "ProcessingSteps"
         if key_name not in self.curr_img_metadata:
             self.curr_img_metadata[key_name] = []
 
