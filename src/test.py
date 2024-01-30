@@ -40,30 +40,30 @@ o.load_spool_dir_btn.click()
 
 ##### invert and normalize data #####
 
-o.inv_and_norm_data_btn.click()
-viewer.layers.selection.active.visible = False
-viewer.layers.select_previous()
-viewer.layers.selection.active.visible = False
-viewer.layers.select_next()
+# o.inv_and_norm_data_btn.click()
+# viewer.layers.selection.active.visible = False
+# viewer.layers.select_previous()
+# viewer.layers.selection.active.visible = False
+# viewer.layers.select_next()
 
 # add shape
 
-viewer.add_shapes(data = [np.array([[120.6049183 , 512.25410934],
-        [120.6049183 , 540.5934153 ],
-        [145.54350755, 540.5934153 ],
-        [145.54350755, 512.25410934]])], name="shape_20230504_17h-00m-43")
+# viewer.add_shapes(data = [np.array([[120.6049183 , 512.25410934],
+#         [120.6049183 , 540.5934153 ],
+#         [145.54350755, 540.5934153 ],
+#         [145.54350755, 512.25410934]])], name="shape_20230504_17h-00m-43")
 
 # viewer.layers[0].data = viewer.layers[0].data[:60]
 
 # make selections in the selectors
 
-o.listImagewidget.item(2).setSelected(True)
-o.listShapeswidget.item(0).setSelected(True)
-# plot
-o.plot_profile_btn.click()
+# o.listImagewidget.item(2).setSelected(True)
+# o.listShapeswidget.item(0).setSelected(True)
+# # plot
+# o.plot_profile_btn.click()
 
-viewer.layers.select_previous()
-o.export_image_btn.click()
+# viewer.layers.select_previous()
+# o.export_image_btn.click()
 
 # # average trace
 
