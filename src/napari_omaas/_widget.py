@@ -534,6 +534,45 @@ class OMAAS(QWidget):
         self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
 
 
+        # add new group for motion compensation using optimap
+        self.mot_correction_group_optimap = VHGroup('Apply image registration (optimap)', orientation='G')
+        self._motion_correction_layout.addWidget(self.mot_correction_group_optimap.gbox)
+
+        self.c_kernels_label = QLabel("Contrast Kernel")
+        # self.c_kernels_label.setToolTip((""))
+        self.mot_correction_group_optimap.glayout.addWidget(self.c_kernels_label, 1, 0, 1, 1)
+                
+        self.c_kernels = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.c_kernels.setRange(3, 30)
+        self.c_kernels.setValue(5)
+        self.mot_correction_group_optimap.glayout.addWidget(self.c_kernels, 1, 1, 1, 1)
+
+        self.pre_smooth_temp_label = QLabel("Pre-smooth Temp")
+        # self.c_kernels_label.setToolTip((""))
+        self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_temp_label, 1, 2, 1, 1)
+        
+        self.pre_smooth_temp = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.pre_smooth_temp.setRange(0, 10)
+        self.pre_smooth_temp.setValue(1)
+        self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_temp, 1, 3, 1, 1)
+
+        self.pre_smooth_spat_label = QLabel("Pre-smooth Spat")
+        # self.c_kernels_label.setToolTip((""))
+        self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_spat_label, 1, 4, 1, 1)
+
+        self.pre_smooth_spat = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.pre_smooth_spat.setRange(0, 10)
+        self.pre_smooth_spat.setValue(1)
+        self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_spat, 1, 5, 1, 1)
+
+        self.ref_frame_label = QLabel("Ref Frame")
+        # self.c_kernels_label.setToolTip((""))
+        self.mot_correction_group_optimap.glayout.addWidget(self.ref_frame_label, 2, 0, 1, 1)
+
+        self.apply_optimap_mot_corr_btn = QPushButton("apply")
+        self.mot_correction_group_optimap.glayout.addWidget(self.apply_optimap_mot_corr_btn, 2, 4, 1, 2)
+
+
         ######## APD-analysis tab ########
         # ####################################
         self._APD_analysis_layout.setAlignment(Qt.AlignTop)
@@ -969,6 +1008,7 @@ class OMAAS(QWidget):
         self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
         self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
         self.export_image_btn.clicked.connect(self._export_image_btn_func)
+        self.apply_optimap_mot_corr_btn.clicked.connect(self._apply_optimap_mot_corr_btn_func)
         
         
         
@@ -2636,6 +2676,34 @@ class OMAAS(QWidget):
                     return
         else:
             return warn("Please select an image leyer.")
+    
+
+    def _apply_optimap_mot_corr_btn_func(self):
+        
+        current_selection = self.viewer.layers.selection.active
+        
+        if isinstance(current_selection, Image) and current_selection.ndim == 3:
+            c_k = self.c_kernels.value()
+            pre_smooth_t=self.pre_smooth_temp.value()
+            pre_smooth_s=self.pre_smooth_spat.value()
+
+            print("running motion stabilization")
+            results = optimap_mot_correction(current_selection.data, 
+                                             c_k = c_k,
+                                             pre_smooth_t= pre_smooth_t,
+                                             proe_smooth_s= pre_smooth_s)
+            
+            self.add_result_img(result_img=results, 
+                                img_custom_name = current_selection.name,
+                                single_label_sufix= f'MotStab_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}', 
+                                add_to_metadata = f'Motion_correction_optimap_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}')
+            
+            self.add_record_fun()
+
+        else:
+            
+            return warn(f"No an image selected or image: '{current_selection.name}' has ndim = {current_selection.ndim }. Select an temporal 3d image stack")
+
 
 
 
