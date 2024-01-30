@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from superqt import QCollapsible
+from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider, QDoubleRangeSlider
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
@@ -17,7 +17,6 @@ from qtpy.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton, 
     )
 
-from superqt import QLabeledSlider
 from qtpy import QtWidgets
 from warnings import warn
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
@@ -34,6 +33,8 @@ import pandas as pd
 from .utils import *
 import os
 from pathlib import Path
+import h5py
+import tifffile
 
 
 if TYPE_CHECKING:
@@ -317,7 +318,7 @@ class OMAAS(QWidget):
          ######## Plotting Group ########
 
         self.plotting_tabs = QTabWidget()
-        self._plotting_profile_tabs_layout = VHGroup('Plot profile', orientation='V')
+        self._plotting_profile_tabs_layout = VHGroup('Plot profile', orientation='G')
         # self.plotting_tabs.setLayout(self._plotting_tabs_layout)
         
         # self._plotting_tabs_layout.setAlignment(Qt.AlignTop)
@@ -335,7 +336,7 @@ class OMAAS(QWidget):
         self.main_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
         # self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
         # self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.main_plot_widget)
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.main_plot_widget, 0, 0, 1, 3)
 
 
         ######################################################
@@ -347,7 +348,17 @@ class OMAAS(QWidget):
         self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
         # self.plot_group.glayout.addWidget(self.plot_profile_btn, 1, 1, 1, 1)
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.plot_profile_btn)
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.plot_profile_btn, 1, 0, 1, 1)
+        
+        self.clip_trace_btn = QPushButton("Clip Trace")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_trace_btn, 2, 0, 1, 1)
+        
+        self.clip_label_range = QCheckBox("Show range")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_label_range, 2, 1, 1, 1)
+
+        self.double_slider_clip_trace = QDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.double_slider_clip_trace, 2, 2, 1, 1)
+
 
         self.plotting_tabs.addTab(self._plotting_profile_tabs_layout.gbox, 'Plot profile')
 
@@ -817,7 +828,13 @@ class OMAAS(QWidget):
         # self.metadata_tree.setGeometry(30, 30, 300, 100)
         self.metadata_tree.setColumnCount(2)
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
-        self.metadata_display_group.glayout.addWidget(self.metadata_tree)
+        self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
+
+        self.export_processing_steps_btn = QPushButton("Export processing steps")
+        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
+        
+        self.export_image_btn = QPushButton("Export Image + meatadata")
+        self.metadata_display_group.glayout.addWidget(self.export_image_btn,  1, 2, 1, 1)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
@@ -947,6 +964,11 @@ class OMAAS(QWidget):
         self.average_roi_on_map_btn.clicked.connect(self._on_click_average_roi_on_map_btn_fun)
         self.plot_histogram_btn.clicked.connect(self._on_click_plot_histogram_btn_func)
         self.clear_histogram_btn.clicked.connect(self._on_click_clear_histogram_btn_func)
+        self.clip_trace_btn.clicked.connect(self._on_click_clip_trace_btn_func)
+        self.clip_label_range.stateChanged.connect(self._dsiplay_range_func)
+        self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
+        self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
+        self.export_image_btn.clicked.connect(self._export_image_btn_func)
         
         
         
@@ -1146,7 +1168,7 @@ class OMAAS(QWidget):
 
         self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
 
-        key_name = "Processing_method"
+        key_name = "ProcessingSteps"
         if key_name not in self.curr_img_metadata:
             self.curr_img_metadata[key_name] = []
 
@@ -1191,7 +1213,7 @@ class OMAAS(QWidget):
 
         self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
 
-        key_name = "Processing_method"
+        key_name = "ProcessingSteps"
         if key_name not in self.curr_img_metadata:
             self.curr_img_metadata[key_name] = []
 
@@ -1301,6 +1323,7 @@ class OMAAS(QWidget):
 
             if filter_type == all_my_filters[0]:
 
+                print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_butterworth_filt_func(current_selection.data, 
                                                     ac_freq=fps_val, 
                                                     cf_freq= cutoff_freq_value, 
@@ -1857,6 +1880,11 @@ class OMAAS(QWidget):
 
                                 self.data_main_canvas["x"].append(x)
                                 self.data_main_canvas["y"].append(y)
+                        # update range for cliping trace
+                        max_range = x.size * self.xscale
+                        self.double_slider_clip_trace.setRange(0, max_range  )
+                        self.double_slider_clip_trace.setValue((max_range * 0.2, max_range * 0.8))
+
                         self.shape_layer.events.data.connect(self._data_changed_callback)
                 except Exception as e:
                     print(f"You have the following error: --->> {e} <----")
@@ -2214,22 +2242,24 @@ class OMAAS(QWidget):
                     cycl_t = self.img_metadata_dict["CycleTime"]
                 else:
                     cycl_t = 1
+                
+                is_interpolated = self.make_interpolation_check.isChecked()
 
                 results = return_maps(current_img_selection.data, 
                                     cycle_time=cycl_t,  
-                                    interpolate_df = self.make_interpolation_check.isChecked(), 
+                                    interpolate_df = is_interpolated, 
                                     map_type = map_type, 
                                     percentage = percentage)
                 
                 if map_type == 0:
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
-                                    single_label_sufix=f"ActMap", 
+                                    single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
                                     add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
                 elif map_type == 2:
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
-                                    single_label_sufix=f"APDMap{percentage}", 
+                                    single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
                                     add_to_metadata = f"APD{percentage} Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
 
 
@@ -2462,6 +2492,156 @@ class OMAAS(QWidget):
         self.histogram_plot_widget.figure.clear()
         self.histogram_plot_widget.canvas.draw()
         print("Clearing Histogram plot")
+    
+
+    def _on_click_clip_trace_btn_func(self):
+
+        # self.main_plot_widget.figure.clear()
+        # self.main_plot_widget.add_single_axes()
+
+        start_indx, end_indx = self.double_slider_clip_trace.value()
+        start_indx = int(start_indx / self.xscale)
+        end_indx = int(end_indx / self.xscale)
+        # assert that there is a trace in the main plotting canvas
+        if len(self.main_plot_widget.figure.axes) > 0 :
+            
+            if self.clip_label_range.isChecked():
+                
+                time = self.data_main_canvas["x"]
+                selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
+                for image in selected_img_list:
+                    results = image.data[start_indx:end_indx]
+                    self.add_result_img(result_img=results, img_custom_name = image.name, single_label_sufix="TimeCrop", add_to_metadata = f"TimeCrop_at_Indx_[{start_indx}:{end_indx}]")
+                    # self.add_record_fun()
+                    # self.plot_profile_btn.setChecked(False)
+                    self.clip_label_range.setChecked(False)
+                    print(f"image '{image.name}' clipped from {round(start_indx * self.xscale, 2)} to {round(end_indx * self.xscale, 2)}")
+            else:
+                return warn("Preview the clipping range firts by ticking the 'Show region'.")
+        else:
+            return warn("Create a trace first by clicking on 'Display Profile'") 
+    
+    def _dsiplay_range_func(self):
+        state = self.clip_label_range.isChecked()
+        
+        if state == True and self.plot_profile_btn.isChecked() :
+            start_indx, end_indx = self.double_slider_clip_trace.value()
+            # assert that there is a trace in the main plotting canvas
+            if len(self.main_plot_widget.figure.axes) > 0 :
+                time = self.data_main_canvas["x"]
+                selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
+                self.main_plot_widget.axes.axvline(start_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
+                self.main_plot_widget.axes.axvline(end_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
+                self.main_plot_widget.canvas.draw()
+            else:
+                return warn("Create a trace first by clicking on 'Display Profile'") 
+        else:
+            if len(self.main_plot_widget.figure.axes) > 0 and len(self.main_plot_widget.figure.axes[0].lines) > 1:
+                for i in range(2):
+                    self.main_plot_widget.figure.axes[0].lines[-1].remove()
+            self.main_plot_widget.canvas.draw()
+
+            return
+    
+    def _double_slider_clip_trace_func(self):
+        state = self.clip_label_range.isChecked()
+        
+        if state == True and self.plot_profile_btn.isChecked():
+            # self._dsiplay_range_func()
+
+            for i in range(2):
+                self.main_plot_widget.figure.axes[0].lines[-1].remove()
+            
+            self._dsiplay_range_func()
+
+
+        else:
+            return
+    
+    def _export_processing_steps_btn_func(self):
+        
+        current_selection = self.viewer.layers.selection.active
+        
+        if isinstance(current_selection, Image):
+            metadata = current_selection.metadata
+            key = "ProcessingSteps"
+
+            if key in metadata.keys():
+
+                fileName, _ = QFileDialog.getSaveFileName(self,
+                                                    "Save File",
+                                                        "",
+                                                        "Hierarchical Data Format (*.h5 *.hdf5);;Text Files (*.txt)")
+                if not len(fileName) == 0:
+                
+                    with h5py.File(fileName, "w") as hf:
+
+                        # NOTE: may be add more information: original image name, date, etc?
+                        hf.attrs.update({key:metadata[key]})
+                        
+                    print(f"Processing steps for image {current_selection.name} exported")
+            else:
+                return warn("No 'Preprocessing' steps detected.")
+        else:
+            return warn("Please select an image leyer.")
+    
+
+    def _export_image_btn_func(self):
+
+        current_selection = self.viewer.layers.selection.active
+        
+        if isinstance(current_selection, Image):
+            
+            options = QFileDialog.Options()
+            # options |= QFileDialog.DontUseNativeDialog                        
+            fileName, extension_ = QFileDialog.getSaveFileName(self,
+                                                    "Save File",
+                                                        "",
+                                                        "OME-TIFF image format (*ome.tif);;All Files (*)",
+                                                        options=options)
+            if fileName:
+                if not len(fileName) == 0:
+                    file_basename = os.path.basename(fileName)
+                    file_dir = os.path.dirname(fileName)
+                    # remove extension if exists and preserve only first part
+                    splitted_file_basename = file_basename.split(".")
+                    fileName = os.path.join(file_dir, splitted_file_basename[0] + ".ome.tif" ) # here you can eventually to change 
+
+                    metadata = current_selection.metadata
+
+                    # NOTE: still not able to export the metadata correctly with this method
+                    with tifffile.TiffWriter(fileName) as tif:
+                        
+                        metadata_tif = {
+                            'axes': 'TYX',
+                            'fps': 1/metadata['CycleTime']
+                            # 'comment': metadata
+                            # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
+                        }
+                        options = dict(photometric='minisblack',
+                                    #    tile=(128, 128),
+                                    #    compression='jpeg',
+                                    #    resolutionunit='CENTIMETER',
+                                    #    maxworkers=2
+                                    )
+                        
+                        tif.write(current_selection.data, 
+                                #   metadata =  current_selection.metadata,
+                                metadata =  metadata_tif,
+                                **options)
+
+                    
+                    print(f"Image '{current_selection.name}' exported")
+                else:
+                    return
+        else:
+            return warn("Please select an image leyer.")
+
+
+
+
+
+
 
 
 
