@@ -34,6 +34,7 @@ from .utils import *
 import os
 from pathlib import Path
 import h5py
+import tifffile
 
 
 if TYPE_CHECKING:
@@ -831,6 +832,9 @@ class OMAAS(QWidget):
 
         self.export_processing_steps_btn = QPushButton("Export processing steps")
         self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
+        
+        self.export_image_btn = QPushButton("Export Image + meatadata")
+        self.metadata_display_group.glayout.addWidget(self.export_image_btn,  1, 2, 1, 1)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
@@ -964,6 +968,7 @@ class OMAAS(QWidget):
         self.clip_label_range.stateChanged.connect(self._dsiplay_range_func)
         self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
         self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
+        self.export_image_btn.clicked.connect(self._export_image_btn_func)
         
         
         
@@ -2555,7 +2560,6 @@ class OMAAS(QWidget):
     
     def _export_processing_steps_btn_func(self):
         
-        print("lalal")
         current_selection = self.viewer.layers.selection.active
         
         if isinstance(current_selection, Image):
@@ -2569,30 +2573,67 @@ class OMAAS(QWidget):
                                                         "",
                                                         "Hierarchical Data Format (*.h5 *.hdf5);;Text Files (*.txt)")
                 if not len(fileName) == 0:
-
                 
                     with h5py.File(fileName, "w") as hf:
 
-                        # hf.create_group("rocessing")
-                        
+                        # NOTE: may be add more information: original image name, date, etc?
                         hf.attrs.update({key:metadata[key]})
                         
-                        # hf.close()
-
-
-
-                    # self.dir_box_text.setText(self.spool_dir)
-                    # self.load_current_spool_dir()
-
-                    # if not self.isWindowModified():
-                    #     return
-                    # if not self.fileName:
-                    #     self.saveAs()
-                    # else:
-                    #     with open(self.fileName, 'w') as f:
-                    #         f.write(self.editor.toPlainText())
+                    print(f"Processing steps for image {current_selection.name} exported")
             else:
                 return warn("No 'Preprocessing' steps detected.")
+        else:
+            return warn("Please select an image leyer.")
+    
+
+    def _export_image_btn_func(self):
+
+        current_selection = self.viewer.layers.selection.active
+        
+        if isinstance(current_selection, Image):
+            
+            options = QFileDialog.Options()
+            # options |= QFileDialog.DontUseNativeDialog                        
+            fileName, extension_ = QFileDialog.getSaveFileName(self,
+                                                    "Save File",
+                                                        "",
+                                                        "OME-TIFF image format (*ome.tif);;All Files (*)",
+                                                        options=options)
+            if fileName:
+                if not len(fileName) == 0:
+                    file_basename = os.path.basename(fileName)
+                    file_dir = os.path.dirname(fileName)
+                    # remove extension if exists and preserve only first part
+                    splitted_file_basename = file_basename.split(".")
+                    fileName = os.path.join(file_dir, splitted_file_basename[0] + ".ome.tif" ) # here you can eventually to change 
+
+                    metadata = current_selection.metadata
+
+                    # NOTE: still not able to export the metadata correctly with this method
+                    with tifffile.TiffWriter(fileName) as tif:
+                        
+                        metadata_tif = {
+                            'axes': 'TYX',
+                            'fps': 1/metadata['CycleTime']
+                            # 'comment': metadata
+                            # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
+                        }
+                        options = dict(photometric='minisblack',
+                                    #    tile=(128, 128),
+                                    #    compression='jpeg',
+                                    #    resolutionunit='CENTIMETER',
+                                    #    maxworkers=2
+                                    )
+                        
+                        tif.write(current_selection.data, 
+                                #   metadata =  current_selection.metadata,
+                                metadata =  metadata_tif,
+                                **options)
+
+                    
+                    print(f"Image '{current_selection.name}' exported")
+                else:
+                    return
         else:
             return warn("Please select an image leyer.")
 
