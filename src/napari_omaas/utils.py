@@ -15,6 +15,7 @@ import tqdm.auto as tqdm
 from napari.utils import progress
 from time import time
 from optimap.image import detect_background_threshold
+from optimap import motion_compensate
 
 from napari_macrokit import get_macro
 
@@ -1223,6 +1224,11 @@ def polish_mask(mask, small_obj_s = 500, small_holes_s = 5):
     label_image = label(cleared)
 
     return label_image
+@macro.record
+def optimap_mot_correction(np_array, c_k, pre_smooth_t, proe_smooth_s):
+    video_warped  =  motion_compensate(np_array, c_k, pre_smooth_t, proe_smooth_s)
+
+    return video_warped
 
 
 
