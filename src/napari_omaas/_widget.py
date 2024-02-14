@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider, QDoubleRangeSlider
+from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider, QDoubleRangeSlider, QLabeledDoubleRangeSlider
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
@@ -356,7 +356,7 @@ class OMAAS(QWidget):
         self.clip_label_range = QCheckBox("Show range")
         self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_label_range, 2, 1, 1, 1)
 
-        self.double_slider_clip_trace = QDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.double_slider_clip_trace = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self._plotting_profile_tabs_layout.glayout.addWidget(self.double_slider_clip_trace, 2, 2, 1, 1)
 
 
@@ -2557,7 +2557,7 @@ class OMAAS(QWidget):
                     self.clip_label_range.setChecked(False)
                     print(f"image '{image.name}' clipped from {round(start_indx * self.xscale, 2)} to {round(end_indx * self.xscale, 2)}")
             else:
-                return warn("Preview the clipping range firts by ticking the 'Show region'.")
+                return warn("Preview the clipping range firts by ticking the 'Show range'.")
         else:
             return warn("Create a trace first by clicking on 'Display Profile'") 
     
