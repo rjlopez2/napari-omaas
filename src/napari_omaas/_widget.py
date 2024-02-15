@@ -627,13 +627,13 @@ class OMAAS(QWidget):
         self.APD_peaks_help_box_label.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
         self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 5, 0, 1, 4)
         
-        self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_percentage = QLabeledSlider(Qt.Orientation.Horizontal)
         self.slider_APD_percentage.setRange(10, 100)
         self.slider_APD_percentage.setValue(75)
         self.slider_APD_percentage.setSingleStep(5)
         self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 3, 1, 1)
         
-        self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
+        self.slider_APD_perc_label = QLabel(f"APD %")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
         self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 2, 1, 1)
         values = []
@@ -980,7 +980,6 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_detection_threshold_2.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
-        self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
         self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
@@ -1652,8 +1651,6 @@ class OMAAS(QWidget):
 
                 break
 
-    def _get_APD_percent_slider_vlaue_func(self, value):
-        self.slider_APD_perc_label.setText(f'APD percentage: {value}')
 
 
     def _on_click_clear_macro_btn(self, event):
