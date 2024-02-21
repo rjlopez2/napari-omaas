@@ -798,8 +798,14 @@ class OMAAS(QWidget):
         self.make_maps_btn = QPushButton("Create Maps")
         self.average_trace_group.glayout.addWidget(self.make_maps_btn, 6, 2, 1, 3)
 
-        self.average_roi_on_map_btn = QPushButton("ROI mean")
+        self.average_roi_on_map_btn = QPushButton("Get current ROI mean")
         self.average_trace_group.glayout.addWidget(self.average_roi_on_map_btn, 7, 0, 1, 1)
+        
+        self.average_roi_value_container = QLineEdit()
+        self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
+        self.average_trace_group.glayout.addWidget(self.average_roi_value_container, 7, 1, 1, 1)
+
+        self
 
 
 
@@ -2282,18 +2288,32 @@ class OMAAS(QWidget):
                 
                 is_interpolated = self.make_interpolation_check.isChecked()
 
-                results = return_maps(current_img_selection.data, 
-                                    cycle_time=cycl_t,  
-                                    interpolate_df = is_interpolated, 
-                                    map_type = map_type, 
-                                    percentage = percentage)
-                
                 if map_type == 0:
+                
+                    results = return_maps(current_img_selection.data, 
+                                         cycle_time=cycl_t,
+                                         map_type = map_type,
+                                         percentage = percentage)
+                    
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
                                     single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
                                     add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                
                 elif map_type == 2:
+
+                    results,  mask_repol_indx_out, t_index_out = return_maps(current_img_selection.data, 
+                                                                         cycle_time=cycl_t,
+                                                                         map_type = map_type,
+                                                                         percentage = percentage)
+                    self._preview_multiples_traces_func()
+                    
+                    _, shapes_items = self._get_imgs_and_shpes_items(return_img=True)
+                    if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
+                        ndim = current_img_selection.ndim
+                        dshape = current_img_selection.data.shape
+                        masks = shapes_items[0].to_masks(dshape[-2:])
+                    
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
                                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
@@ -2314,7 +2334,7 @@ class OMAAS(QWidget):
         _, shapes_items = self._get_imgs_and_shpes_items(return_img=True)
         current_img_selected = self.viewer.layers.selection.active
 
-        if isinstance(current_img_selected, Image) and current_img_selected.ndim == 2:
+        if isinstance(current_img_selected, Image) and current_img_selected.ndim == 2 and len(shapes_items) > 0:
             ndim = current_img_selected.ndim
             dshape = current_img_selected.data.shape
             masks = shapes_items[0].to_masks(dshape)
@@ -2323,19 +2343,26 @@ class OMAAS(QWidget):
                 for indx_roi, roi in enumerate(masks):
                     
                     results = np.nanmean(current_img_selected.data[roi])
-                    print(f"mean of roi: '{indx_roi}' in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
+                    # self.average_roi_value_container.
+                    print(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
+                    self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
                 return            
             
             elif masks.ndim == 2:
                 
                 results = np.nanmean(current_img_selected.data[masks])
+                self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
                 return print(f"mean of roi in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
             else:
+                self.average_roi_value_container.setText("")
+                # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
                 warn(f" you seem to have an issue with your shapes")
         
         else:
             
-            return warn(f"No an image selected or image: '{current_img_selected.name}' has ndim = {current_img_selected.ndim }. Select an 2d image retunred from a map.")
+            self.average_roi_value_container.setText("")
+            # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
+            return warn(f"No an image or shape selected or image: '{current_img_selected.name}' has ndim = {current_img_selected.ndim }. Select an 2d image retunred from a map.")
 
 
 
