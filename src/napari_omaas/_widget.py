@@ -2312,7 +2312,29 @@ class OMAAS(QWidget):
                     if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
                         ndim = current_img_selection.ndim
                         dshape = current_img_selection.data.shape
-                        masks = shapes_items[0].to_masks(dshape[-2:])
+                        _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
+
+                        if len(y_px) == 1 and len(x_px) == 1:
+                            self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t * 1000, 
+                                                                     linestyle='dashed', 
+                                                                     color = "green", 
+                                                                     label=f'AP_ini',
+                                                                     lw = 0.5, 
+                                                                     alpha = 0.8)
+                            
+                            self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t * 1000, 
+                                                                     linestyle='dashed', 
+                                                                     color = "red", 
+                                                                     label=f'AP_end',
+                                                                     lw = 0.5, 
+                                                                     alpha = 0.8)
+                            
+                            self.average_AP_plot_widget.axes.legend()
+                            self.average_AP_plot_widget.canvas.draw()
+                        else:
+                            warn(" NotROI larger than a single pixel. Please reduce the size to plot it")
+
+
                     
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
