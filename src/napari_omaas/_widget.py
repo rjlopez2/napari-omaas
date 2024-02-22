@@ -9,7 +9,7 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider, QDoubleRangeSlider
+from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider, QDoubleRangeSlider, QLabeledDoubleRangeSlider
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
@@ -356,7 +356,7 @@ class OMAAS(QWidget):
         self.clip_label_range = QCheckBox("Show range")
         self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_label_range, 2, 1, 1, 1)
 
-        self.double_slider_clip_trace = QDoubleRangeSlider(Qt.Orientation.Horizontal)
+        self.double_slider_clip_trace = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self._plotting_profile_tabs_layout.glayout.addWidget(self.double_slider_clip_trace, 2, 2, 1, 1)
 
 
@@ -627,13 +627,13 @@ class OMAAS(QWidget):
         self.APD_peaks_help_box_label.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
         self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 5, 0, 1, 4)
         
-        self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_percentage = QLabeledSlider(Qt.Orientation.Horizontal)
         self.slider_APD_percentage.setRange(10, 100)
         self.slider_APD_percentage.setValue(75)
         self.slider_APD_percentage.setSingleStep(5)
         self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 3, 1, 1)
         
-        self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
+        self.slider_APD_perc_label = QLabel(f"APD %")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
         self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 2, 1, 1)
         values = []
@@ -798,8 +798,14 @@ class OMAAS(QWidget):
         self.make_maps_btn = QPushButton("Create Maps")
         self.average_trace_group.glayout.addWidget(self.make_maps_btn, 6, 2, 1, 3)
 
-        self.average_roi_on_map_btn = QPushButton("ROI mean")
+        self.average_roi_on_map_btn = QPushButton("Get current ROI mean")
         self.average_trace_group.glayout.addWidget(self.average_roi_on_map_btn, 7, 0, 1, 1)
+        
+        self.average_roi_value_container = QLineEdit()
+        self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
+        self.average_trace_group.glayout.addWidget(self.average_roi_value_container, 7, 1, 1, 1)
+
+        self
 
 
 
@@ -980,7 +986,6 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_detection_threshold_2.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
-        self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
         self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
@@ -1652,8 +1657,6 @@ class OMAAS(QWidget):
 
                 break
 
-    def _get_APD_percent_slider_vlaue_func(self, value):
-        self.slider_APD_perc_label.setText(f'APD percentage: {value}')
 
 
     def _on_click_clear_macro_btn(self, event):
@@ -2285,18 +2288,54 @@ class OMAAS(QWidget):
                 
                 is_interpolated = self.make_interpolation_check.isChecked()
 
-                results = return_maps(current_img_selection.data, 
-                                    cycle_time=cycl_t,  
-                                    interpolate_df = is_interpolated, 
-                                    map_type = map_type, 
-                                    percentage = percentage)
-                
                 if map_type == 0:
+                
+                    results = return_maps(current_img_selection.data, 
+                                         cycle_time=cycl_t,
+                                         map_type = map_type,
+                                         percentage = percentage)
+                    
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
                                     single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
                                     add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                
                 elif map_type == 2:
+
+                    results,  mask_repol_indx_out, t_index_out = return_maps(current_img_selection.data, 
+                                                                         cycle_time=cycl_t,
+                                                                         map_type = map_type,
+                                                                         percentage = percentage)
+                    self._preview_multiples_traces_func()
+                    
+                    _, shapes_items = self._get_imgs_and_shpes_items(return_img=True)
+                    if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
+                        ndim = current_img_selection.ndim
+                        dshape = current_img_selection.data.shape
+                        _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
+
+                        if len(y_px) == 1 and len(x_px) == 1:
+                            self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t * 1000, 
+                                                                     linestyle='dashed', 
+                                                                     color = "green", 
+                                                                     label=f'AP_ini',
+                                                                     lw = 0.5, 
+                                                                     alpha = 0.8)
+                            
+                            self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t * 1000, 
+                                                                     linestyle='dashed', 
+                                                                     color = "red", 
+                                                                     label=f'AP_end',
+                                                                     lw = 0.5, 
+                                                                     alpha = 0.8)
+                            
+                            self.average_AP_plot_widget.axes.legend()
+                            self.average_AP_plot_widget.canvas.draw()
+                        else:
+                            warn(" NotROI larger than a single pixel. Please reduce the size to plot it")
+
+
+                    
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
                                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
@@ -2317,7 +2356,7 @@ class OMAAS(QWidget):
         _, shapes_items = self._get_imgs_and_shpes_items(return_img=True)
         current_img_selected = self.viewer.layers.selection.active
 
-        if isinstance(current_img_selected, Image) and current_img_selected.ndim == 2:
+        if isinstance(current_img_selected, Image) and current_img_selected.ndim == 2 and len(shapes_items) > 0:
             ndim = current_img_selected.ndim
             dshape = current_img_selected.data.shape
             masks = shapes_items[0].to_masks(dshape)
@@ -2326,19 +2365,26 @@ class OMAAS(QWidget):
                 for indx_roi, roi in enumerate(masks):
                     
                     results = np.nanmean(current_img_selected.data[roi])
-                    print(f"mean of roi: '{indx_roi}' in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
+                    # self.average_roi_value_container.
+                    print(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
+                    self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
                 return            
             
             elif masks.ndim == 2:
                 
                 results = np.nanmean(current_img_selected.data[masks])
+                self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
                 return print(f"mean of roi in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
             else:
+                self.average_roi_value_container.setText("")
+                # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
                 warn(f" you seem to have an issue with your shapes")
         
         else:
             
-            return warn(f"No an image selected or image: '{current_img_selected.name}' has ndim = {current_img_selected.ndim }. Select an 2d image retunred from a map.")
+            self.average_roi_value_container.setText("")
+            # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
+            return warn(f"No an image or shape selected or image: '{current_img_selected.name}' has ndim = {current_img_selected.ndim }. Select an 2d image retunred from a map.")
 
 
 
@@ -2557,7 +2603,7 @@ class OMAAS(QWidget):
                     self.clip_label_range.setChecked(False)
                     print(f"image '{image.name}' clipped from {round(start_indx * self.xscale, 2)} to {round(end_indx * self.xscale, 2)}")
             else:
-                return warn("Preview the clipping range firts by ticking the 'Show region'.")
+                return warn("Preview the clipping range firts by ticking the 'Show range'.")
         else:
             return warn("Create a trace first by clicking on 'Display Profile'") 
     

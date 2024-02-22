@@ -770,7 +770,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
         repol_index =  AP_peaks_indx[peak] + np.minimum(np.argmax(current_APD_segment <= amp_V) , current_APD_segment.shape[-1] -1)
         pre_repol_index = repol_index - 2
-        # enerate fine grid for interpolation in ms
+        # generate fine grid for interpolation in ms
         time_fine_grid = np.linspace(time[pre_repol_index], time[repol_index], interp_points)
         Vm_interpolated = np.interp(time_fine_grid, time[pre_repol_index:repol_index], np_1Darray[pre_repol_index:repol_index])
         # repol_index_interpolated = np.nanmin( np.append(np.array(time_fine_grid.size -1 ), np.argwhere(Vm_interpolated <= amp_V)))
@@ -951,7 +951,7 @@ def split_AP_traces_func(trace, ini_i, end_i, type = "1d", return_mean = False):
 
 
 @macro.record
-def return_maps(image: "napari.types.ImageData", cycle_time, percentage, interp_points= 512,  interpolate_df = False, map_type = 0) -> "napari.types.ImageData":
+def return_maps(image: "napari.types.ImageData", cycle_time, percentage, map_type = 0) -> "napari.types.ImageData":
     # data: "napari.types.ImageData")-> "napari.types.ImageData":
     
     """
@@ -972,50 +972,18 @@ def return_maps(image: "napari.types.ImageData", cycle_time, percentage, interp_
     """
 
     # 1. Get gradient and normalize it
-    dfdt = np.gradient(image.data, axis=0)
+    dfdt = np.gradient(image, axis=0)
     dfdt = (dfdt - np.nanmin(dfdt)) / np.nanmax(dfdt)
     dfdt = np.nan_to_num(dfdt, nan=0)
-    # dfdt = local_normal_fun(dfdt)
-    start_indices = np.nanargmax(dfdt, axis=0)
-    activation_times = np.full_like(start_indices, fill_value= np.nan,  dtype=np.float64)
-    # 2. get time vector
-    n_frames, y_size, x_size = image.shape
-    time = np.arange(0, n_frames) * cycle_time
-    # 3. define points around the 'dfdtmax' to be used for interpolation
-    delta = 2; # the larger this value the more zeros around the max you catch, so keep this low 
     
-    # 4. main loop to build Activation map 
-    for y_px  in progress(range(y_size)):
-        for x_px in range(x_size):
-            
-            idx_max = start_indices[y_px, x_px]
-            if time[idx_max] != 0:
-                
-                # NOTE: this is giving some odd results probably due to large size of "delta" (points around the 'dfdtmax' to be used for interpolation)
-                if interpolate_df  == True:
-                    if idx_max > delta and idx_max+delta < time.size:
-                        dfdt_mn = dfdt[:, y_px, x_px];
-                        dfdt_mn = dfdt_mn.reshape(-1)
-                        # generate fine grid for interpolation in ms
-                        ini_indx = idx_max - delta
-                        end_indx = idx_max + delta
-                        time_fine_grid = np.linspace(time[ini_indx], time[end_indx], interp_points)
-                        # interpolate around the previously found start index                
-                        interpolation_f = CubicSpline(time[ini_indx:end_indx],  dfdt_mn[ini_indx:end_indx],  extrapolate=True)
-                        dfdt_mn_interpolated = interpolation_f(time_fine_grid)
-                        # find new dfdt max
-                        idx_max_interpolated = np.nanargmax(dfdt_mn_interpolated)
-                        # if np.isnan(time_fine_grid[idx_max_interpolated]):
-                        #     print(f"catch a nan at pixel y:{y_px}, x:{x_px} ")
-                        # print(idx_max_interpolated)
-                        activation_times[y_px, x_px] = time_fine_grid[idx_max_interpolated]
-                else:
-                    # if time[idx_max] != 0:
-                    #     print(f"time = {time[idx_max]}, y {y_px}, x = {x_px}")
-                    activation_times[y_px, x_px] = time[idx_max]
-        
-                
-    # activation_times[activation_times == 0] = np.nan # remove zeros
+    activation_times = np.full_like(image[0, ...], fill_value= np.nan,  dtype=np.float64)
+
+    
+    ini_indices = np.nanargmax(dfdt, axis=0)
+    
+    #  may be a faster way to compute act time. just muktiply cycle_time by the index at max dfdt.
+    activation_times[ini_indices != 0] = ini_indices[ini_indices != 0]* cycle_time
+
     if map_type == 0:
 
         if cycle_time == 1:
@@ -1023,57 +991,73 @@ def return_maps(image: "napari.types.ImageData", cycle_time, percentage, interp_
         else:
             return activation_times * 1000 # convert to ms
     
-    elif map_type ==2:
+    elif map_type ==2: 
 
-        max_v = np.max(image, axis = 0)
-        APD = np.full_like(max_v, fill_value= np.nan,  dtype=np.float64)
+        delta = 10 # this define the number of frames before and after the ini_indices
+        
+        # 2. get time vector
+        n_frames, y_size, x_size = image.shape
+        time = np.arange(0, n_frames) * cycle_time
+        end_indx = np.argmax(time)
+        # end_indx = np.min(np.append(np.argwhere(time >= peaks_times[peak] + bcl/1.5)[0], time.shape[-1] -2))
 
-        for y_px  in progress(range(y_size)):
+        # 3 find peak of signal
+        # max_v = np.max(image, axis = 0)
+        max_v_indx_stack = np.argmax(image, axis = 0)
+        APD = np.full_like(ini_indices, fill_value= np.nan,  dtype=np.float64)
+        
+        mask_repol_indx_out = np.full_like(ini_indices, fill_value= np.nan,  dtype=np.uint16)
+        t_index_out = np.full_like(ini_indices, fill_value= np.nan,  dtype=np.uint16)
+        
+        pre5ms_indx = int(np.ceil(0.005 / cycle_time))
+
+                    
+        # activation_times[activation_times == 0] = np.nan # remove zeros
+        # 4 main loop
+        for y_px  in range(y_size):
             for x_px in range(x_size):
                 
-                if  (~np.isnan(start_indices[y_px, x_px])) and (start_indices[y_px, x_px] + delta < n_frames) and (start_indices[y_px, x_px] > delta):
-                    Vm_signal = image[:, y_px, x_px]                    
-                    # Calculate resting membrane potential from start to 5 ms before AP upstroke. there are more cases. See matlab app.                
-                    # print(f"{start_indices[y_px, x_px]}")
-                    resting_V = np.nanmean( image[:start_indices[y_px, x_px] - int(np.ceil(0.005 / cycle_time) ), y_px, x_px] )
-                    
-                    # multiples cases here above?
-                    
-                    
-                    
-                    amp_V = ( ((100 - percentage)/ 100) * (max_v[y_px, x_px] - resting_V)) + resting_V
-                    mask_repol_indx =  np.nanargmax(image[start_indices[y_px, x_px] + 1:, y_px, x_px] <= amp_V) # <- here is the problem
-                    repol_index= start_indices[y_px, x_px] + min(mask_repol_indx, image[start_indices[y_px, x_px]:, y_px, x_px].size) 
-                    pre_repol_index = repol_index - 2
-                    
-                    if repol_index <= n_frames:
-                       
-                       if interpolate_df  == True:
-                           
-                           time_fine_grid = np.linspace(time[pre_repol_index], time[repol_index], interp_points)
-                           interpolation_f = CubicSpline(time[pre_repol_index:repol_index],  Vm_signal[pre_repol_index:repol_index],  extrapolate=True)
-                           Vm_interpolated = interpolation_f(time_fine_grid)                            
-                           repol_index_interpolated = min(np.nanargmax(Vm_interpolated <= amp_V), len(time_fine_grid))
-                           repol_time = time_fine_grid[repol_index_interpolated]
-                           APD[y_px, x_px] = repol_time - activation_times[y_px, x_px] 
-                       
-                       else:
-                           
-                           APD[y_px, x_px] = time[repol_index] - activation_times[y_px, x_px] 
-                    else:
+                t_index = ini_indices[y_px, x_px]
+                # from_ini_to_end_vector = image[t_index:, y_px, x_px]
+                # trace_length_from_peak = len(from_ini_to_end_vector)
+                # print(max_v_indx_stack.size)
+                max_v_indx = max_v_indx_stack[y_px, x_px]
+                
+                # if  (t_index != 0) | (np.isnan(t_index)) and (from_ini_to_end_vector.size > 0):  #assert that you have a peak
+                # if ~ np.isnan(image[t_index:, y_px, x_px]).any()  :  #assert that is not nan
+                if (t_index != 0):
+                    # print(t_index)
+                    try:
+                                        
+                        Vm_signal = image[:, y_px, x_px]
+                        end_rmp_indx = (t_index) - pre5ms_indx # 5 ms before upstroke
+                        
+                        resting_V = np.nanmean(image[:end_rmp_indx, y_px, x_px]) 
+                        
+                        amp_V = ( ((100 - percentage)/ 100) * (image[max_v_indx, y_px, x_px] - resting_V)) + resting_V
+                        # print(f"amp_V: {amp_V}")
+                        
+                        mask_repol_indx =  np.argwhere(image[max_v_indx:, y_px, x_px]<= amp_V)
+                        # if mask_repol_indx
+                        mask_repol_indx =  max_v_indx + mask_repol_indx[0].min() if mask_repol_indx.size != 0 else max_v_indx
+                        mask_repol_indx_out[y_px, x_px] = mask_repol_indx
+                        t_index_out[y_px, x_px] = t_index
+            
+                        #get APD duration
+                        len_segment = image[t_index:mask_repol_indx, y_px, x_px].size
+                        # print(f"len_segment: {len_segment}")
+                        APD[y_px, x_px] = len_segment * cycle_time
+                        # print(f"APD: {len_segment * cycle_time_in_ms}")
 
-                        APD[y_px, x_px] = np.nan
-        
-        if cycle_time == 1:
-            return APD
-        else:
-            return APD * 1000 # convert to ms
+                            
+                    except Exception as e:
+                        # print(mask_repol_indx.size, np.isnan(mask_repol_indx))
+                        # print("you enter the exeception and are not printing")
+                        warnings.warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                        # break
+                        raise e
 
-
-        
-    else:
-
-        return warnings.warn(" NO type of map found")
+        return (APD * 1000, mask_repol_indx_out, t_index_out)
 
 @macro.record
 def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df = False, percentage = 75):
