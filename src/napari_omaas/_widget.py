@@ -2339,7 +2339,7 @@ class OMAAS(QWidget):
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
                                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                                    add_to_metadata = f"APD{percentage} Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                                    add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
 
 
                 self.add_record_fun()
@@ -2732,17 +2732,19 @@ class OMAAS(QWidget):
             c_k = self.c_kernels.value()
             pre_smooth_t=self.pre_smooth_temp.value()
             pre_smooth_s=self.pre_smooth_spat.value()
+            ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
 
             print("running motion stabilization")
             results = optimap_mot_correction(current_selection.data, 
                                              c_k = c_k,
                                              pre_smooth_t= pre_smooth_t,
-                                             proe_smooth_s= pre_smooth_s)
+                                             proe_smooth_s= pre_smooth_s, 
+                                             ref_fr=ref_frame_indx)
             
             self.add_result_img(result_img=results, 
                                 img_custom_name = current_selection.name,
-                                single_label_sufix= f'MotStab_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}', 
-                                add_to_metadata = f'Motion_correction_optimap_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}')
+                                single_label_sufix= f'MotStab_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefF{ref_frame_indx}', 
+                                add_to_metadata = f'Motion_correction_optimap_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefFram{ref_frame_indx}')
             
             self.add_record_fun()
 
