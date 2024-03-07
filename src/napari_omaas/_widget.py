@@ -24,6 +24,7 @@ from qtpy.QtGui import QIntValidator
 from numpy import ndarray as numpy_ndarray
 from napari_matplotlib.base import BaseNapariMPLWidget
 from napari.layers import Shapes, Image
+from napari.components.layerlist import LayerList
 from napari.utils import progress
 
 import copy
@@ -442,14 +443,14 @@ class OMAAS(QWidget):
         self.ROI_1_label = QLabel("From layer")
         self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
         # self.ROI_selection_1.setAccessibleName("From layer")
-        self.ROI_selection_1.addItems(self.get_rois_list())
+        # self.ROI_selection_1.addItems(self.get_rois_list())
         self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
         
         self.ROI_selection_2 = QComboBox()
         self.ROI_2_label = QLabel("To layer")
         self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
         # self.ROI_selection_2.setAccessibleName("To layer")
-        self.ROI_selection_2.addItems(self.get_rois_list())
+        # self.ROI_selection_2.addItems(self.get_rois_list())
         self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
 
         self.copy_ROIs_btn = QPushButton("Transfer ROIs")
@@ -1024,9 +1025,10 @@ class OMAAS(QWidget):
         # self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
         # self.plot_widget.plotter.selector.model().itemChanged.connect(self._get_current_selected_TSP_layer_callback)
-        # callback for insert /remove layers
+        # callback for insert /remove / reordered layers
         self.viewer.layers.events.inserted.connect(self._layer_list_changed_callback)
         self.viewer.layers.events.removed.connect(self._layer_list_changed_callback)
+        self.viewer.layers.events.reordered.connect(self._layer_list_changed_callback)
         # callback for selection of layers in the selectors
         self.listShapeswidget.itemClicked.connect(self._data_changed_callback)
         self.listImagewidget.itemClicked.connect(self._data_changed_callback)
@@ -1105,43 +1107,47 @@ class OMAAS(QWidget):
             return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
+    #  NOTE: deprecated on 07.02.2023 you can kill this function
     
-    def get_rois_list(self):
+    # def get_rois_list(self):
 
-        shape_layer_list = [layer.name for layer in self.viewer.layers if layer._type_string == 'shapes']
+    #     shape_layer_list = [layer.name for layer in self.viewer.layers if layer._type_string == 'shapes']
         
-        return shape_layer_list
+    #     return shape_layer_list
 
-    def update_roi_list(self):
+    # def update_roi_list(self):
 
-        self.clear()
-        self.addItems(self.get_rois_list())
+    #     self.clear()
+    #     self.addItems(self.get_rois_list())
+        
+
     
-    def _shapes_layer_list_changed_callback(self, event):
-         if event.type in ['inserted', 'removed']:
-            value = event.value
-            etype = event.type
-            if value._type_string == 'shapes' :
-                if value:
-                    if etype == 'inserted':  # add layer to model
-                        # print("you  enter the event loop")
-                        self.ROI_selection_1.clear()
-                        self.ROI_selection_1.addItems(self.get_rois_list()) 
-                        self.ROI_selection_2.clear()
-                        self.ROI_selection_2.addItems(self.get_rois_list())
+        
+    # def _shapes_layer_list_changed_callback(self, event):
+    #      if event.type in ['inserted', 'removed']:
+    #         value = event.value
+    #         etype = event.type
+    #         if value._type_string == 'shapes' :
+    #             if value:
+    #                 if etype == 'inserted':  # add layer to model
+    #                     # print("you  enter the event loop")
+    #                     self.ROI_selection_1.clear()
+    #                     self.ROI_selection_1.addItems(self.get_rois_list()) 
+    #                     self.ROI_selection_2.clear()
+    #                     self.ROI_selection_2.addItems(self.get_rois_list())
                         
-                    elif etype == 'removed':  # remove layer from model
-                        self.ROI_selection_1.clear()
-                        self.ROI_selection_1.addItems(self.get_rois_list())
-                        self.ROI_selection_2.clear()
-                        self.ROI_selection_2.addItems(self.get_rois_list())
+    #                 elif etype == 'removed':  # remove layer from model
+    #                     self.ROI_selection_1.clear()
+    #                     self.ROI_selection_1.addItems(self.get_rois_list())
+    #                     self.ROI_selection_2.clear()
+    #                     self.ROI_selection_2.addItems(self.get_rois_list())
                         
 
-                    elif etype == 'reordered':  # remove layer from model
-                        self.ROI_selection_1.clear()
-                        self.ROI_selection_1.addItems(self.get_rois_list())
-                        self.ROI_selection_2.clear()
-                        self.ROI_selection_2.addItems(self.get_rois_list())
+    #                 elif etype == 'reordered':  # remove layer from model
+    #                     self.ROI_selection_1.clear()
+    #                     self.ROI_selection_1.addItems(self.get_rois_list())
+    #                     self.ROI_selection_2.clear()
+    #                     self.ROI_selection_2.addItems(self.get_rois_list())
     
     def _on_click_copy_ROIS(self):
         
@@ -1519,7 +1525,7 @@ class OMAAS(QWidget):
             
             APD_props = []
             # get selection of images iand shape from the selector
-            selected_img_list, selected_shps_list = self._get_imgs_and_shpes_items(return_img=True)
+            selected_img_list, selected_shps_list = self._get_imgs_and_shapes_items_from_selector(return_img=True)
 
             for img_indx, img in enumerate(selected_img_list):
 
@@ -1663,7 +1669,7 @@ class OMAAS(QWidget):
         # check that you have content in the graphics panel
         if len(self.main_plot_widget.figure.axes) > 0 :
             traces = self.data_main_canvas["y"]
-            selected_img_list, shapes = self._get_imgs_and_shpes_items(return_img=True)
+            selected_img_list, shapes = self._get_imgs_and_shapes_items_from_selector(return_img=True)
             for img_indx, img_name in enumerate(selected_img_list):
                 for shpae_indx, shape in enumerate(shapes[0].data):
 
@@ -1705,7 +1711,7 @@ class OMAAS(QWidget):
         else:
             print("the selected entry does not seem to be a valid directory")
     
-    def _get_imgs_and_shpes_items(self, return_img = False):
+    def _get_imgs_and_shapes_items_from_selector(self, return_img = False):
         """
         Helper function that retunr the names of imags and shapes picked in the selector
         """
@@ -1851,27 +1857,27 @@ class OMAAS(QWidget):
         value = event.value
         etype = event.type
         # control selection of Shape layers
-        if isinstance(value, Shapes):
-            if etype  == 'inserted':
-                item = QtWidgets.QListWidgetItem(value.name)
-                self.listShapeswidget.addItem(item)
-            if event.type  == 'removed':
-                item = self.listShapeswidget.findItems(value.name, Qt.MatchExactly)
-                item_row = self.listShapeswidget.row(item[0])
-                curr_item = self.listShapeswidget.takeItem(item_row)
-                del curr_item
-       # control selection of Image Layers
-        elif isinstance(value, Image) and value.ndim > 2:
-            if etype  == 'inserted':
-                item = QtWidgets.QListWidgetItem(value.name)
-                self.listImagewidget.addItem(item)
-            if event.type  == 'removed':
-                item = self.listImagewidget.findItems(value.name, Qt.MatchExactly)
-                item_row = self.listImagewidget.row(item[0])
-                curr_item = self.listImagewidget.takeItem(item_row)
-                del curr_item    
+        if etype in ['inserted', 'removed', 'reordered']:
+
+            if isinstance(value, Shapes) or isinstance(value, LayerList):
+            
+                self.listShapeswidget.clear()
+                shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes) ]
+                for shape in shape_layers:
+                    item = QtWidgets.QListWidgetItem(shape)
+                    self.listShapeswidget.addItem(item)
+            
+            if isinstance(value, Image) or isinstance(value, LayerList) :
+            
+                self.listImagewidget.clear()
+                image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
+                for image in image_layers:
+                    item = QtWidgets.QListWidgetItem(image)
+                    self.listImagewidget.addItem(image)
+            
 
     
+
     def update_fps(self, fps):
         """Update fps."""
         self.viewer.text_overlay.text = f"Currently rendering at: {fps:1.1f} FPS"
@@ -1883,7 +1889,7 @@ class OMAAS(QWidget):
             # print('Checked')
             img_items = [item.text() for item in self.listImagewidget.selectedItems()]
             shapes_items = [item.text() for item in self.listShapeswidget.selectedItems()]
-            img_items, shapes_items = self._get_imgs_and_shpes_items(return_img=False)
+            img_items, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
             
             if not shapes_items and img_items:
                 warn("Please create and Select a SHAPE from the Shape selector to plot profile")
@@ -2149,7 +2155,7 @@ class OMAAS(QWidget):
 
             if ini_i.size > 1:
 
-                img_items, _ = self._get_imgs_and_shpes_items(return_img=True)
+                img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
                 results= split_AP_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
                 self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
                 print("Average trace created")
@@ -2330,7 +2336,7 @@ class OMAAS(QWidget):
                                                                          percentage = percentage)
                     self._preview_multiples_traces_func()
                     
-                    _, shapes_items = self._get_imgs_and_shpes_items(return_img=True)
+                    _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
                     if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
                         ndim = current_img_selection.ndim
                         dshape = current_img_selection.data.shape
@@ -2375,7 +2381,7 @@ class OMAAS(QWidget):
 
     def _on_click_average_roi_on_map_btn_fun(self):
         
-        _, shapes_items = self._get_imgs_and_shpes_items(return_img=True)
+        _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
         current_img_selected = self.viewer.layers.selection.active
 
         if isinstance(current_img_selected, Image) and current_img_selected.ndim == 2 and len(shapes_items) > 0:
@@ -2616,7 +2622,7 @@ class OMAAS(QWidget):
             if self.clip_label_range.isChecked():
                 
                 time = self.data_main_canvas["x"]
-                selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
+                selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
                 for image in selected_img_list:
                     results = image.data[start_indx:end_indx]
                     self.add_result_img(result_img=results, img_custom_name = image.name, single_label_sufix="TimeCrop", add_to_metadata = f"TimeCrop_at_Indx_[{start_indx}:{end_indx}]")
@@ -2637,7 +2643,7 @@ class OMAAS(QWidget):
             # assert that there is a trace in the main plotting canvas
             if len(self.main_plot_widget.figure.axes) > 0 :
                 time = self.data_main_canvas["x"]
-                selected_img_list, _ = self._get_imgs_and_shpes_items(return_img=True)
+                selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
                 self.main_plot_widget.axes.axvline(start_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
                 self.main_plot_widget.axes.axvline(end_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
                 self.main_plot_widget.canvas.draw()
