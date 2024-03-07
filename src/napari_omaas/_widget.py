@@ -1074,12 +1074,22 @@ class OMAAS(QWidget):
             print(f'applying "split_channels" to image {current_selection}')
             my_splitted_images = split_channels_fun(current_selection.data)
             curr_img_name = current_selection.name
+            metadata = current_selection.metadata
+            # overwrite the new cycle time
+            half_cycle_time = metadata["CycleTime"] * 2
+            metadata["CycleTime"] = half_cycle_time
+
 
             for channel in range(len(my_splitted_images)):
                 # self.viewer.add_image(my_splitted_images[channel],
                 # colormap= "turbo", 
                 # name= f"{curr_img_name}_ch{channel + 1}")
-                self.add_result_img(result_img=my_splitted_images[channel], img_custom_name=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
+                self.add_result_img(result_img=my_splitted_images[channel], 
+                                    auto_metadata = False,
+                                    img_custom_name=curr_img_name, 
+                                    single_label_sufix=f"Ch{channel}", 
+                                    custom_metadata=metadata,
+                                    add_to_metadata = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -1204,21 +1214,38 @@ class OMAAS(QWidget):
     
     
     
-    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_name = None, **label_and_value_sufix):
+    def add_result_img(self, 
+                       result_img, 
+                       single_label_sufix = None, 
+                       auto_metadata = True, 
+                       add_to_metadata = None, 
+                       custom_metadata = None, 
+                       colormap="turbo", 
+                       img_custom_name = None, 
+                       **label_and_value_sufix):
         
+
+        if auto_metadata:
+            img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
+        else: 
+            img_metadata = copy.deepcopy(custom_metadata)
+
+
         if img_custom_name is not None:
             img_name = img_custom_name
         else:
             img_name = self.viewer.layers.selection.active.name
-
-        self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
-
+            
+        
+        # create "ProcessingSteps" key if does not exist
         key_name = "ProcessingSteps"
-        if key_name not in self.curr_img_metadata:
-            self.curr_img_metadata[key_name] = []
 
+        if key_name not in img_metadata:
+            img_metadata[key_name] = []
+
+        # append the given processing step(s) to the key
         if add_to_metadata is not None:            
-            self.curr_img_metadata[key_name].append(add_to_metadata)
+            img_metadata[key_name].append(add_to_metadata)
 
 
         if single_label_sufix is not None:
@@ -1228,18 +1255,13 @@ class OMAAS(QWidget):
         if label_and_value_sufix is not None:
             for key, value in label_and_value_sufix.items():
                 img_name += f"_{key}{value}"
-        
-        
-        if metadata:
-            self.viewer.add_image(result_img, 
-                        metadata = self.curr_img_metadata,
-                        colormap = colormap,
-                        name = img_name)
+            
 
-        else: 
-            self.viewer.add_image(result_img,
-                        colormap = colormap,
-                        name = img_name)
+        
+        self.viewer.add_image(result_img,
+                    colormap = colormap,
+                    name = img_name,
+                    metadata = img_metadata)
         
 
 
