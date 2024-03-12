@@ -72,7 +72,7 @@ class OMAAS(QWidget):
        
        ######## Shapes tab ########
         self.layers_processing = QWidget()
-        self._layers_processing_layout = QVBoxLayout()
+        self._layers_processing_layout = QGridLayout()
         self.layers_processing.setLayout(self._layers_processing_layout)
         self.tabs.addTab(self.layers_processing, 'Shapes') # this tab is not making the GUI fat, it's ok!
 
@@ -437,25 +437,44 @@ class OMAAS(QWidget):
         
         ######## Rois handeling group ########
         self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
-        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox)
+        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox, 0, 0, 0, 1)
         
         self.ROI_selection_1 = QComboBox()
         self.ROI_1_label = QLabel("From layer")
-        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 1, 0, 1, 1)
         # self.ROI_selection_1.setAccessibleName("From layer")
         # self.ROI_selection_1.addItems(self.get_rois_list())
-        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 1, 1, 1, 1)
         
         self.ROI_selection_2 = QComboBox()
         self.ROI_2_label = QLabel("To layer")
-        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 2, 0, 1, 1)
         # self.ROI_selection_2.setAccessibleName("To layer")
         # self.ROI_selection_2.addItems(self.get_rois_list())
-        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 2, 1, 1, 1)
 
         self.copy_ROIs_btn = QPushButton("Transfer ROIs")
         self.copy_ROIs_btn.setToolTip(("Transfer ROIs from one 'Shape' layer to another 'Shape' layer"))
-        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
+        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 3, 0, 1, 2)
+
+        self.crop_from_shape_group = VHGroup('Crop from shape', orientation='G')
+        self._layers_processing_layout.addWidget(self.crop_from_shape_group.gbox, 0, 1, 0, 1)
+        
+        self.shape_crop_label = QLabel("Shape")
+        self.crop_from_shape_group.glayout.addWidget(self.shape_crop_label, 1, 0, 1, 1)
+        
+        self.ROI_selection_crop = QComboBox()
+        self.crop_from_shape_group.glayout.addWidget(self.ROI_selection_crop, 1, 1, 1, 1)
+
+        self.image_crop_label = QLabel("Image")
+        self.crop_from_shape_group.glayout.addWidget(self.image_crop_label, 2, 0, 1, 1)
+        
+        self.image_selection_crop = QComboBox()
+        self.crop_from_shape_group.glayout.addWidget(self.image_selection_crop, 2, 1, 1, 1)
+
+        self.crop_from_shape_btn = QPushButton("Crop")
+        self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 2)
+
 
         
         ######## Mot-Correction tab ########
@@ -1015,6 +1034,7 @@ class OMAAS(QWidget):
         self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
         self.export_image_btn.clicked.connect(self._export_image_btn_func)
         self.apply_optimap_mot_corr_btn.clicked.connect(self._apply_optimap_mot_corr_btn_func)
+        self.crop_from_shape_btn.clicked.connect(self._on_click_crop_from_shape_btn_func)
         
         
         
@@ -1329,11 +1349,11 @@ class OMAAS(QWidget):
     
     def _get_ROI_selection_1_current_text(self, _): # We receive the index, but don't use it.
         ctext = self.ROI_selection_1.currentText()
-        print(f"Current layer 1 is {ctext}")
+        print(f"Current layer 1 is '{ctext}'")
 
     def _get_ROI_selection_2_current_text(self, _): # We receive the index, but don't use it.
         ctext = self.ROI_selection_2.currentText()
-        print(f"Current layer 2 is {ctext}")
+        print(f"Current layer 2 is '{ctext}'")
 
     
     def _on_click_apply_mot_correct_btn(self):
@@ -1863,14 +1883,29 @@ class OMAAS(QWidget):
             
                 self.listShapeswidget.clear()
                 shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes) ]
+
+                # update shapes transfer widget
+                self.ROI_selection_1.clear()
+                self.ROI_selection_1.addItems(shape_layers) 
+                self.ROI_selection_2.clear()
+                self.ROI_selection_2.addItems(shape_layers)
+                self.ROI_selection_crop.clear()
+                self.ROI_selection_crop.addItems(shape_layers) 
+                # update shapes in selector widget
                 for shape in shape_layers:
                     item = QtWidgets.QListWidgetItem(shape)
                     self.listShapeswidget.addItem(item)
+
+                    
             
             if isinstance(value, Image) or isinstance(value, LayerList) :
             
                 self.listImagewidget.clear()
                 image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
+
+                self.image_selection_crop.clear()
+                self.image_selection_crop.addItems(image_layers)
+
                 for image in image_layers:
                     item = QtWidgets.QListWidgetItem(image)
                     self.listImagewidget.addItem(image)
@@ -2779,6 +2814,41 @@ class OMAAS(QWidget):
         else:
             
             return warn(f"No an image selected or image: '{current_selection.name}' has ndim = {current_selection.ndim }. Select an temporal 3d image stack")
+        
+    
+    def _on_click_crop_from_shape_btn_func(self):
+
+        shape_name = self.ROI_selection_crop.currentText()
+        shape_layer = self.viewer.layers[shape_name]
+
+        img_name = self.image_selection_crop.currentText()
+        img_layer = self.viewer.layers[img_name]
+
+        dshape = img_layer.data.shape
+        
+        # label = shape_layer.to_labels(dshape[-2:])
+        mask = shape_layer.to_masks(dshape[-2:]).squeeze()
+        mask = np.tile(mask, (dshape[0], 1, 1))
+        mask_indx_t, mask_indx_y, mask_indx_x  = np.nonzero(mask)
+        
+        tmim,tmax = mask_indx_t.min(),mask_indx_t.max()
+        xl,xr = mask_indx_x.min(),mask_indx_x.max()
+        yl,yr = mask_indx_y.min(),mask_indx_y.max()
+
+        cropped_img = img_layer.data.copy()
+        # cropped_img = cropped_img[np.ix_(np.unique(mask_indx_t), np.unique(mask_indx_y), np.unique(mask_indx_x))]
+        cropped_img = cropped_img[tmim:tmax, 
+                                  yl:yr,
+                                    xl:xr]
+        self.add_result_img(cropped_img, 
+                            single_label_sufix = "Crop",
+                            add_to_metadata = f"cropped_indx[{tmim}:{tmax}, {yl}:{yr}, {xl}:{xr}]")
+
+
+
+        
+
+        print("cropping function")
 
 
 
