@@ -3,6 +3,12 @@ import napari
 import napari_omaas
 from napari_omaas import utils
 import numpy as np
+from napari.settings import get_settings
+
+
+# set pülayback setting to render at 100 fps
+settings = get_settings()
+settings.application.playback_fps = 100
 
 # import myModule
 # import importlib
@@ -28,10 +34,13 @@ viewer.window.add_dock_widget(o, area='right')
 
 ########## load a spool file ##########
 # my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_APD/2_5Hz/20233011_15h-13m-56"
-my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_motion_test/20233011_14h-10m-31"
+# my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_motion_test/20233011/red/20233011_14h-26m-21"
 # my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_APD/2_5Hz/20230710_12h-09m-00"
-o.dir_box_text.setText(my_file)
-o.load_spool_dir_btn.click()
+# img, info = utils.return_spool_img_fun(my_file)
+# view1 = np.rot90(img[:,:238, 75:350], axes = (1, 2))
+# viewer.add_image(view1, metadata = info)
+# o.dir_box_text.setText(my_file)
+# o.load_spool_dir_btn.click()
 
 
 # viewer.open(my_file, colormap = "turbo")
@@ -52,6 +61,11 @@ o.load_spool_dir_btn.click()
 #         [120.6049183 , 540.5934153 ],
 #         [145.54350755, 540.5934153 ],
 #         [145.54350755, 512.25410934]])], name="shape_20230504_17h-00m-43")
+
+viewer.add_shapes(data = [np.array([[73.12689301, 58.31786751],
+        [73.12689301, 86.65717347],
+        [98.06548226, 86.65717347],
+        [98.06548226, 58.31786751]])], name="shape_20230504_17h-00m-43")
 
 # viewer.layers[0].data = viewer.layers[0].data[:60]
 
@@ -124,8 +138,9 @@ o.load_spool_dir_btn.click()
 
 # # load a spool file
 # my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_APD/2_5Hz/20230710_12h-09m-00"
-# o.dir_box_text.setText(my_file)
-# o.load_spool_dir_btn.click()
+my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_APD/2_5Hz/20233011_15h-13m-56"
+o.dir_box_text.setText(my_file)
+o.load_spool_dir_btn.click()
 # # invert and normalize signal
 # o.inv_and_norm_data_btn.click()
 
@@ -148,6 +163,140 @@ o.load_spool_dir_btn.click()
 
 # viewer.open_sample("napari-omaas", "heartsample")
 
+
+
+################################################
+######## workflow for generation of maps #######
+################################################
+
+
+##### load data #####
+# my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_APD/2_5Hz/20233011_15h-13m-56"
+# img, info = utils.return_spool_img_fun(my_file)
+# view1 = np.rot90(img[:,:238, 75:350], axes = (1, 2))
+# viewer.add_image(view1, metadata = info)
+# viewer.add_image(view1[0,...], name = "view1_1frame", metadata = info)
+
+o.crop_from_shape_btn.click()
+
+# ##### invert and normalize data #####
+# o.inv_and_norm_data_btn.click()
+
+# ##### add shape #####
+# viewer.add_shapes(data = 
+#                   [np.array([[133.75316094, 132.63923711],
+#                              [133.75316094, 140.84176856],
+#                              [141.04430001, 140.84176856],
+#                              [141.04430001, 132.63923711]])], 
+#                   name="20233011_15h-13m-56_shape")
+
+# ##### select the current image #####
+# viewer.layers.select_previous()
+
+# ##### make selections in the selectors #####
+
+# o.listImagewidget.item(2).setSelected(True)
+# o.listShapeswidget.item(0).setSelected(True)
+
+# ##### plot profile on inverted image #####
+# o.plot_profile_btn.click()
+
+# ##### clip image #####
+# o.double_slider_clip_trace.setValue((287.12, 2247))
+# o.clip_label_range.setChecked(True)
+
+# o.clip_trace_btn.click()
+
+# # make new selections in the selectors
+# o.listImagewidget.item(2).setSelected(False)
+# o.listImagewidget.item(3).setSelected(True)
+
+# # re-plot
+# o.plot_profile_btn.click()
+# o.plot_profile_btn.click()
+
+# # change kernel filter to 10 for instance
+# o.filt_kernel_value.setValue(10)
+# # apply spatial filter
+# o.apply_spat_filt_btn.click()
+
+# # apply temp filter to current image
+# o.butter_cutoff_freq_val.setValue(25)
+# o.apply_temp_filt_btn.click()
+
+
+# # make new selections in the selectors
+# # o.listImagewidget.item(3).setSelected(False)
+# o.listImagewidget.item(5).setSelected(True)
+
+# # re-plot
+# o.plot_profile_btn.click()
+# o.plot_profile_btn.click()
+
+# # apply segmentation
+# o.apply_segmentation_btn.click() # using default method
+
+# # make new selections in the selectors
+# o.listImagewidget.item(3).setSelected(False)
+# o.listImagewidget.item(5).setSelected(False)
+# o.listImagewidget.item(6).setSelected(True)
+
+# # re-plot
+# o.plot_profile_btn.click()
+# o.plot_profile_btn.click()
+
+
+# # Preview traces for averaging
+# o.preview_AP_splitted_btn.click()
+
+
+# #  average traces
+# o.create_average_AP_btn.click()
+
+# # make new selections in the selectors
+# o.listImagewidget.item(6).setSelected(False)
+# o.listImagewidget.item(7).setSelected(True)
+# # re-plot
+# o.plot_profile_btn.click()
+# o.plot_profile_btn.click()
+
+# # # clip again the averaged trace
+# # # o.double_slider_clip_trace.value()
+# # o.double_slider_clip_trace.setValue((77.7, 323.15))
+# # o.clip_label_range.setChecked(True)
+# # o.clip_trace_btn.click()
+
+# # # make new selections in the selectors
+# # o.listImagewidget.item(7).setSelected(False)
+# # o.listImagewidget.item(8).setSelected(True)
+# # # re-plot
+# # o.plot_profile_btn.click()
+# # o.plot_profile_btn.click()
+
+
+# # set all but the last image  hidden
+# for layer in viewer.layers:
+#     layer.visible = False
+
+# viewer.layers[-1].visible = True
+
+# # select current images in the main layer selector 
+# viewer.layers.selection.active = viewer.layers[-1]
+
+
+# # # create map
+# # value = 10
+
+# o.toggle_map_type.setChecked(True) # set to APD maps
+# # o.slider_APD_map_percentage.setValue(value)
+# o.make_maps_btn.click()
+
+
+
+
+
+
+
 napari.run()  # start the "event loop" and show the viewer
 
-print("end")
+# # print("end")
