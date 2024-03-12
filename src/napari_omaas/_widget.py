@@ -465,15 +465,22 @@ class OMAAS(QWidget):
         
         self.ROI_selection_crop = QComboBox()
         self.crop_from_shape_group.glayout.addWidget(self.ROI_selection_crop, 1, 1, 1, 1)
+        
+        self.rotate_l_crop = QCheckBox("Crop + Rotate (L)")
+        self.crop_from_shape_group.glayout.addWidget(self.rotate_l_crop, 1, 2, 1, 1)
 
         self.image_crop_label = QLabel("Image")
         self.crop_from_shape_group.glayout.addWidget(self.image_crop_label, 2, 0, 1, 1)
         
         self.image_selection_crop = QComboBox()
         self.crop_from_shape_group.glayout.addWidget(self.image_selection_crop, 2, 1, 1, 1)
+        
+        self.rotate_r_crop = QCheckBox("Crop + Rotate (R)")
+        self.crop_from_shape_group.glayout.addWidget(self.rotate_r_crop, 2, 2, 1, 1)
 
         self.crop_from_shape_btn = QPushButton("Crop")
         self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 2)
+
 
 
         
@@ -2825,6 +2832,8 @@ class OMAAS(QWidget):
         img_layer = self.viewer.layers[img_name]
 
         dshape = img_layer.data.shape
+
+        # NOTE: you need to handel case for 2d images alike 3d images
         
         # label = shape_layer.to_labels(dshape[-2:])
         mask = shape_layer.to_masks(dshape[-2:]).squeeze()
@@ -2837,9 +2846,19 @@ class OMAAS(QWidget):
 
         cropped_img = img_layer.data.copy()
         # cropped_img = cropped_img[np.ix_(np.unique(mask_indx_t), np.unique(mask_indx_y), np.unique(mask_indx_x))]
+        
         cropped_img = cropped_img[tmim:tmax, 
                                   yl:yr,
                                     xl:xr]
+        
+        if self.rotate_l_crop.isChecked():
+            cropped_img = np.rot90(cropped_img, axes=(1, 2))
+            print(f"result image rotate 90° to the left")
+
+        if self.rotate_r_crop.isChecked():
+            cropped_img = np.rot90(cropped_img, axes=(2, 1))
+            print(f"result image rotate 90° to the right")
+        
         self.add_result_img(cropped_img, 
                             single_label_sufix = "Crop",
                             add_to_metadata = f"cropped_indx[{tmim}:{tmax}, {yl}:{yr}, {xl}:{xr}]")
@@ -2848,7 +2867,7 @@ class OMAAS(QWidget):
 
         
 
-        print("cropping function")
+        print(f"image '{img_layer.name}' cropped")
 
 
 
