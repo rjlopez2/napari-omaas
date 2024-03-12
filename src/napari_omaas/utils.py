@@ -1209,8 +1209,12 @@ def polish_mask(mask, small_obj_s = 500, small_holes_s = 5):
 
     return label_image
 @macro.record
-def optimap_mot_correction(np_array, c_k, pre_smooth_t, proe_smooth_s):
-    video_warped  =  motion_compensate(np_array, c_k, pre_smooth_t, proe_smooth_s)
+def optimap_mot_correction(np_array, c_k, pre_smooth_t, proe_smooth_s, ref_fr):
+    video_warped  =  motion_compensate(video = np_array, 
+                                       contrast_kernel= c_k, 
+                                       ref_frame=ref_fr,
+                                       presmooth_temporal=pre_smooth_t, 
+                                       presmooth_spatial=proe_smooth_s)
 
     return video_warped
 
