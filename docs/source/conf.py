@@ -14,15 +14,32 @@ release = '0.1.3'
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = []
+extensions = [
+    "sphinx.ext.napoleon",
+    "sphinx.ext.autosummary",
+    "sphinx.ext.autodoc",
+    "sphinx.ext.intersphinx",
+    "sphinx_copybutton",
+    "sphinx_codeautolink",
+    'sphinxcontrib.bibtex',
+    "sphinxcontrib.video",
+    "sphinx.ext.viewcode",
+    "myst_nb",
+]
 
 templates_path = ['_templates']
 exclude_patterns = []
 
 
+# List of patterns, relative to source directory, that match files and
+# directories to ignore when looking for source files.
+# This pattern also affects html_static_path and html_extra_path.
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'tutorials/converted']
+
 
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = 'alabaster'
+html_title = "napari-omaas"
+html_theme = "furo"
 html_static_path = ['_static']
