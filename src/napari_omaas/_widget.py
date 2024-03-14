@@ -2860,6 +2860,8 @@ class OMAAS(QWidget):
             print(f"result image rotate 90° to the right")
         
         self.add_result_img(cropped_img, 
+                            auto_metadata = False, 
+                            ustom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
                             add_to_metadata = f"cropped_indx[{tmim}:{tmax}, {yl}:{yr}, {xl}:{xr}]")
 
