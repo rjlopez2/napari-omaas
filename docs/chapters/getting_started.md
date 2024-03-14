@@ -1,19 +1,33 @@
 
 # Installation
 
-You can install `napari-omaas` via [pip]:
+To use this plugin you will need first to install napari.
 
-    pip install napari-omaas
+```{admonition} Important
+:class: warning
+While not strictly required, it is highly recommended to install this pluggin (together with napari and all additional dependencies) into a clean virtual environment using an environment manager like conda or venv.
 
+This should be set up before you install napari and napari-omaas. For example, setting with up a Python {{ python_version }} environment with conda:
 
+{{ conda_create_env }}
+```
+After you have napari installed in your system, you can install `napari-omaas` via [pip] using the comand line:
+
+```bash
+pip install napari-omaas
+```
 
 To install the latest development version (recommended) :
 
-    pip install git+https://github.com/rjlopez2/napari-omaas.git
+```bash
+pip install git+https://github.com/rjlopez2/napari-omaas.git
+```
 
 # Usage
 
 This plugin can read images generated with Andor Technologies cameras. It has been currently tested on Zyla cameras. Just drag and drop an image to the napari GUI, and the image will display. Alternatively, you can programmatically load/read the image within a notebook.
+
+
 
 ```python
 import napari
@@ -65,4 +79,4 @@ Bellow is a list of some features this pluggin aims to do.
 - [ ] Real-time analysis(?)
 
 
-
+[pip]: https://pypi.org/project/pip/

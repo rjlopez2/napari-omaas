@@ -10,7 +10,9 @@ chapters/getting_started.md
 ```{toctree}
 :maxdepth: 2
 :hidden:
-:caption: 🚀 Tutorials
+:caption: 📖 Tutorials
+
+tutorials/tutorials.md
 
 
 ```
