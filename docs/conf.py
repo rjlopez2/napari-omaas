@@ -55,3 +55,19 @@ html_static_path = ['_static']
 
 
 autoclass_content = 'both'
+
+python_version = '3.10'
+
+myst_enable_extensions = [
+    'colon_fence',
+    'dollarmath',
+    'substitution',
+    'tasklist',
+]
+
+# these are variables that can be evaluated in md files
+myst_substitutions = {
+    "python_version": python_version,
+    "conda_create_env": f"```sh\nconda create -y -n napari-omaas-env -c conda-forge python={python_version}\nconda activate napari-omaas-env\n```",
+    "under_construction_warn": "```{admonition} 🔨 Work in progress\n:class: warning\nThis tutoriasl is under construction. Soon will be updated.\n```" 
+}

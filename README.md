@@ -15,9 +15,9 @@ This napari plugin intends to be an analysis and acquisition tool for optical ma
 
 
 
-```{admonition} Experimental
+```{admonition} Experimental ❗️🐲🧪🔭🐗💣🚨🪲☣️❗️
 :class: warning
-This plugin is in early developmental/experimental stage so expect  braking changes at anytime.
+This plugin is in early development/experimental stage so expect braking changes and bugs at anytime.
 ```
 # Examples
 
