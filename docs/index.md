@@ -7,6 +7,9 @@
 chapters/getting_started.md
 
 ```
+
+
+
 ```{toctree}
 :maxdepth: 2
 :hidden:
@@ -14,8 +17,19 @@ chapters/getting_started.md
 
 tutorials/tutorials.md
 
+```
+
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: 🧪 Set-up Experiment
+
+experiments/experiment.md
 
 ```
+
+
 
 ```{include} ../README.md
 ```
