@@ -1106,7 +1106,8 @@ class OMAAS(QWidget):
             metadata = current_selection.metadata
             # overwrite the new cycle time
             half_cycle_time = metadata["CycleTime"] * 2
-            metadata["CycleTime"] = half_cycle_time
+            new_metadata = metadata.copy()
+            new_metadata["CycleTime"] = half_cycle_time
 
 
             for channel in range(len(my_splitted_images)):
@@ -1117,7 +1118,7 @@ class OMAAS(QWidget):
                                     auto_metadata = False,
                                     img_custom_name=curr_img_name, 
                                     single_label_sufix=f"Ch{channel}", 
-                                    custom_metadata=metadata,
+                                    custom_metadata=new_metadata,
                                     add_to_metadata = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
                 self.add_record_fun()
         else:
