@@ -1938,10 +1938,11 @@ class OMAAS(QWidget):
             if isinstance(value, Image) or isinstance(value, LayerList) :
             
                 self.listImagewidget.clear()
-                image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
-
+                all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
                 self.image_selection_crop.clear()
-                self.image_selection_crop.addItems(image_layers)
+                self.image_selection_crop.addItems(all_images)
+
+                image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
 
                 for image in image_layers:
                     item = QtWidgets.QListWidgetItem(image)
@@ -2894,37 +2895,70 @@ class OMAAS(QWidget):
         dshape = img_layer.data.shape
 
         # NOTE: you need to handel case for 2d images alike 3d images
+        # NOTE: handle rgb images -> no so urgent
+        # NOTE: handel 2d images
         
         # label = shape_layer.to_labels(dshape[-2:])
-        mask = shape_layer.to_masks(dshape[-2:]).squeeze()
-        mask = np.tile(mask, (dshape[0], 1, 1))
-        mask_indx_t, mask_indx_y, mask_indx_x  = np.nonzero(mask)
+        # get vertices from shape: top-right, top-left, botton-left, botton-right
+        tl, tr, bl, br = shape_layer.data[0].astype(int)
+        y_ini, y_end = sorted([tr[-2], br[-2]])
+        x_ini, x_end = sorted([tl[-1], tr[-1]])
+        ini_index = [y_ini, x_ini ]
+        end_index = [y_end, x_end]
         
-        tmim,tmax = mask_indx_t.min(),mask_indx_t.max()
-        xl,xr = mask_indx_x.min(),mask_indx_x.max()
-        yl,yr = mask_indx_y.min(),mask_indx_y.max()
+        # parse the negative index to the minimum value
+        for index, value in enumerate(ini_index):
+            if value < 0:
+                ini_index[index] = 0
+        # for index, value in enumerate(x_index):
+        #     if value < 0:
+        #         x_index[index] = 0
+
+        # parse the values out of range to the max
+        y_max, x_max = dshape[-2], dshape[-1]
+        if end_index[0] > y_max:
+            end_index[0] = y_max
+        
+        if end_index[1] > x_max:
+            end_index[1] = x_max
 
         cropped_img = img_layer.data.copy()
-        # cropped_img = cropped_img[np.ix_(np.unique(mask_indx_t), np.unique(mask_indx_y), np.unique(mask_indx_x))]
-        
-        cropped_img = cropped_img[tmim:tmax, 
-                                  yl:yr,
-                                    xl:xr]
+
+        cropped_img = cropped_img[:,ini_index[0]:end_index[0],  ini_index[1]:end_index[1]]
         
         if self.rotate_l_crop.isChecked():
             cropped_img = np.rot90(cropped_img, axes=(1, 2))
             print(f"result image rotate 90° to the left")
 
-        if self.rotate_r_crop.isChecked():
-            cropped_img = np.rot90(cropped_img, axes=(2, 1))
-            print(f"result image rotate 90° to the right")
-        
-        self.add_result_img(cropped_img,
+            return self.add_result_img(cropped_img,
                             img_custom_name=img_name,
                             auto_metadata = False, 
                             custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
-                            add_to_metadata = f"cropped_indx[{tmim}:{tmax}, {yl}:{yr}, {xl}:{xr}]")
+                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
+                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90L")
+
+        if self.rotate_r_crop.isChecked():
+            cropped_img = np.rot90(cropped_img, axes=(2, 1))
+            print(f"result image rotate 90° to the right")
+
+            return self.add_result_img(cropped_img,
+                            img_custom_name=img_name,
+                            auto_metadata = False, 
+                            custom_metadata = img_layer.metadata, 
+                            single_label_sufix = "Crop",
+                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
+                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90R")
+
+        
+        else:
+            self.add_result_img(cropped_img,
+                            img_custom_name=img_name,
+                            auto_metadata = False, 
+                            custom_metadata = img_layer.metadata, 
+                            single_label_sufix = "Crop",
+                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
+                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]")
 
 
 
