@@ -263,7 +263,7 @@ class OMAAS(QWidget):
         
         self.low_threshold_segmment_value = QLineEdit()
         self.low_threshold_segmment_value.setValidator(QDoubleValidator()) 
-        self.low_threshold_segmment_value.setText("0.01")
+        self.low_threshold_segmment_value.setText("0.05")
         self.segmentation_group.glayout.addWidget(self.low_threshold_segmment_value,  0, 3, 1, 1)
 
         self.high_threshold_segmment_label = QLabel("high threshold")
@@ -2572,7 +2572,8 @@ class OMAAS(QWidget):
                 hi_t = float(self.high_threshold_segment_value.text())
                 if self.is_Expand_mask.isChecked():
                     expand = int(self.n_pixels_expand.currentText())
-                    mask = segement_region_based_func(current_selection.data[0], lo_t = lo_t, hi_t = hi_t, expand = expand)
+                    # using maximum pixels intetnsity as reference
+                    mask = segement_region_based_func(current_selection.data.max(axis = (0)), lo_t = lo_t, hi_t = hi_t, expand = expand)
 
                 else:
                     mask = segement_region_based_func(current_selection.data[0], lo_t = lo_t, hi_t = hi_t, expand = None)
