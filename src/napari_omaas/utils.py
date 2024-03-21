@@ -22,7 +22,7 @@ from napari_macrokit import get_macro
 # from numba import jit, prange
 from scipy import signal, ndimage
 from scipy.interpolate import CubicSpline
-from scipy.ndimage import gaussian_filter
+from scipy.ndimage import gaussian_filter, binary_fill_holes
 # functions
 
 from napari.types import ImageData, ShapesData
@@ -1193,6 +1193,25 @@ def segment_image_GHT(image, threshold=None, return_threshold=False,
         return mask, threshold
     else:
         return mask
+
+@macro.record
+def segement_region_based_func(array_2d, lo_t = 0.05, hi_t = 0.2, expand = None):
+    egdes = sobel(array_2d)
+    
+    markers = np.zeros_like(array_2d, dtype=np.uint)
+    foreground, background = 1, 2
+    markers[array_2d < lo_t] = foreground
+    markers[array_2d > hi_t] = background
+
+    ws = segmentation.watershed(egdes, markers)
+    mask = label(ws == foreground)
+    mask = binary_fill_holes(mask)
+    if expand:
+        mask = segmentation.expand_labels(mask, distance=expand)
+    
+    # return markers
+    print(type(mask))
+    return (mask)
 
 @macro.record
 def polish_mask(mask, small_obj_s = 500, small_holes_s = 5):

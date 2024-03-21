@@ -20,7 +20,7 @@ from qtpy.QtWidgets import (
 from qtpy import QtWidgets
 from warnings import warn
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
-from qtpy.QtGui import QIntValidator
+from qtpy.QtGui import QIntValidator, QDoubleValidator
 from numpy import ndarray as numpy_ndarray
 from napari_matplotlib.base import BaseNapariMPLWidget
 from napari.layers import Shapes, Image
@@ -254,17 +254,46 @@ class OMAAS(QWidget):
         self.segmentation_group.glayout.addWidget(self.segmentation_methods_lable, 0, 0, 1, 1)
 
         self.segmentation_methods = QComboBox()
-        self.segmentation_methods.addItems(["threshold_triangle", "GHT"])
+        self.segmentation_methods.addItems(["threshold_triangle", "GHT", "region_base"])
         self.segmentation_group.glayout.addWidget(self.segmentation_methods, 0, 1, 1, 1)
+
+
+        self.low_threshold_segmment_label = QLabel("low threshold")
+        self.segmentation_group.glayout.addWidget(self.low_threshold_segmment_label,  0, 2, 1, 1)
+        
+        self.low_threshold_segmment_value = QLineEdit()
+        self.low_threshold_segmment_value.setValidator(QDoubleValidator()) 
+        self.low_threshold_segmment_value.setText("0.01")
+        self.segmentation_group.glayout.addWidget(self.low_threshold_segmment_value,  0, 3, 1, 1)
+
+        self.high_threshold_segmment_label = QLabel("high threshold")
+        self.segmentation_group.glayout.addWidget(self.high_threshold_segmment_label,  0, 4, 1, 1)
+        
+        self.high_threshold_segment_value = QLineEdit("High threshold")
+        self.high_threshold_segment_value.setValidator(QDoubleValidator()) 
+        self.high_threshold_segment_value.setText("0.2")
+        self.segmentation_group.glayout.addWidget(self.high_threshold_segment_value,  0, 5, 1, 1)
+
+        self.is_Expand_mask = QCheckBox("Expand")
+        self.is_Expand_mask.setChecked(False)
+        self.segmentation_group.glayout.addWidget(self.is_Expand_mask,  1, 0, 1, 1)
+
+        self.n_pixels_expand = QComboBox()
+        self.n_pixels_expand.addItems([str(i) for i in range(1, 21)])
+        self.segmentation_group.glayout.addWidget(self.n_pixels_expand, 1, 1, 1, 1)
 
         self.return_img_no_backg_btn = QCheckBox("Return image")
         self.return_img_no_backg_btn.setChecked(True)
         self.return_img_no_backg_btn.setToolTip(("Draw current selection as plot profile"))
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
-        self.segmentation_group.glayout.addWidget(self.return_img_no_backg_btn, 0, 2, 1, 1)
+        self.segmentation_group.glayout.addWidget(self.return_img_no_backg_btn, 1, 2, 1, 1)
+
+        self.is_inverted_mask = QCheckBox("Inverted mask")
+        self.is_Expand_mask.setChecked(False)
+        self.segmentation_group.glayout.addWidget(self.is_inverted_mask,  1, 3, 1, 1)
 
         self.apply_segmentation_btn = QPushButton("segment stack")
-        self.segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 0, 3, 1, 1)
+        self.segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 1, 4, 1, 2)
 
 
 
@@ -1106,7 +1135,8 @@ class OMAAS(QWidget):
             metadata = current_selection.metadata
             # overwrite the new cycle time
             half_cycle_time = metadata["CycleTime"] * 2
-            metadata["CycleTime"] = half_cycle_time
+            new_metadata = metadata.copy()
+            new_metadata["CycleTime"] = half_cycle_time
 
 
             for channel in range(len(my_splitted_images)):
@@ -1117,7 +1147,7 @@ class OMAAS(QWidget):
                                     auto_metadata = False,
                                     img_custom_name=curr_img_name, 
                                     single_label_sufix=f"Ch{channel}", 
-                                    custom_metadata=metadata,
+                                    custom_metadata=new_metadata,
                                     add_to_metadata = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
                 self.add_record_fun()
         else:
@@ -1908,10 +1938,11 @@ class OMAAS(QWidget):
             if isinstance(value, Image) or isinstance(value, LayerList) :
             
                 self.listImagewidget.clear()
-                image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
-
+                all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
                 self.image_selection_crop.clear()
-                self.image_selection_crop.addItems(image_layers)
+                self.image_selection_crop.addItems(all_images)
+
+                image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
 
                 for image in image_layers:
                     item = QtWidgets.QListWidgetItem(image)
@@ -2526,12 +2557,27 @@ class OMAAS(QWidget):
                 print(f'applying "{segmentation_method_selected}" method to image {current_selection}')
                 mask = segment_image_triangle(current_selection.data)
                 mask = polish_mask(mask)
+                print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
 
                 
             elif segmentation_method_selected == segmentation_methods[1]:
                 mask, threshold = segment_image_GHT(current_selection.data, return_threshold=True)
                 mask = polish_mask(mask)
-                print(f'Segmenting using "{segmentation_method_selected}" method to image {current_selection} with threshold: {threshold}')
+                print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}" with threshold: {threshold}')
+            
+            
+            elif segmentation_method_selected == segmentation_methods[2]:
+                # take fisrt frame and use it for segementation
+                lo_t = float(self.low_threshold_segmment_value.text())
+                hi_t = float(self.high_threshold_segment_value.text())
+                if self.is_Expand_mask.isChecked():
+                    expand = int(self.n_pixels_expand.currentText())
+                    mask = segement_region_based_func(current_selection.data[0], lo_t = lo_t, hi_t = hi_t, expand = expand)
+
+                else:
+                    mask = segement_region_based_func(current_selection.data[0], lo_t = lo_t, hi_t = hi_t, expand = None)
+                # mask = polish_mask(mask)
+                print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
 
                 
             else:
@@ -2543,6 +2589,10 @@ class OMAAS(QWidget):
             # self.viewer.add_labels(mask,
             #                        name = f"Heart_labels", 
             #                        metadata = current_selection.metadata)
+            
+            if self.is_inverted_mask.isChecked():
+                mask = np.invert(mask.astype(bool))
+
             self.add_result_label(mask, 
                                     img_custom_name="Heart_labels", 
                                     single_label_sufix = f"NullBckgrnd", 
@@ -2552,7 +2602,18 @@ class OMAAS(QWidget):
                 # 8. remove background using mask
                 n_frames =current_selection.data.shape[0]
                 masked_image = current_selection.data.copy()
-                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+                try:
+
+                    if np.issubdtype(masked_image.dtype, np.integer):
+                        masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
+                    elif np.issubdtype(masked_image.dtype, np.inexact):
+                        masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+                    else:
+                         masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+                except Exception as e:
+                        print(f"You have the following error: --->> {e} <----")
+
+
 
                 # 9. subtract bacground from original image 
                 background = np.nanmean(masked_image)
@@ -2834,40 +2895,76 @@ class OMAAS(QWidget):
         dshape = img_layer.data.shape
 
         # NOTE: you need to handel case for 2d images alike 3d images
+        # NOTE: handle rgb images -> no so urgent
+        # NOTE: handel 2d images
         
         # label = shape_layer.to_labels(dshape[-2:])
-        mask = shape_layer.to_masks(dshape[-2:]).squeeze()
-        mask = np.tile(mask, (dshape[0], 1, 1))
-        mask_indx_t, mask_indx_y, mask_indx_x  = np.nonzero(mask)
+        # get vertices from shape: top-right, top-left, botton-left, botton-right
+        tl, tr, bl, br = shape_layer.data[0].astype(int)
+        y_ini, y_end = sorted([tr[-2], br[-2]])
+        x_ini, x_end = sorted([tl[-1], tr[-1]])
+        ini_index = [y_ini, x_ini ]
+        end_index = [y_end, x_end]
         
-        tmim,tmax = mask_indx_t.min(),mask_indx_t.max()
-        xl,xr = mask_indx_x.min(),mask_indx_x.max()
-        yl,yr = mask_indx_y.min(),mask_indx_y.max()
+        # parse the negative index to the minimum value
+        for index, value in enumerate(ini_index):
+            if value < 0:
+                ini_index[index] = 0
+        # for index, value in enumerate(x_index):
+        #     if value < 0:
+        #         x_index[index] = 0
+
+        # parse the values out of range to the max
+        y_max, x_max = dshape[-2], dshape[-1]
+        if end_index[0] > y_max:
+            end_index[0] = y_max
+        
+        if end_index[1] > x_max:
+            end_index[1] = x_max
 
         cropped_img = img_layer.data.copy()
-        # cropped_img = cropped_img[np.ix_(np.unique(mask_indx_t), np.unique(mask_indx_y), np.unique(mask_indx_x))]
-        
-        cropped_img = cropped_img[tmim:tmax, 
-                                  yl:yr,
-                                    xl:xr]
+
+        cropped_img = cropped_img[:,ini_index[0]:end_index[0],  ini_index[1]:end_index[1]]
         
         if self.rotate_l_crop.isChecked():
             cropped_img = np.rot90(cropped_img, axes=(1, 2))
             print(f"result image rotate 90° to the left")
 
+            return self.add_result_img(cropped_img,
+                            img_custom_name=img_name,
+                            auto_metadata = False, 
+                            custom_metadata = img_layer.metadata, 
+                            single_label_sufix = "Crop",
+                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
+                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90L")
+
         if self.rotate_r_crop.isChecked():
             cropped_img = np.rot90(cropped_img, axes=(2, 1))
             print(f"result image rotate 90° to the right")
-        
-        self.add_result_img(cropped_img, 
+
+            return self.add_result_img(cropped_img,
+                            img_custom_name=img_name,
+                            auto_metadata = False, 
+                            custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
-                            add_to_metadata = f"cropped_indx[{tmim}:{tmax}, {yl}:{yr}, {xl}:{xr}]")
+                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
+                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90R")
+
+        
+        else:
+            self.add_result_img(cropped_img,
+                            img_custom_name=img_name,
+                            auto_metadata = False, 
+                            custom_metadata = img_layer.metadata, 
+                            single_label_sufix = "Crop",
+                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
+                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]")
 
 
 
         
 
-        print(f"image '{img_layer.name}' cropped")
+        print(f"image '{img_name}' cropped")
 
 
 
