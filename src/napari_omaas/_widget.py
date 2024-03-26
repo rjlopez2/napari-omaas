@@ -242,58 +242,81 @@ class OMAAS(QWidget):
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
         self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 2, 0, 1, 4)
 
+
         
+        ######## Segmentation group ########
         
-        self.segmentation_group = VHGroup('Segment heart views', orientation='G')
+        self.segmentation_group = VHGroup('Segment shapes', orientation='G')
+
+        self.segmentation_group = VHGroup('Segment Image', orientation='G')
         # self._pre_processing_layout.addWidget(self.filter_group.gbox)
 
         self._collapse_segmentation_group = QCollapsible('Segmentation', self)
         self._collapse_segmentation_group.addWidget(self.segmentation_group.gbox)
+        
+        self.auto_segmentation_group = VHGroup('Automatic segmentation', orientation='G')
+        self.segmentation_group.glayout.addWidget(self.auto_segmentation_group.gbox, 0, 0, 1, 1)
 
         self.segmentation_methods_lable = QLabel("Method")
-        self.segmentation_group.glayout.addWidget(self.segmentation_methods_lable, 0, 0, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.segmentation_methods_lable, 0, 0, 1, 1)
 
         self.segmentation_methods = QComboBox()
         self.segmentation_methods.addItems(["threshold_triangle", "GHT", "region_base"])
-        self.segmentation_group.glayout.addWidget(self.segmentation_methods, 0, 1, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.segmentation_methods, 0, 1, 1, 1)
 
 
         self.low_threshold_segmment_label = QLabel("low threshold")
-        self.segmentation_group.glayout.addWidget(self.low_threshold_segmment_label,  0, 2, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.low_threshold_segmment_label,  0, 2, 1, 1)
         
         self.low_threshold_segmment_value = QLineEdit()
         self.low_threshold_segmment_value.setValidator(QDoubleValidator()) 
         self.low_threshold_segmment_value.setText("0.05")
-        self.segmentation_group.glayout.addWidget(self.low_threshold_segmment_value,  0, 3, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.low_threshold_segmment_value,  0, 3, 1, 1)
 
         self.high_threshold_segmment_label = QLabel("high threshold")
-        self.segmentation_group.glayout.addWidget(self.high_threshold_segmment_label,  0, 4, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.high_threshold_segmment_label,  0, 4, 1, 1)
         
         self.high_threshold_segment_value = QLineEdit("High threshold")
         self.high_threshold_segment_value.setValidator(QDoubleValidator()) 
         self.high_threshold_segment_value.setText("0.2")
-        self.segmentation_group.glayout.addWidget(self.high_threshold_segment_value,  0, 5, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.high_threshold_segment_value,  0, 5, 1, 1)
 
         self.is_Expand_mask = QCheckBox("Expand")
         self.is_Expand_mask.setChecked(False)
-        self.segmentation_group.glayout.addWidget(self.is_Expand_mask,  1, 0, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.is_Expand_mask,  1, 0, 1, 1)
 
         self.n_pixels_expand = QComboBox()
         self.n_pixels_expand.addItems([str(i) for i in range(1, 21)])
-        self.segmentation_group.glayout.addWidget(self.n_pixels_expand, 1, 1, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.n_pixels_expand, 1, 1, 1, 1)
 
         self.return_img_no_backg_btn = QCheckBox("Return image")
         self.return_img_no_backg_btn.setChecked(True)
         self.return_img_no_backg_btn.setToolTip(("Draw current selection as plot profile"))
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
-        self.segmentation_group.glayout.addWidget(self.return_img_no_backg_btn, 1, 2, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.return_img_no_backg_btn, 1, 2, 1, 1)
 
         self.is_inverted_mask = QCheckBox("Inverted mask")
         self.is_Expand_mask.setChecked(False)
-        self.segmentation_group.glayout.addWidget(self.is_inverted_mask,  1, 3, 1, 1)
+        self.auto_segmentation_group.glayout.addWidget(self.is_inverted_mask,  1, 3, 1, 1)
 
         self.apply_segmentation_btn = QPushButton("segment stack")
-        self.segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 1, 4, 1, 2)
+        self.auto_segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 1, 4, 1, 2)
+
+        self.manual_segmentation_group = VHGroup('Manual segmentation', orientation='G')
+        self.segmentation_group.glayout.addWidget(self.manual_segmentation_group.gbox,  1, 0, 1, 1)
+
+        self.select_image_to_segment_manual = QComboBox()
+        self.select_image_to_segment_manual_label = QLabel("Image")
+        self.manual_segmentation_group.glayout.addWidget(self.select_image_to_segment_manual_label, 0, 0, 1, 1)
+        self.manual_segmentation_group.glayout.addWidget(self.select_image_to_segment_manual, 0, 1, 1, 1)
+
+        self.select_mask_to_segment_manual = QComboBox()
+        self.select_mask_to_segment_manual_label = QLabel("Mask")
+        self.manual_segmentation_group.glayout.addWidget(self.select_mask_to_segment_manual_label, 0, 2, 1, 1)
+        self.manual_segmentation_group.glayout.addWidget(self.select_mask_to_segment_manual, 0, 3, 1, 1)
+
+        self.segment_manual_btn = QPushButton("Return image")
+        self.manual_segmentation_group.glayout.addWidget(self.segment_manual_btn, 0, 4, 1, 1)
 
 
 
@@ -320,30 +343,38 @@ class OMAAS(QWidget):
         self.search_spool_dir_btn = QPushButton("Search Directory")
         self.load_spool_group.glayout.addWidget(self.search_spool_dir_btn, 3, 4, 1, 1)
 
+
+
+
         ######## Segmentation group ########
-        self.segmentation_group = VHGroup('Segmentation', orientation='G')
         # self._pre_processing_layout.addWidget(self.segmentation_group.gbox)
 
         ######## Segmentation btns ########
-        self.seg_heart_label = QLabel("Segment the heart shape")
-        self.segmentation_group.glayout.addWidget(self.seg_heart_label, 3, 0, 1, 1)
-        self.seg_heart_btn = QPushButton("apply")
-        self.segmentation_group.glayout.addWidget(self.seg_heart_btn, 3, 1, 1, 1)
+        # NOTE: on 26.03.2024 this is zomby code, soon to be removed
 
-        self.sub_bkg_label = QLabel("Subtract Background")
-        self.segmentation_group.glayout.addWidget(self.sub_bkg_label, 4, 0, 1, 1)
-        self.sub_backg_btn = QPushButton("apply")
-        self.segmentation_group.glayout.addWidget(self.sub_backg_btn, 4, 1, 1, 1)
 
-        self.del_bkg_label = QLabel("Delete Background")
-        self.segmentation_group.glayout.addWidget(self.del_bkg_label, 5, 0, 1, 1)
-        self.rmv_backg_btn = QPushButton("apply")
-        self.segmentation_group.glayout.addWidget(self.rmv_backg_btn, 5, 1, 1, 1)
+        # self.seg_heart_label = QLabel("Segment the heart shape")
+        # self.auto_segmentation_group.glayout.addWidget(self.seg_heart_label, 3, 0, 1, 1)
+        # self.seg_heart_btn = QPushButton("apply")
+        # self.auto_segmentation_group.glayout.addWidget(self.seg_heart_btn, 3, 1, 1, 1)
 
-        self.pick_frames_btn = QLabel("Pick frames")
-        self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 0, 1, 1)
-        self.pick_frames_btn = QPushButton("apply")
-        self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
+        # self.sub_bkg_label = QLabel("Subtract Background")
+        # self.auto_segmentation_group.glayout.addWidget(self.sub_bkg_label, 4, 0, 1, 1)
+        # self.sub_backg_btn = QPushButton("apply")
+        # self.auto_segmentation_group.glayout.addWidget(self.sub_backg_btn, 4, 1, 1, 1)
+
+        # self.del_bkg_label = QLabel("Delete Background")
+        # self.auto_segmentation_group.glayout.addWidget(self.del_bkg_label, 5, 0, 1, 1)
+        # self.rmv_backg_btn = QPushButton("apply")
+        # self.auto_segmentation_group.glayout.addWidget(self.rmv_backg_btn, 5, 1, 1, 1)
+
+        # self.pick_frames_btn = QLabel("Pick frames")
+        # self.auto_segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 0, 1, 1)
+        # self.pick_frames_btn = QPushButton("apply")
+        # self.auto_segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
+
+
+
 
          ######## Plotting Group ########
 
@@ -508,7 +539,7 @@ class OMAAS(QWidget):
         self.crop_from_shape_group.glayout.addWidget(self.rotate_r_crop, 2, 2, 1, 1)
 
         self.crop_from_shape_btn = QPushButton("Crop")
-        self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 2)
+        self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 3)
 
 
 
@@ -861,7 +892,6 @@ class OMAAS(QWidget):
         self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
         self.average_trace_group.glayout.addWidget(self.average_roi_value_container, 7, 1, 1, 1)
 
-        self
 
 
 
@@ -1020,13 +1050,13 @@ class OMAAS(QWidget):
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
         self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
-        self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
+        # self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
         self.apply_spat_filt_btn.clicked.connect(self._on_click_apply_spat_filt_btn)
         # self.filter_types.activated.connect(self._filter_type_change)
         # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
         # sub_backg_btn.clicked.connect(self._on_click_sub_backg_btn)
-        self.pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
+        # self.pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_and_norm_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_data_btn, self._on_click_norm_data_btn)
         # load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
@@ -1071,6 +1101,7 @@ class OMAAS(QWidget):
         self.export_image_btn.clicked.connect(self._export_image_btn_func)
         self.apply_optimap_mot_corr_btn.clicked.connect(self._apply_optimap_mot_corr_btn_func)
         self.crop_from_shape_btn.clicked.connect(self._on_click_crop_from_shape_btn_func)
+        self.segment_manual_btn.clicked.connect(self._on_click_segment_manual_btn_func)
         
         
         
@@ -1937,11 +1968,12 @@ class OMAAS(QWidget):
             
             if isinstance(value, Image) or isinstance(value, LayerList) :
             
-                self.listImagewidget.clear()
-                all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
                 self.image_selection_crop.clear()
+                self.image_selection_crop.clear()
+                all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
                 self.image_selection_crop.addItems(all_images)
 
+                self.listImagewidget.clear()
                 image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
 
                 for image in image_layers:
@@ -2636,6 +2668,11 @@ class OMAAS(QWidget):
     
 
 
+    def _on_click_segment_manual_btn_func(self):
+        print("segmenting manually image")
+    
+    
+    
     def _on_click_plot_histogram_btn_func(self):
 
         layer = self.viewer.layers.selection.active
