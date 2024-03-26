@@ -23,7 +23,7 @@ from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
 from qtpy.QtGui import QIntValidator, QDoubleValidator
 from numpy import ndarray as numpy_ndarray
 from napari_matplotlib.base import BaseNapariMPLWidget
-from napari.layers import Shapes, Image
+from napari.layers import Shapes, Image, Labels
 from napari.components.layerlist import LayerList
 from napari.utils import progress
 
@@ -1968,11 +1968,16 @@ class OMAAS(QWidget):
             
             if isinstance(value, Image) or isinstance(value, LayerList) :
             
-                self.image_selection_crop.clear()
-                self.image_selection_crop.clear()
                 all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
+                # update image selector for cropping
+                self.image_selection_crop.clear()
                 self.image_selection_crop.addItems(all_images)
+                
+                # update image selector for manual segmentation
+                self.select_image_to_segment_manual.clear()
+                self.select_image_to_segment_manual.addItems(all_images)
 
+                # update image selector for main selector
                 self.listImagewidget.clear()
                 image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
 
@@ -1980,6 +1985,14 @@ class OMAAS(QWidget):
                     item = QtWidgets.QListWidgetItem(image)
                     self.listImagewidget.addItem(image)
             
+            
+            if isinstance(value, Labels) or isinstance(value, LayerList) :
+            
+                all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
+                
+                # update mask selector for manual segmentation
+                self.select_mask_to_segment_manual.clear()
+                self.select_mask_to_segment_manual.addItems(all_labels)
 
     
 
