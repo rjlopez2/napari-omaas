@@ -27,6 +27,8 @@ from napari.layers import Shapes, Image, Labels
 from napari.components.layerlist import LayerList
 from napari.utils import progress
 
+from skimage.measure import label
+
 import copy
 import subprocess
 import pandas as pd
@@ -305,17 +307,17 @@ class OMAAS(QWidget):
         self.manual_segmentation_group = VHGroup('Manual segmentation', orientation='G')
         self.segmentation_group.glayout.addWidget(self.manual_segmentation_group.gbox,  1, 0, 1, 1)
 
-        self.select_image_to_segment_manual = QComboBox()
-        self.select_image_to_segment_manual_label = QLabel("Image")
-        self.manual_segmentation_group.glayout.addWidget(self.select_image_to_segment_manual_label, 0, 0, 1, 1)
-        self.manual_segmentation_group.glayout.addWidget(self.select_image_to_segment_manual, 0, 1, 1, 1)
+        self.img_list_manual_segment = QComboBox()
+        self.img_list_manual_segment_label = QLabel("Image")
+        self.manual_segmentation_group.glayout.addWidget(self.img_list_manual_segment_label, 0, 0, 1, 1)
+        self.manual_segmentation_group.glayout.addWidget(self.img_list_manual_segment, 0, 1, 1, 1)
 
-        self.select_mask_to_segment_manual = QComboBox()
-        self.select_mask_to_segment_manual_label = QLabel("Mask")
-        self.manual_segmentation_group.glayout.addWidget(self.select_mask_to_segment_manual_label, 0, 2, 1, 1)
-        self.manual_segmentation_group.glayout.addWidget(self.select_mask_to_segment_manual, 0, 3, 1, 1)
+        self.mask_list_manual_segment = QComboBox()
+        self.mask_list_manual_segment_label = QLabel("Mask")
+        self.manual_segmentation_group.glayout.addWidget(self.mask_list_manual_segment_label, 0, 2, 1, 1)
+        self.manual_segmentation_group.glayout.addWidget(self.mask_list_manual_segment, 0, 3, 1, 1)
 
-        self.segment_manual_btn = QPushButton("Return image")
+        self.segment_manual_btn = QPushButton("segment stack")
         self.manual_segmentation_group.glayout.addWidget(self.segment_manual_btn, 0, 4, 1, 1)
 
 
@@ -1974,8 +1976,8 @@ class OMAAS(QWidget):
                 self.image_selection_crop.addItems(all_images)
                 
                 # update image selector for manual segmentation
-                self.select_image_to_segment_manual.clear()
-                self.select_image_to_segment_manual.addItems(all_images)
+                self.img_list_manual_segment.clear()
+                self.img_list_manual_segment.addItems(all_images)
 
                 # update image selector for main selector
                 self.listImagewidget.clear()
@@ -1991,8 +1993,8 @@ class OMAAS(QWidget):
                 all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
                 
                 # update mask selector for manual segmentation
-                self.select_mask_to_segment_manual.clear()
-                self.select_mask_to_segment_manual.addItems(all_labels)
+                self.mask_list_manual_segment.clear()
+                self.mask_list_manual_segment.addItems(all_labels)
 
     
 
@@ -2682,7 +2684,39 @@ class OMAAS(QWidget):
 
 
     def _on_click_segment_manual_btn_func(self):
-        print("segmenting manually image")
+
+        
+        current_selection = self.viewer.layers[self.img_list_manual_segment.currentText()]
+        mask_layer = self.viewer.layers[self.mask_list_manual_segment.currentText()]
+        current_timpe_point = self.viewer.dims.current_step[0]
+        n_frames = mask_layer.data.shape[0]
+
+        mask = mask_layer.data[current_timpe_point, ...] > 0
+
+        masked_image = current_selection.data.copy()
+
+        if self.is_inverted_mask.isChecked():
+                mask = np.invert(mask.astype(bool))
+
+        try:
+
+            if np.issubdtype(masked_image.dtype, np.integer):
+                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
+            elif np.issubdtype(masked_image.dtype, np.inexact):
+                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+            else:
+                    masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+        except Exception as e:
+                print(f"You have the following error: --->> {e} <----")
+        
+        self.add_result_img(masked_image, 
+                                    img_custom_name=current_selection.name, 
+                                    single_label_sufix = f"NullBckgrnd",
+                                    add_to_metadata = f"Background subtracted")
+
+
+
+        print(f"segmenting manually image '{current_selection.name}' from mask '{mask_layer.name}'.")
     
     
     
