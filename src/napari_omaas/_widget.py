@@ -2689,7 +2689,7 @@ class OMAAS(QWidget):
         current_selection = self.viewer.layers[self.img_list_manual_segment.currentText()]
         mask_layer = self.viewer.layers[self.mask_list_manual_segment.currentText()]
         current_timpe_point = self.viewer.dims.current_step[0]
-        n_frames = mask_layer.data.shape[0]
+        n_frames = current_selection.data.shape[0]
 
         mask = mask_layer.data[current_timpe_point, ...] > 0
 
