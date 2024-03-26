@@ -2576,7 +2576,8 @@ class OMAAS(QWidget):
                     mask = segement_region_based_func(current_selection.data.max(axis = (0)), lo_t = lo_t, hi_t = hi_t, expand = expand)
 
                 else:
-                    mask = segement_region_based_func(current_selection.data[0], lo_t = lo_t, hi_t = hi_t, expand = None)
+                    # using maximum pixels intetnsity as reference
+                    mask = segement_region_based_func(current_selection.data.max(axis = (0)), lo_t = lo_t, hi_t = hi_t, expand = None)
                 # mask = polish_mask(mask)
                 print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
 
