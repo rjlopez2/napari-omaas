@@ -2691,7 +2691,14 @@ class OMAAS(QWidget):
         current_timpe_point = self.viewer.dims.current_step[0]
         n_frames = current_selection.data.shape[0]
 
-        mask = mask_layer.data[current_timpe_point, ...] > 0
+        if mask_layer.data.ndim == 3:
+            mask = mask_layer.data[current_timpe_point, ...] > 0
+        elif mask_layer.data.ndim == 2:
+            mask = mask_layer.data > 0
+        else:
+            raise ValueError(" Not implemented yet how to handle mask of ndim = {mask_layer.data.ndim}. Please report this or file an issue via github")
+
+
 
         masked_image = current_selection.data.copy()
 
