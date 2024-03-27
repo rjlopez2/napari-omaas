@@ -133,6 +133,14 @@ class OMAAS(QWidget):
         self.glob_norm_data_btn = QPushButton("Normalize (global)")
         self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
  
+        self.compute_ratio_btn = QPushButton("compute ratio")
+        self.compute_ratio_btn.setToolTip(("Invert the polarity of the signal"))
+        self.pre_processing_group.glayout.addWidget(self.compute_ratio_btn, 2, 3, 1, 1)
+
+        self.Ch0_ratio = QComboBox()
+        self.pre_processing_group.glayout.addWidget(self.Ch0_ratio, 1, 4, 1, 1)
+        self.Ch1_ratio = QComboBox()
+        self.pre_processing_group.glayout.addWidget(self.Ch1_ratio, 2, 4, 1, 1)
         ######## Filters group ########
         # QCollapsible creates a collapse container for inner widgets
        
@@ -894,6 +902,9 @@ class OMAAS(QWidget):
         self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
         self.average_trace_group.glayout.addWidget(self.average_roi_value_container, 7, 1, 1, 1)
 
+        self.plot_APD_boundaries_btn = QPushButton("display boundaries")
+        self.average_trace_group.glayout.addWidget(self.plot_APD_boundaries_btn, 7, 2, 1, 3)
+
 
 
 
@@ -1104,6 +1115,7 @@ class OMAAS(QWidget):
         self.apply_optimap_mot_corr_btn.clicked.connect(self._apply_optimap_mot_corr_btn_func)
         self.crop_from_shape_btn.clicked.connect(self._on_click_crop_from_shape_btn_func)
         self.segment_manual_btn.clicked.connect(self._on_click_segment_manual_btn_func)
+        self.plot_APD_boundaries_btn.clicked.connect(self._plot_APD_boundaries_btn_func)
         
         
         
@@ -1167,7 +1179,12 @@ class OMAAS(QWidget):
             curr_img_name = current_selection.name
             metadata = current_selection.metadata
             # overwrite the new cycle time
-            half_cycle_time = metadata["CycleTime"] * 2
+            if not "CycleTime" in metadata:
+                warn('not "CycleTime" found in metadata. Setted to 1')
+                metadata["CycleTime"] = 1
+            if "CycleTime" in metadata:
+                half_cycle_time = metadata["CycleTime"] * 2
+            
             new_metadata = metadata.copy()
             new_metadata["CycleTime"] = half_cycle_time
 
@@ -1975,9 +1992,14 @@ class OMAAS(QWidget):
                 self.image_selection_crop.clear()
                 self.image_selection_crop.addItems(all_images)
                 
-                # update image selector for manual segmentation
                 self.img_list_manual_segment.clear()
                 self.img_list_manual_segment.addItems(all_images)
+
+                # update image selector(s) for computing ratio
+                self.Ch0_ratio.clear()
+                self.Ch0_ratio.addItems(all_images)
+                self.Ch1_ratio.clear()
+                self.Ch1_ratio.addItems(all_images)
 
                 # update image selector for main selector
                 self.listImagewidget.clear()
@@ -2587,6 +2609,15 @@ class OMAAS(QWidget):
                             img_custom_name=current_img_selection.name, 
                             single_label_sufix="ActTime", 
                             add_to_metadata = f"Activation Time")
+    
+    def _plot_APD_boundaries_btn_func(self):
+
+        print("plotting AP boundaries")
+        # check that you have data in the canvas
+        if len(self.average_AP_plot_widget.figure.axes) == 1:
+            traces = self.average_AP_plot_widget.axes.lines[0].get_ydata()
+            time = self.average_AP_plot_widget.axes.lines[0].get_xdata()
+
         
 
     def _on_click_apply_segmentation_btn_fun(self):
