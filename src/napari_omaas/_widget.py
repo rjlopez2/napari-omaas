@@ -128,19 +128,25 @@ class OMAAS(QWidget):
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
         self.splt_chann_btn = QPushButton("Split Channels")
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 1, 3, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 2, 3, 1, 1)
 
         self.glob_norm_data_btn = QPushButton("Normalize (global)")
         self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
  
         self.compute_ratio_btn = QPushButton("compute ratio")
-        self.compute_ratio_btn.setToolTip(("Invert the polarity of the signal"))
-        self.pre_processing_group.glayout.addWidget(self.compute_ratio_btn, 2, 3, 1, 1)
+        self.compute_ratio_btn.setToolTip(("Compute Ratio of two images with identical dimensions. By default uses Ch0/Ch1 from the images selector"))
+        self.pre_processing_group.glayout.addWidget(self.compute_ratio_btn, 2, 5, 1, 1)
 
         self.Ch0_ratio = QComboBox()
         self.pre_processing_group.glayout.addWidget(self.Ch0_ratio, 1, 4, 1, 1)
         self.Ch1_ratio = QComboBox()
         self.pre_processing_group.glayout.addWidget(self.Ch1_ratio, 2, 4, 1, 1)
+
+
+        self.is_ratio_inverted = QCheckBox("Invert ratio")
+        self.is_ratio_inverted.setToolTip(("By default Ch0/Ch1 is computed. Tick this checkbox and ratio will be computed inverted (Ch1/Ch0)"))
+        self.is_ratio_inverted.setChecked(False)
+        self.pre_processing_group.glayout.addWidget(self.is_ratio_inverted, 1, 5, 1, 1)
         ######## Filters group ########
         # QCollapsible creates a collapse container for inner widgets
        
@@ -1116,6 +1122,7 @@ class OMAAS(QWidget):
         self.crop_from_shape_btn.clicked.connect(self._on_click_crop_from_shape_btn_func)
         self.segment_manual_btn.clicked.connect(self._on_click_segment_manual_btn_func)
         self.plot_APD_boundaries_btn.clicked.connect(self._plot_APD_boundaries_btn_func)
+        self.compute_ratio_btn.clicked.connect(self._compute_ratio_btn_func)
         
         
         
@@ -1279,6 +1286,38 @@ class OMAAS(QWidget):
     # def _filter_type_change(self, _):
     #    ctext = self.filter_types.currentText()
     #    print(f"Current layer 1 is {ctext}")
+    
+    def _compute_ratio_btn_func(self):
+        img0_name = self.Ch0_ratio.currentText()
+        img0 = self.viewer.layers[img0_name]
+        img1_name = self.Ch1_ratio.currentText()
+        img1 = self.viewer.layers[img1_name]
+        metadata = img0.metadata
+        
+        if [img0.data.shape] != [img1.data.shape]:
+            return warn(f"The shape of your images does not seems to be the same. Please check the images. dim of '{img0_name}' = {img0.data.shape} and dim of '{img1_name}' = {img1.data.shape}")
+        else :
+            if self.is_ratio_inverted.isChecked():
+                results = img1.data/img0.data
+                self.add_result_img(results, 
+                                    img_custom_name=img0_name[:-4],
+                                    auto_metadata=False,
+                                    custom_metadata=metadata,
+                                    single_label_sufix = f"Rat_Ch1_Ch0", 
+                                    add_to_metadata = f"Ratio_from {img1_name}/{img0_name}")
+                
+                print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
+
+            else:
+                results = img0.data/img1.data
+                self.add_result_img(results, 
+                                    img_custom_name=img0_name[:-4],
+                                    auto_metadata=False,
+                                    custom_metadata=metadata,
+                                    single_label_sufix = f"Rat_Ch0_Ch1", 
+                                    add_to_metadata = f"Ratio_from {img0_name}/{img1_name}")
+
+                print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
 
 
     def _on_click_apply_spat_filt_btn(self):
@@ -1996,7 +2035,14 @@ class OMAAS(QWidget):
                 self.img_list_manual_segment.addItems(all_images)
 
                 # update image selector(s) for computing ratio
-                sorted_ch_img_list = sorted(all_images, key=lambda x: int(x.split('_Ch')[-1]) if '_Ch' in x else float('inf'))
+                try:
+
+                    sorted_ch_img_list = sorted(all_images, key=lambda x: int(x.split('_Ch')[-1]) if '_Ch' in x else float('inf'))
+
+                except Exception as e:
+                    sorted_ch_img_list = all_images
+                    warn(f">>>>> this is your error: {e}")
+
                 # sorted_ch_img_list_indx = [i for i in range(len(sorted_ch_img_list))]
                 # all_images_indx = [i for i in range(len(all_images))]
 
