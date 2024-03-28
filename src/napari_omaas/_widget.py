@@ -1996,10 +1996,20 @@ class OMAAS(QWidget):
                 self.img_list_manual_segment.addItems(all_images)
 
                 # update image selector(s) for computing ratio
+                sorted_ch_img_list = sorted(all_images, key=lambda x: int(x.split('_Ch')[-1]) if '_Ch' in x else float('inf'))
+                # sorted_ch_img_list_indx = [i for i in range(len(sorted_ch_img_list))]
+                # all_images_indx = [i for i in range(len(all_images))]
+
                 self.Ch0_ratio.clear()
-                self.Ch0_ratio.addItems(all_images)
+                self.Ch0_ratio.addItems(sorted_ch_img_list)
+                
                 self.Ch1_ratio.clear()
-                self.Ch1_ratio.addItems(all_images)
+                self.Ch1_ratio.addItems(sorted_ch_img_list)
+
+                if len(sorted_ch_img_list) >=3:
+                    # self.Ch1_ratio.addItems([sorted_ch_img_list[1], sorted_ch_img_list[0], *sorted_ch_img_list[2:]])
+                    self.Ch1_ratio.setCurrentIndex(1)
+
 
                 # update image selector for main selector
                 self.listImagewidget.clear()
