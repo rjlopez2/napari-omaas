@@ -2500,8 +2500,12 @@ class OMAAS(QWidget):
                 #########################
 
                 percentage = self.slider_APD_map_percentage.value()
-                current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+                # current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+                current_img_selection_name = self.viewer.layers.selection.active.name
                 current_img_selection = self.viewer.layers[current_img_selection_name]
+
+                if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
+                    return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
 
                 # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
                 map_type = self.toggle_map_type.checkState()
@@ -2528,37 +2532,44 @@ class OMAAS(QWidget):
                 
                 elif map_type == 2:
 
-                    results,  mask_repol_indx_out, t_index_out = return_maps(current_img_selection.data, 
-                                                                         cycle_time=cycl_t,
-                                                                         map_type = map_type,
-                                                                         percentage = percentage)
-                    self._preview_multiples_traces_func()
+                    results,  mask_repol_indx_out, t_index_out,  resting_V = return_maps(current_img_selection.data, 
+                                                                                        cycle_time=cycl_t,
+                                                                                        map_type = map_type,
+                                                                                        percentage = percentage)
+                    # self._preview_multiples_traces_func()
                     
-                    _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                    if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
-                        ndim = current_img_selection.ndim
-                        dshape = current_img_selection.data.shape
-                        _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
+                    # _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                    # if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
+                    #     ndim = current_img_selection.ndim
+                    #     dshape = current_img_selection.data.shape
+                    #     _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
 
-                        if len(y_px) == 1 and len(x_px) == 1:
-                            self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t * 1000, 
-                                                                     linestyle='dashed', 
-                                                                     color = "green", 
-                                                                     label=f'AP_ini',
-                                                                     lw = 0.5, 
-                                                                     alpha = 0.8)
+                    #     if len(y_px) == 1 and len(x_px) == 1:
+                    #         self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
+                    #                                                  linestyle='dashed', 
+                    #                                                  color = "green", 
+                    #                                                  label=f'AP_ini',
+                    #                                                  lw = 0.5, 
+                    #                                                  alpha = 0.8)
                             
-                            self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t * 1000, 
-                                                                     linestyle='dashed', 
-                                                                     color = "red", 
-                                                                     label=f'AP_end',
-                                                                     lw = 0.5, 
-                                                                     alpha = 0.8)
+                    #         self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
+                    #                                                  linestyle='dashed', 
+                    #                                                  color = "red", 
+                    #                                                  label=f'AP_end',
+                    #                                                  lw = 0.5, 
+                    #                                                  alpha = 0.8)
                             
-                            self.average_AP_plot_widget.axes.legend()
-                            self.average_AP_plot_widget.canvas.draw()
-                        else:
-                            warn(" NotROI larger than a single pixel. Please reduce the size to plot it")
+                    #         self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
+                    #                                                  linestyle='dashed', 
+                    #                                                  color = "grey", 
+                    #                                                  label=f'AP_resting_V',
+                    #                                                  lw = 0.5, 
+                    #                                                  alpha = 0.8)
+                            
+                    #         self.average_AP_plot_widget.axes.legend()
+                    #         self.average_AP_plot_widget.canvas.draw()
+                        # else:
+                        #     warn(" Not ROI larger than a single pixel. Please reduce the size to plot it")
 
 
                     
@@ -2575,6 +2586,90 @@ class OMAAS(QWidget):
        
         else:
             return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
+
+
+
+    def _plot_APD_boundaries_btn_func(self):
+
+
+        current_img_selection_name = self.viewer.layers.selection.active.name
+        current_img_selection = self.viewer.layers[current_img_selection_name]
+        
+        if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
+                    return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
+        
+        self._preview_multiples_traces_func()
+        
+        # check that you have data in the canvas
+        if len(self.average_AP_plot_widget.figure.axes) == 1:
+            percentage = self.slider_APD_map_percentage.value()
+            # check for "CycleTime" in metadtata
+            if "CycleTime" in current_img_selection.metadata:
+                cycl_t = current_img_selection.metadata["CycleTime"]
+            else:
+                cycl_t = 1
+
+            
+
+            map_type = self.toggle_map_type.checkState()
+
+            if map_type == 0:                   
+                
+                print("lalalA")
+                # results = return_index_for_map(current_img_selection.data, 
+                #                       cycle_time=cycl_t,
+                #                       map_type = map_type,
+                #                       percentage = percentage)
+            elif map_type == 2:                               
+                
+                _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                cropped_img, _, _  = crop_from_shape(shapes_items[0], current_img_selection)
+
+                # results,  mask_repol_indx_out, t_index_out = return_index_for_map(cropped_img, 
+                #                                                         cycle_time=cycl_t,
+                #                                                         map_type = map_type,
+                APD, mask_repol_indx_out, t_index_out, resting_V = return_maps(cropped_img, 
+                                                                        cycle_time=cycl_t,
+                                                                        map_type = map_type,
+                                                                        percentage = percentage)
+                # plot boundaries in indexes found
+                dshape = cropped_img.shape
+                _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
+                if len(y_px) == 0:
+                    y_px = 0
+                if len(x_px) == 0:
+                    x_px = 0
+                self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
+                                                                     linestyle='dashed', 
+                                                                     color = "green", 
+                                                                     label=f'AP_ini',
+                                                                     lw = 0.5, 
+                                                                     alpha = 0.8)
+                            
+                self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
+                                                            linestyle='dashed', 
+                                                            color = "red", 
+                                                            label=f'AP_end',
+                                                            lw = 0.5, 
+                                                            alpha = 0.8)
+                
+                self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
+                                                            linestyle='dashed', 
+                                                            color = "grey", 
+                                                            label=f'AP_resting_V',
+                                                            lw = 0.5, 
+                                                            alpha = 0.8)
+                
+                self.average_AP_plot_widget.axes.legend()
+                self.average_AP_plot_widget.canvas.draw()
+                
+            
+            
+            # traces = self.average_AP_plot_widget.axes.lines[0].get_ydata()
+            # time = self.average_AP_plot_widget.axes.lines[0].get_xdata()
+
+        print("plotting AP boundaries")
+
 
 
     def _on_click_average_roi_on_map_btn_fun(self):
@@ -2666,13 +2761,7 @@ class OMAAS(QWidget):
                             single_label_sufix="ActTime", 
                             add_to_metadata = f"Activation Time")
     
-    def _plot_APD_boundaries_btn_func(self):
 
-        print("plotting AP boundaries")
-        # check that you have data in the canvas
-        if len(self.average_AP_plot_widget.figure.axes) == 1:
-            traces = self.average_AP_plot_widget.axes.lines[0].get_ydata()
-            time = self.average_AP_plot_widget.axes.lines[0].get_xdata()
 
         
 
@@ -3077,39 +3166,7 @@ class OMAAS(QWidget):
         img_name = self.image_selection_crop.currentText()
         img_layer = self.viewer.layers[img_name]
 
-        dshape = img_layer.data.shape
-
-        # NOTE: you need to handel case for 2d images alike 3d images
-        # NOTE: handle rgb images -> no so urgent
-        # NOTE: handel 2d images
-        
-        # label = shape_layer.to_labels(dshape[-2:])
-        # get vertices from shape: top-right, top-left, botton-left, botton-right
-        tl, tr, bl, br = shape_layer.data[0].astype(int)
-        y_ini, y_end = sorted([tr[-2], br[-2]])
-        x_ini, x_end = sorted([tl[-1], tr[-1]])
-        ini_index = [y_ini, x_ini ]
-        end_index = [y_end, x_end]
-        
-        # parse the negative index to the minimum value
-        for index, value in enumerate(ini_index):
-            if value < 0:
-                ini_index[index] = 0
-        # for index, value in enumerate(x_index):
-        #     if value < 0:
-        #         x_index[index] = 0
-
-        # parse the values out of range to the max
-        y_max, x_max = dshape[-2], dshape[-1]
-        if end_index[0] > y_max:
-            end_index[0] = y_max
-        
-        if end_index[1] > x_max:
-            end_index[1] = x_max
-
-        cropped_img = img_layer.data.copy()
-
-        cropped_img = cropped_img[:,ini_index[0]:end_index[0],  ini_index[1]:end_index[1]]
+        cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
         
         if self.rotate_l_crop.isChecked():
             cropped_img = np.rot90(cropped_img, axes=(1, 2))
@@ -3147,7 +3204,7 @@ class OMAAS(QWidget):
 
 
 
-        
+            self.add_record_fun()
 
         print(f"image '{img_name}' cropped")
 
