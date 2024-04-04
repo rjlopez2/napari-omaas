@@ -2846,6 +2846,8 @@ class OMAAS(QWidget):
                 masked_image = masked_image - background
 
                 self.add_result_img(masked_image, 
+                                    auto_metadata=False,
+                                    custom_metadata=current_selection.metadata,
                                     img_custom_name=current_selection.name, 
                                     single_label_sufix = f"NullBckgrnd",
                                     add_to_metadata = f"Background subtracted")
@@ -2893,9 +2895,11 @@ class OMAAS(QWidget):
                 print(f"You have the following error: --->> {e} <----")
         
         self.add_result_img(masked_image, 
-                                    img_custom_name=current_selection.name, 
-                                    single_label_sufix = f"NullBckgrnd",
-                                    add_to_metadata = f"Background subtracted")
+                            auto_metadata=False,
+                            custom_metadata=current_selection.metadata,
+                            img_custom_name=current_selection.name, 
+                            single_label_sufix = f"NullBckgrnd",
+                            add_to_metadata = f"Background subtracted")
 
 
 
