@@ -1329,34 +1329,63 @@ class OMAAS(QWidget):
             sigma = self.sigma_filt_spatial_value.value()
             kernel_size = self.filt_kernel_value.value()
             sigma_col = self.sigma_filt_color_value.value()
+            metadata = current_selection.metadata
             
             if filter_type == all_my_filters[0]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_gaussian_func(current_selection.data, 
                                             sigma= sigma, 
                                             kernel_size=kernel_size)
-                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", KrnlSiz = kernel_size, Sgma = sigma, add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
+                self.add_result_img(results, 
+                                    auto_metadata=False,
+                                    custom_metadata=metadata,
+                                    single_label_sufix = f"Filt{filter_type}", 
+                                    KrnlSiz = kernel_size, 
+                                    Sgma = sigma, 
+                                    add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
 
             
             elif filter_type == all_my_filters[3]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_median_filt_func(current_selection.data, kernel_size)
-                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", MednFilt = kernel_size, add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
+                self.add_result_img(results, 
+                                    auto_metadata=False,
+                                    custom_metadata=metadata,
+                                    single_label_sufix = f"Filt{filter_type}", 
+                                    MednFilt = kernel_size, 
+                                    add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
 
             elif filter_type == all_my_filters[1]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_box_filter(current_selection.data, kernel_size)
-                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", BoxFilt = kernel_size, add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
+                self.add_result_img(results, 
+                                    auto_metadata=False,
+                                    custom_metadata=metadata,
+                                    single_label_sufix = f"Filt{filter_type}", 
+                                    BoxFilt = kernel_size, 
+                                    add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
             
             elif filter_type == all_my_filters[2]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
-                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", KrnlSiz = kernel_size, Widht = sigma, add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
+                self.add_result_img(results, 
+                                    auto_metadata=False,
+                                    custom_metadata=metadata,
+                                    single_label_sufix = f"Filt{filter_type}", 
+                                    KrnlSiz = kernel_size, Widht = sigma, 
+                                    add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
             
             elif filter_type == all_my_filters[4]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
                 results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
-                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", WindSiz = kernel_size, sigma_spa = sigma,  sigma_col = sigma_col, add_to_metadata = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
+                self.add_result_img(results, 
+                                    auto_metadata=False,
+                                    custom_metadata=metadata,
+                                    single_label_sufix = f"Filt{filter_type}", 
+                                    WindSiz = kernel_size, 
+                                    sigma_spa = sigma,  
+                                    sigma_col = sigma_col, 
+                                    add_to_metadata = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
             
             self.add_record_fun()
 
@@ -1539,6 +1568,7 @@ class OMAAS(QWidget):
             cutoff_freq_value = self.butter_cutoff_freq_val.value()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
+            metadata = current_selection.metadata
 
             if filter_type == all_my_filters[0]:
 
@@ -1549,7 +1579,13 @@ class OMAAS(QWidget):
                                                     fil_ord=order_value)
 
                 # self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val), add_to_metadata=f"ButterworthFilt_acfreq{fps_val}_cffreq{cutoff_freq_value}_filtord{order_value}")
-                self.add_result_img(results, single_label_sufix = f"Filt{filter_type}", cffreq = cutoff_freq_value, ord = order_value, fps=round(fps_val), add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{cutoff_freq_value}_ord{order_value}")
+                self.add_result_img(results, 
+                                    auto_metadata=False, 
+                                    custom_metadata=metadata,
+                                    single_label_sufix = f"Filt{filter_type}", 
+                                    cffreq = cutoff_freq_value, 
+                                    ord = order_value, fps=round(fps_val), 
+                                    add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{cutoff_freq_value}_ord{order_value}")
                 
             
             elif filter_type == all_my_filters[1]:
