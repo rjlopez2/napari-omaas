@@ -2071,24 +2071,25 @@ class OMAAS(QWidget):
                 self.img_list_manual_segment.addItems(all_images)
 
                 # update image selector(s) for computing ratio
-                try:
+                # NOTE: this apporach is not working
+                # try:
 
-                    sorted_ch_img_list = sorted(all_images, key=lambda x: int(x.split('_Ch')[-1]) if '_Ch' in x else float('inf'))
+                #     sorted_ch_img_list = sorted(all_images, key=lambda x: int(x.split('_Ch')[-1]) if '_Ch' in x else float('inf'))
 
-                except Exception as e:
-                    sorted_ch_img_list = all_images
-                    warn(f">>>>> this is your error: {e}")
+                # except Exception as e:
+                #     sorted_ch_img_list = all_images
+                #     warn(f">>>>> this is your error: {e}")
 
                 # sorted_ch_img_list_indx = [i for i in range(len(sorted_ch_img_list))]
                 # all_images_indx = [i for i in range(len(all_images))]
 
                 self.Ch0_ratio.clear()
-                self.Ch0_ratio.addItems(sorted_ch_img_list)
+                self.Ch0_ratio.addItems(all_images)
                 
                 self.Ch1_ratio.clear()
-                self.Ch1_ratio.addItems(sorted_ch_img_list)
+                self.Ch1_ratio.addItems(all_images)
 
-                if len(sorted_ch_img_list) >=3:
+                if len(all_images) >=3:
                     # self.Ch1_ratio.addItems([sorted_ch_img_list[1], sorted_ch_img_list[0], *sorted_ch_img_list[2:]])
                     self.Ch1_ratio.setCurrentIndex(1)
 
