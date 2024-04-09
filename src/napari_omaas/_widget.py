@@ -2393,8 +2393,17 @@ class OMAAS(QWidget):
             if ini_i.size > 1:
 
                 img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                results= split_AP_traces_func(img_items[0].data, ini_i, end_i, type = "3d", return_mean=True)
-                self.add_result_img(result_img=results, img_custom_name=img_items[0].name, single_label_sufix="Ave", add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
+                if len(img_items) > 1:
+                    return warn("Please select only one image in the image selector")
+                current_img_selected = img_items[0]
+                
+                results= split_AP_traces_func(current_img_selected.data, ini_i, end_i, type = "3d", return_mean=True)
+                self.add_result_img(result_img=results, 
+                                    auto_metadata=False,
+                                    custom_metadata=current_img_selected.metadata,
+                                    img_custom_name=current_img_selected.name, 
+                                    single_label_sufix="Ave", 
+                                    add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
                 print("Average trace created")
                 self.add_record_fun()
 
