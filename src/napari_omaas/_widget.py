@@ -2091,7 +2091,9 @@ class OMAAS(QWidget):
 
                 if len(all_images) >=3:
                     # self.Ch1_ratio.addItems([sorted_ch_img_list[1], sorted_ch_img_list[0], *sorted_ch_img_list[2:]])
-                    self.Ch1_ratio.setCurrentIndex(1)
+                    n_imgs = len(all_images)
+                    self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
+                    self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
 
 
                 # update image selector for main selector
