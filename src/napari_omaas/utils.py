@@ -16,6 +16,7 @@ from napari.utils import progress
 from time import time
 from optimap.image import detect_background_threshold
 from optimap import motion_compensate
+from optimap.video import normalize_pixelwise_slidingwindow
 
 from napari_macrokit import get_macro
 
@@ -119,6 +120,11 @@ def global_normal_fun(
     
     return (im_orig - im_orig.min()) / (im_orig.max() - im_orig.min() + eps)
 
+
+@macro.record
+def slide_window_normalization_func(np_array, slide_window = 20):
+    # NOTE: you have to check an error here.
+    return normalize_pixelwise_slidingwindow(np_array, window_size=  slide_window)
 
 
 @macro.record

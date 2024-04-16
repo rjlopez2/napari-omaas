@@ -119,19 +119,22 @@ class OMAAS(QWidget):
 
         self.inv_data_btn = QPushButton("Invert signal")
         self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
-        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 1, 2, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_data_btn , 2, 1, 1, 1)
 
-        self.loc_norm_data_btn = QPushButton("Normalize (loc max)")        
-        self.pre_processing_group.glayout.addWidget(self.loc_norm_data_btn, 2, 1, 1, 1)
+        self.apply_normalization_btn = QPushButton("Normalize")        
+        self.pre_processing_group.glayout.addWidget(self.apply_normalization_btn, 1, 2, 1, 1)
 
+        self.data_normalization_options = QComboBox()
+        self.data_normalization_options.addItems(["Normalize (loc max)", "Normalize slide window", "Normalize (global)"])
+        self.pre_processing_group.glayout.addWidget(self.data_normalization_options, 1, 3, 1, 1)
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
         self.splt_chann_btn = QPushButton("Split Channels")
         self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 2, 3, 1, 1)
 
-        self.glob_norm_data_btn = QPushButton("Normalize (global)")
-        self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
+        # self.glob_norm_data_btn = QPushButton("Normalize (global)")
+        # self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
  
         self.compute_ratio_btn = QPushButton("compute ratio")
         self.compute_ratio_btn.setToolTip(("Compute Ratio of two images with identical dimensions. By default uses Ch0/Ch1 from the images selector"))
@@ -1065,10 +1068,10 @@ class OMAAS(QWidget):
         ##################################################################
         
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
-        self.loc_norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
+        self.apply_normalization_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
-        self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
+        # self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
         # self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
         self.apply_spat_filt_btn.clicked.connect(self._on_click_apply_spat_filt_btn)
@@ -1163,11 +1166,29 @@ class OMAAS(QWidget):
     def _on_click_norm_data_btn(self):
         current_selection = self.viewer.layers.selection.active
 
+        type_of_normalization = self.data_normalization_options.currentText()
+        normalization_methods = [self.data_normalization_options.itemText(i) for i in range(self.data_normalization_options.count())]
+
         if isinstance(current_selection, Image):
-            print(f'computing "local_normal_fun" to image {current_selection}')
-            results = local_normal_fun(current_selection.data)
-            self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
-            self.add_record_fun()
+            if type_of_normalization == normalization_methods[0]:
+                print(f'computing "{type_of_normalization}" to image {current_selection}')
+                results = local_normal_fun(current_selection.data)
+                self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
+                self.add_record_fun()
+
+            elif type_of_normalization == normalization_methods[1]:
+                print(f'computing "{type_of_normalization}" to image {current_selection}')
+                results = slide_window_normalization_func(current_selection.data)
+                self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
+                self.add_record_fun()
+
+            elif type_of_normalization == normalization_methods[2]:
+                print(f'computing "{type_of_normalization}" to image {current_selection}')
+                results = global_normal_fun(current_selection.data)
+                self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
+                self.add_record_fun()
+            else:
+                warn(f"Normalization method '{type_of_normalization}' no found.")
         else:
            return  warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -1210,15 +1231,17 @@ class OMAAS(QWidget):
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
-    def _on_click_glob_norm_data_btn(self):
-        current_selection = self.viewer.layers.selection.active
+    
+    # def _on_click_glob_norm_data_btn(self):
+    # NOTE: this fucntion can retire soon. updated on new qcombobox method [self.data_normalization_options] on date 11.04.224
+    #     current_selection = self.viewer.layers.selection.active
         
-        if isinstance(current_selection, Image):
-            results = global_normal_fun(current_selection.data)
-            self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
+    #     if isinstance(current_selection, Image):
+    #         results = global_normal_fun(current_selection.data)
+    #         self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
 
-        else:
-            return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+    #     else:
+    #         return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     #  NOTE: deprecated on 07.02.2023 you can kill this function
