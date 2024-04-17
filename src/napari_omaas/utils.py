@@ -730,7 +730,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
             upper_bound_interp = upstroke_indx + delta;
         
         time_fine_grid = np.linspace(time[lower_bound_interp], time[upper_bound_interp], interp_points)
-        interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True)
+        interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True, bc_type = 'natural')
         dfdt_interpolated = interpolation_f(time_fine_grid) 
         # find new dfdt max
         dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)

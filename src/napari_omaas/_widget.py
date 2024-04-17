@@ -2631,7 +2631,7 @@ class OMAAS(QWidget):
                                     apd_value = APs_props[4]
                                     if len(apd_value) == 0:
                                         print(f"Could not detect APD at pixel coordinate: [..., {y_px}, {x_px}].")
-                                        APD[y_px, x_px] = 0
+                                        APD[y_px, x_px] = np.nan
                                     else:
                                         APD[y_px, x_px] = apd_value
                                 
@@ -2728,7 +2728,7 @@ class OMAAS(QWidget):
         # if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
         #             return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
         
-                 self._preview_multiples_traces_func()
+        self._preview_multiples_traces_func()
         
         # check that you have data in the canvas
         if len(self.average_AP_plot_widget.figure.axes) == 1:
