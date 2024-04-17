@@ -1126,6 +1126,8 @@ class OMAAS(QWidget):
         self.segment_manual_btn.clicked.connect(self._on_click_segment_manual_btn_func)
         self.plot_APD_boundaries_btn.clicked.connect(self._plot_APD_boundaries_btn_func)
         self.compute_ratio_btn.clicked.connect(self._compute_ratio_btn_func)
+        self.slider_APD_percentage.valueChanged.connect(self._update_APD_value_for_MAP_func)
+        self.slider_APD_map_percentage.valueChanged.connect(self._update_APD_value_for_APD_func)
         
         
         
@@ -1747,7 +1749,7 @@ class OMAAS(QWidget):
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
                     # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
-                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'ROI-{shape_indx}', alpha=0.8)
+                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'ROI-{shape_indx}_{img.name}', alpha=0.8)
 
                     ##### catch error here and exit nicely for the user with a warning or so #####
                     try:
@@ -1814,7 +1816,7 @@ class OMAAS(QWidget):
                          "indx_at_AP_upstroke",
                          "indx_at_AP_peak",
                          "indx_at_AP_end"]
-            self._APD_plot_widget.axes.legend()
+            self._APD_plot_widget.axes.legend(fontsize="8")
             self._APD_plot_widget.canvas.draw()
 
 
@@ -2253,6 +2255,7 @@ class OMAAS(QWidget):
             
             traces = self.data_main_canvas["y"][0]
             time = self.data_main_canvas["x"][0]
+            label = self.main_plot_widget.figure.axes[0].lines[0].get_label()
 
             try:
                 self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
@@ -2269,7 +2272,7 @@ class OMAAS(QWidget):
             self.average_AP_plot_widget.add_single_axes()
             
             if self.ini_i_spl_traces.size == 1:
-                self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]", alpha = 0.8)
+                self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]_{label}", alpha = 0.8)
                 # remove splitted_stack value if exists
                 try:
                     if hasattr(self, "splitted_stack"):
@@ -2662,12 +2665,16 @@ class OMAAS(QWidget):
 
     def _plot_APD_boundaries_btn_func(self):
 
+        img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+        if len(img_items)  < 1 :
+            return warn("Select an Image layer from the selector to apply this function.")
 
-        current_img_selection_name = self.viewer.layers.selection.active.name
-        current_img_selection = self.viewer.layers[current_img_selection_name]
+        current_img_selection = img_items[0]
+        current_img_selection_name = current_img_selection.name
+        # current_img_selection = self.viewer.layers[current_img_selection_name]
         
-        if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
-                    return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
+        # if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
+        #             return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
         
         self._preview_multiples_traces_func()
         
@@ -2686,7 +2693,7 @@ class OMAAS(QWidget):
 
             if map_type == 0:                   
                 
-                print("lalalA")
+                return warn("you re plotting the activation map which is not yet implemented.")
                 # results = return_index_for_map(current_img_selection.data, 
                 #                       cycle_time=cycl_t,
                 #                       map_type = map_type,
@@ -2694,45 +2701,114 @@ class OMAAS(QWidget):
             elif map_type == 2:                               
                 
                 _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                cropped_img, _, _  = crop_from_shape(shapes_items[0], current_img_selection)
+                # cropped_img, _, _  = crop_from_shape(shapes_items[0], current_img_selection)
 
                 # results,  mask_repol_indx_out, t_index_out = return_index_for_map(cropped_img, 
                 #                                                         cycle_time=cycl_t,
                 #                                                         map_type = map_type,
-                APD, mask_repol_indx_out, t_index_out, resting_V = return_maps(cropped_img, 
-                                                                        cycle_time=cycl_t,
-                                                                        map_type = map_type,
-                                                                        percentage = percentage)
+                # APD, mask_repol_indx_out, t_index_out, resting_V = return_maps(cropped_img, 
+                #                                                         cycle_time=cycl_t,
+                #                                                         map_type = map_type,
+                #                                                         percentage = percentage)
+                # if cropped_img.squeeze().ndim > 1:
+                #     cropped_img = np.mean(cropped_img, axis = (1, 2))
+                # else:
+                #     cropped_img = cropped_img.squeeze()
+
+                for shape_indx, _ in enumerate(shapes_items[0].data):
+                    try:
+                        rmp_method = self.APD_computing_method.currentText()
+                        apd_percentage = self.slider_APD_percentage.value()
+                        traces = self.average_AP_plot_widget.axes.lines[shape_indx].get_ydata()
+                        time = self.average_AP_plot_widget.axes.lines[shape_indx].get_xdata()
+
+                        APs_props = compute_APD_props_func(traces,
+                                                            curr_img_name = current_img_selection_name, 
+                                                            # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                            cycle_length_ms= self.xscale,
+                                                            rmp_method = rmp_method, 
+                                                            apd_perc = apd_percentage, 
+                                                            promi=self.prominence, 
+                                                            roi_indx=shape_indx)
+                        # collect indexes of AP for plotting AP boudaries: ini, end, baseline
+                        ini_indx = APs_props[-3]
+                        peak_indx = APs_props[-2]
+                        end_indx = APs_props[-1]
+                        dVdtmax = APs_props[5]
+                        resting_V = APs_props[8]
+                        y_min = resting_V
+
+                        y_max = traces[peak_indx]
+                        # plot vline of AP start
+                        self.average_AP_plot_widget.axes.vlines(time[ini_indx], 
+                                            ymin= y_min,
+                                            ymax= y_max,
+                                            linestyles='dashed', color = "green", 
+                                            label=f'AP_ini',
+                                            lw = 0.5, alpha = 0.8)
+                        # plot vline of AP end
+                        self.average_AP_plot_widget.axes.vlines(time[end_indx], 
+                                            ymin= y_min,
+                                            ymax= y_max,
+                                            linestyles='dashed', color = "red", 
+                                            label=f'AP_end',
+                                            lw = 0.5, alpha = 0.8)
+                        # plot hline of AP baseline
+                        self.average_AP_plot_widget.axes.hlines(resting_V,
+                                            xmin = time[ini_indx],
+                                            xmax = time[end_indx],
+                                            linestyles='dashed', color = "grey", 
+                                            label=f'AP_resting',
+                                            lw = 0.5, alpha = 0.8)
+
+                        # APD_props.append(self.APs_props)
+                        self.average_AP_plot_widget.axes.legend(fontsize="8")
+                        self.average_AP_plot_widget.canvas.draw()
+                        
+                        print(f"APD computed on image '{current_img_selection_name}' with roi: {shape_indx}")
+
+                    except Exception as e:
+                        print(f">>>>> this is your error @ method: '_plot_APD_boundaries_btn_func': {e}")
+                    # # collect indexes of AP for plotting AP boudaries: ini, end, baseline
+                    # ini_indx = self.APs_props[-3]
+                    # peak_indx = self.APs_props[-2]
+                    # end_indx = self.APs_props[-1]
+                    # dVdtmax = self.APs_props[5]
+                    # resting_V = self.APs_props[8]
+                    # y_min = resting_V
+
+                    # y_max = traces[img_indx + shape_indx][peak_indx]
+                
+                
+
                 # plot boundaries in indexes found
-                dshape = cropped_img.shape
-                _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
-                if len(y_px) == 0:
-                    y_px = 0
-                if len(x_px) == 0:
-                    x_px = 0
-                self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
-                                                                     linestyle='dashed', 
-                                                                     color = "green", 
-                                                                     label=f'AP_ini',
-                                                                     lw = 0.5, 
-                                                                     alpha = 0.8)
+                # dshape = cropped_img.shape
+                # _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
+                # if len(y_px) == 0:
+                #     y_px = 0
+                # if len(x_px) == 0:
+                #     x_px = 0
+                # self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
+                #                                                      linestyle='dashed', 
+                #                                                      color = "green", 
+                #                                                      label=f'AP_ini',
+                #                                                      lw = 0.5, 
+                #                                                      alpha = 0.8)
                             
-                self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
-                                                            linestyle='dashed', 
-                                                            color = "red", 
-                                                            label=f'AP_end',
-                                                            lw = 0.5, 
-                                                            alpha = 0.8)
+                # self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
+                #                                             linestyle='dashed', 
+                #                                             color = "red", 
+                #                                             label=f'AP_end',
+                #                                             lw = 0.5, 
+                #                                             alpha = 0.8)
                 
-                self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
-                                                            linestyle='dashed', 
-                                                            color = "grey", 
-                                                            label=f'AP_resting_V',
-                                                            lw = 0.5, 
-                                                            alpha = 0.8)
+                # self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
+                #                                             linestyle='dashed', 
+                #                                             color = "grey", 
+                #                                             label=f'AP_resting_V',
+                #                                             lw = 0.5, 
+                #                                             alpha = 0.8)
                 
-                self.average_AP_plot_widget.axes.legend()
-                self.average_AP_plot_widget.canvas.draw()
                 
             
             
@@ -3282,6 +3358,14 @@ class OMAAS(QWidget):
             self.add_record_fun()
 
         print(f"image '{img_name}' cropped")
+    
+    def _update_APD_value_for_MAP_func(self):
+        new_value = self.slider_APD_percentage.value()
+        self.slider_APD_map_percentage.setValue(new_value)
+
+    def _update_APD_value_for_APD_func(self):
+        new_value = self.slider_APD_map_percentage.value()
+        self.slider_APD_percentage.setValue(new_value)
 
 
 
