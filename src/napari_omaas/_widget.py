@@ -896,7 +896,7 @@ class OMAAS(QWidget):
         self.average_trace_group.glayout.addWidget(self.activation_map_percentage_label, 6, 0, 1, 1)
 
         self.slider_APD_map_percentage = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.slider_APD_map_percentage.setRange(5, 100)
+        self.slider_APD_map_percentage.setRange(10, 100)
         self.slider_APD_map_percentage.setValue(75)
         self.slider_APD_map_percentage.setSingleStep(5)
         self.average_trace_group.glayout.addWidget(self.slider_APD_map_percentage, 6, 1, 1, 1)
@@ -2253,8 +2253,8 @@ class OMAAS(QWidget):
             self.shape_layer.events.data.connect(self._data_changed_callback)
             # prominence = self.slider_label_current_value / (self.slider_APD_thres_max_range)
             
-            traces = self.data_main_canvas["y"][0]
-            time = self.data_main_canvas["x"][0]
+            traces = self.main_plot_widget.axes.lines[0].get_ydata()
+            time = self.main_plot_widget.axes.lines[0].get_xdata()
             label = self.main_plot_widget.figure.axes[0].lines[0].get_label()
 
             try:
@@ -2262,7 +2262,7 @@ class OMAAS(QWidget):
                                                                                     #    cycle_length_ms = self.xscale, 
                                                                                     promi= self.prominence)
             except Exception as e:
-                print(f"You have the following error: --->> {e} <----")
+                print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
                 return
 
             self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
@@ -2274,17 +2274,20 @@ class OMAAS(QWidget):
             if self.ini_i_spl_traces.size == 1:
                 self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]_{label}", alpha = 0.8)
                 # remove splitted_stack value if exists
+
                 try:
                     if hasattr(self, "splitted_stack"):
                         # del self.splitted_stack
                         self.splitted_stack = traces
-                    else:
-                        raise AttributeError
+                    # else:
+                #         raise AttributeError
                 except Exception as e:
-                    print(f">>>>> this is your error: {e}")
+                    return print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'splitted_stack' : --->> {e} <----")
                 
 
                 print("Preview trace created")
+                warn(f"Only one AP detected")
+
             elif self.ini_i_spl_traces.size > 1:
 
                 # NOTE: need to fix this function
@@ -2605,11 +2608,58 @@ class OMAAS(QWidget):
                                     add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
                 
                 elif map_type == 2:
+                    image = current_img_selection.data.copy()
+                    n_frames, y_size, x_size = image.shape
+                    rmp_method = self.APD_computing_method.currentText()
+                    apd_percentage = self.slider_APD_percentage.value()
 
-                    results,  mask_repol_indx_out, t_index_out,  resting_V = return_maps(current_img_selection.data, 
-                                                                                        cycle_time=cycl_t,
-                                                                                        map_type = map_type,
-                                                                                        percentage = percentage)
+                    APD = np.zeros((y_size, x_size))
+                    mask = np.isnan(image[0, ...])
+                    APD[mask] = np.nan
+
+                    for y_px  in progress(range(y_size)):
+                        for x_px in progress(range(x_size)):
+                            if not np.isnan(APD[y_px, x_px]).any():
+                                try:
+                                    APs_props = compute_APD_props_func(image[:, y_px, x_px],
+                                                                    curr_img_name = current_img_selection_name, 
+                                                                    # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                                    cycle_length_ms= self.xscale,
+                                                                    rmp_method = rmp_method, 
+                                                                    apd_perc = apd_percentage, 
+                                                                    promi=self.prominence)
+                                    apd_value = APs_props[4]
+                                    if len(apd_value) == 0:
+                                        print(f"Could not detect APD at pixel coordinate: [..., {y_px}, {x_px}].")
+                                        APD[y_px, x_px] = 0
+                                    else:
+                                        APD[y_px, x_px] = apd_value
+                                
+                                except Exception as e:
+                                    APD[y_px, x_px] = np.nan
+                                    print(f">>>>> this is your error @ method: '_on_click_make_maps_btn_func': {e}")
+                                        
+                            # else:
+                            #     APD[:, y_px, x_px] = 0
+                    
+                    # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
+                    # self.average_AP_plot_widget.axes.legend()
+                    # self.average_AP_plot_widget.canvas.draw()
+                    
+                    self.add_result_img(result_img=APD, 
+                                        auto_metadata=False, 
+                                        custom_metadata=current_img_selection.metadata,
+                                        img_custom_name=current_img_selection.name, 
+                                        single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
+                                        add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+
+                    print("finished")
+
+                    # results,  mask_repol_indx_out, t_index_out,  resting_V = return_maps(current_img_selection.data, 
+                    #                                                                     cycle_time=cycl_t,
+                    #                                                                     map_type = map_type,
+                    #                                                                     percentage = percentage)
+
                     # self._preview_multiples_traces_func()
                     
                     # _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
@@ -2647,10 +2697,12 @@ class OMAAS(QWidget):
 
 
                     
-                    self.add_result_img(result_img=results, 
-                                    img_custom_name=current_img_selection.name, 
-                                    single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                                    add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                    # self.add_result_img(result_img=APD, 
+                    #                     auto_metadata=False, 
+                    #                     custom_metadata=current_img_selection.metadata,
+                    #                     img_custom_name=current_img_selection.name, 
+                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
+                    #                     add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
 
 
                 self.add_record_fun()
@@ -2676,7 +2728,7 @@ class OMAAS(QWidget):
         # if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
         #             return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
         
-        self._preview_multiples_traces_func()
+                 self._preview_multiples_traces_func()
         
         # check that you have data in the canvas
         if len(self.average_AP_plot_widget.figure.axes) == 1:

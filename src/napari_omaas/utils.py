@@ -725,7 +725,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
             lower_bound_interp = upstroke_indx - delta;
         
         if upstroke_indx + delta > time.shape[-1]:
-            upper_bound_interp = time.shape[-1]
+            upper_bound_interp = time.shape[-1] -1
         else:
             upper_bound_interp = upstroke_indx + delta;
         
@@ -920,7 +920,7 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
     
     elif len(AP_peaks_indx) < 1:
 
-        return ValueError(f"Number of AP founds  = {len(my_1d_array)}. Change the threshold, ROI or check your image")
+        raise ValueError(f"Number of AP founds  = {len(AP_peaks_indx)}. Change the threshold, ROI or check your image")
 
 
     # return splited_arrays
