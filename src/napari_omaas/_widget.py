@@ -2651,7 +2651,7 @@ class OMAAS(QWidget):
                                         custom_metadata=current_img_selection.metadata,
                                         img_custom_name=current_img_selection.name, 
                                         single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                                        add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                                        add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
 
                     print("finished")
 
