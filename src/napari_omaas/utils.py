@@ -626,7 +626,7 @@ def apply_bilateral_filter(data: "napari.types.ImageData", wind_size, sigma_col,
     return (out_img)
 
 @macro.record
-def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0):
+def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0, interpolate = False):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -718,24 +718,33 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
         # interpolation to find accurate activation time
         interp_points = 1000;
-        delta = 10;
-        if upstroke_indx - delta <= 0:
-            lower_bound_interp = 1;
-        else:
-            lower_bound_interp = upstroke_indx - delta;
+        if interpolate:
+
+            delta = 10;
+            if upstroke_indx - delta <= 0:
+                lower_bound_interp = 1;
+            else:
+                lower_bound_interp = upstroke_indx - delta;
+            
+            if upstroke_indx + delta > time.shape[-1]:
+                upper_bound_interp = time.shape[-1] -1
+            else:
+                upper_bound_interp = upstroke_indx + delta;
+            
+            time_fine_grid = np.linspace(time[lower_bound_interp], time[upper_bound_interp], interp_points)
+            interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True, bc_type = 'natural')
+            dfdt_interpolated = interpolation_f(time_fine_grid) 
+            # find new dfdt max
+            dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
+            activation_time[peak] = time_fine_grid[dfdt_max_indx]
+            dVdtmax[peak] = dfdt_max * cycle_length_ms
         
-        if upstroke_indx + delta > time.shape[-1]:
-            upper_bound_interp = time.shape[-1] -1
-        else:
-            upper_bound_interp = upstroke_indx + delta;
-        
-        time_fine_grid = np.linspace(time[lower_bound_interp], time[upper_bound_interp], interp_points)
-        interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True, bc_type = 'natural')
-        dfdt_interpolated = interpolation_f(time_fine_grid) 
-        # find new dfdt max
-        dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
-        activation_time[peak] = time_fine_grid[dfdt_max_indx]
-        dVdtmax[peak] = dfdt_max * cycle_length_ms
+        if not interpolate:
+
+            # dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
+            activation_time[peak] = time[upstroke_indx]
+            dVdtmax[peak] = dfdt[upstroke_indx] * cycle_length_ms
+
 
         # compute RMP from before and after upstroke
         end_rmp_indx = upstroke_indx - np.ceil(np.divide(0.005 , cycle_length_ms)).astype(np.int64) # take mean from init_Ap indx until 5 ms before upstroke

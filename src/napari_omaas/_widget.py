@@ -1727,6 +1727,7 @@ class OMAAS(QWidget):
             traces = self.data_main_canvas["y"]
             time = self.data_main_canvas["x"]
             rmp_method = self.APD_computing_method.currentText()
+            is_interpolated = self.make_interpolation_check.isChecked()
             apd_percentage = self.slider_APD_percentage.value()
             # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             
@@ -1761,7 +1762,8 @@ class OMAAS(QWidget):
                                                         rmp_method = rmp_method, 
                                                         apd_perc = apd_percentage, 
                                                         promi=self.prominence, 
-                                                        roi_indx=shape_indx)
+                                                        roi_indx=shape_indx, 
+                                                        interpolate= is_interpolated)
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
                         ini_indx = self.APs_props[-3]
                         peak_indx = self.APs_props[-2]
@@ -2627,7 +2629,8 @@ class OMAAS(QWidget):
                                                                     cycle_length_ms= self.xscale,
                                                                     rmp_method = rmp_method, 
                                                                     apd_perc = apd_percentage, 
-                                                                    promi=self.prominence)
+                                                                    promi=self.prominence, 
+                                                                    interpolate = is_interpolated)
                                     apd_value = APs_props[4]
                                     if len(apd_value) == 0:
                                         print(f"Could not detect APD at pixel coordinate: [..., {y_px}, {x_px}].")
