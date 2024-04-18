@@ -2648,6 +2648,7 @@ class OMAAS(QWidget):
                     # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
                     # self.average_AP_plot_widget.axes.legend()
                     # self.average_AP_plot_widget.canvas.draw()
+                    np.clip(APD, a_min=0, a_max=None, out=APD)
                     
                     self.add_result_img(result_img=APD, 
                                         auto_metadata=False, 
