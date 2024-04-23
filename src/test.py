@@ -4,6 +4,9 @@ import napari_omaas
 from napari_omaas import utils
 import numpy as np
 from napari.settings import get_settings
+import os
+from glob import glob
+import pickle
 
 
 # set pülayback setting to render at 100 fps
@@ -62,10 +65,10 @@ viewer.window.add_dock_widget(o, area='right')
 #         [145.54350755, 540.5934153 ],
 #         [145.54350755, 512.25410934]])], name="shape_20230504_17h-00m-43")
 
-viewer.add_shapes(data = [np.array([[73.12689301, 58.31786751],
-        [73.12689301, 86.65717347],
-        [98.06548226, 86.65717347],
-        [98.06548226, 58.31786751]])], name="shape_20230504_17h-00m-43")
+# viewer.add_shapes(data = [np.array([[73.12689301, 58.31786751],
+#         [73.12689301, 86.65717347],
+#         [98.06548226, 86.65717347],
+#         [98.06548226, 58.31786751]])], name="shape_20230504_17h-00m-43")
 
 # viewer.layers[0].data = viewer.layers[0].data[:60]
 
@@ -125,9 +128,40 @@ viewer.add_shapes(data = [np.array([[73.12689301, 58.31786751],
 
 # o.listImagewidget.item(0).setSelected(False)
 # o.listImagewidget.item(1).setSelected(True)
+# # add shape
+# my_shape = [np.array([[120.65846541,  99.16317271],
+#                               [120.65846541, 167.82143873],
+#                               [192.55532888, 167.82143873],
+#                               [192.55532888,  99.16317271]])]
+my_shape = [np.array([[ 92.22038205, 131.41779359],
+            [ 92.22038205, 155.98907334],
+            [113.41678112, 155.98907334],
+            [113.41678112, 131.41779359]])]
 
+# my_shape = [np.array([[ 12.64035761, 217.60220196],
+#                     [ 12.64035761, 218.33551779],
+#                     [ 13.39946362, 218.33551779],
+#                     [ 13.39946362, 217.60220196]])]
+viewer.add_shapes(
+    data = my_shape,
+#     data = [np.array([[149.75387022, 133.80377879],
+#         [149.75387022, 134.23215058],
+#         [150.16793055, 134.23215058],
+#         [150.16793055, 133.80377879]])],
+        name = "my_shape"
+)
+
+dir_70mmHg_protocol = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_maps/results"
+results_folders = [ my_dir for my_dir in glob(os.path.join(dir_70mmHg_protocol, "**", "*"), recursive=True) if "averaged" in my_dir and my_dir.endswith("npy")]
+results_folders_metadata = [ my_dir for my_dir in glob(os.path.join(dir_70mmHg_protocol, "**", "*"), recursive=True) if my_dir.endswith("pkl")]
 # o.make_maps_btn.click()
+metadata = []
+for path in results_folders_metadata:
+    with open(path, "rb") as f:
+        metadata.append(pickle.load(f))
 
+# [viewer.open(path=path, metadata= meta, colormap="turbo") for path, meta in zip(results_folders, metadata)]
+viewer.open(path=results_folders[0], metadata= metadata[0], colormap="turbo")
 
 
 
@@ -137,13 +171,38 @@ viewer.add_shapes(data = [np.array([[73.12689301, 58.31786751],
 # ###############################################################
 
 # # load a spool file
-# my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_APD/2_5Hz/20230710_12h-09m-00"
-my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_APD/2_5Hz/20233011_15h-13m-56"
-o.dir_box_text.setText(my_file)
-o.load_spool_dir_btn.click()
+# my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_maps/20240327_13h-40m-03"
+# my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/test_data/for_motion_test/mix/20240229_12h-00m-09"
+# o.dir_box_text.setText(my_file)
+# o.load_spool_dir_btn.click()
 # # invert and normalize signal
 # o.inv_and_norm_data_btn.click()
+# img, info = utils.return_spool_img_fun(my_file)
+# # crop/rotate if needed
+# img_crop = np.rot90(img[:, :, 22:345], axes = (1, 2))
+# viewer.add_image(img_crop, metadata= info, name = os.path.basename(my_file), colormap="turbo")
 
+# #################
+# # debugging map #
+# #################
+# my_file = "/Users/rubencito/Library/CloudStorage/OneDrive-UniversitaetBern/Bern/Odening_lab/OMAAS/sandbox/analysis/output_results/20240207_13h-50m-42_alternaratio_MotStab_LocNor_clip_Ave_FiltGaussian_KrnlSiz5_Sgma1.0_FiltButterworth_cffreq35_ord5_fps157_NullBckgrnd.npy"
+# viewer.open(my_file, colormap = "turbo")
+
+
+# make selections in the selectors
+o.listImagewidget.item(0).setSelected(True)
+o.listShapeswidget.item(0).setSelected(True)
+# # plot
+o.plot_profile_btn.click()
+
+# # Preview traces for averaging
+o.preview_AP_splitted_btn.click()
+
+# # change current tab to "Mapping" tab
+o.tabs.setCurrentIndex(4)
+o.toggle_map_type.setChecked(True)
+
+# #################
 
 # # add shape
 
@@ -177,7 +236,7 @@ o.load_spool_dir_btn.click()
 # viewer.add_image(view1, metadata = info)
 # viewer.add_image(view1[0,...], name = "view1_1frame", metadata = info)
 
-o.crop_from_shape_btn.click()
+# o.crop_from_shape_btn.click()
 
 # ##### invert and normalize data #####
 # o.inv_and_norm_data_btn.click()
