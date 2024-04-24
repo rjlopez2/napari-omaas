@@ -1737,7 +1737,19 @@ class OMAAS(QWidget):
 
             for img_indx, img in enumerate(selected_img_list):
 
-                for shape_indx, shape in enumerate(selected_shps_list[0].data):
+                # for shape_indx, shape in enumerate(selected_shps_list[0].data):
+                for shape_indx in range(len(selected_shps_list[0].data)):
+                    if 'ID' in self.shape_layer.features.iloc[shape_indx]:
+                        roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
+                    else:
+                        roi_id = f"{shape_indx}"
+
+                    img_label = f"{img.name}_{selected_shps_list[0]}_ROI:{roi_id}"
+                    
+                    if len(img_label) > 40:
+                        img_label = img_label[4:][:15] + "..." + img_label[-9:]
+                        # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
+
 
                     # update detected APs labels
                     # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
@@ -1750,7 +1762,7 @@ class OMAAS(QWidget):
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
                     # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
-                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'ROI-{shape_indx}_{img.name}', alpha=0.8)
+                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=img_label, alpha=0.8)
 
                     ##### catch error here and exit nicely for the user with a warning or so #####
                     try:
@@ -1763,6 +1775,7 @@ class OMAAS(QWidget):
                                                         apd_perc = apd_percentage, 
                                                         promi=self.prominence, 
                                                         roi_indx=shape_indx, 
+                                                        roi_id = roi_id,
                                                         interpolate= is_interpolated)
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
                         ini_indx = self.APs_props[-3]
@@ -2151,78 +2164,81 @@ class OMAAS(QWidget):
         
         if state == True:
             # print('Checked')
-            img_items = [item.text() for item in self.listImagewidget.selectedItems()]
-            shapes_items = [item.text() for item in self.listShapeswidget.selectedItems()]
             img_items, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
             
             if not shapes_items and img_items:
-                warn("Please create and Select a SHAPE from the Shape selector to plot profile")
+                return warn("Please create and Select a SHAPE from the Shape selector to plot profile")
             if not img_items and shapes_items:
-                warn("Please open and Select an IMAGE from the Image selector to plot profile")
+                return warn("Please open and Select an IMAGE from the Image selector to plot profile")
             if not img_items and not shapes_items:
-                warn("Please select a SHAPE & IMAGE from the Shape and Image selectors")
-            if img_items and shapes_items:
-                try:
-                    # img_layer = self.viewer.layers[img_items[0]]
-                    img_layer = [self.viewer.layers[layer] for layer in img_items]
-                    self.shape_layer = self.viewer.layers[shapes_items[0]]
-                    n_shapes = len(self.shape_layer.data)
-                    if n_shapes == 0:
-                        warn("Draw a new square shape to plot profile in the current selected shape")
+                return warn("Please select a SHAPE & IMAGE from the Shape and Image selectors")
+            
+            try:
+                # img_layer = self.viewer.layers[img_items[0]]
+                img_layer = [self.viewer.layers[layer] for layer in img_items]
+                self.shape_layer = self.viewer.layers[shapes_items[0]]
+                n_shapes = len(self.shape_layer.data)
+                if n_shapes == 0:
+                    warn("Draw a new square shape to plot profile in the current selected shape")
+                else:
+                    self.main_plot_widget.figure.clear()
+                    self.main_plot_widget.add_single_axes()
+                    # define container for data
+                    self.data_main_canvas = {"x": [], "y": []}
+                    # take a list of the images that contain "CycleTime" metadata
+                    fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]
+                    imgs_metadata_names = [image.name for image in img_layer if "CycleTime" in image.metadata ]
+                    
+                    # check that all images contain contain compatible "CycleTime" metadataotherwise trow error
+                    if fps_metadata and not (len(img_layer) == len(fps_metadata)):
+
+                        return warn(f"Imcompatible metedata for plotting. Not all images seem to have the same fps metadata as 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata} for images : {imgs_metadata_names}")
+                        
+                    elif not all(fps == fps_metadata[0] for fps in fps_metadata):
+
+                        return warn(f"Not all images seem to have the same 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata}")
                     else:
-                        self.main_plot_widget.figure.clear()
-                        self.main_plot_widget.add_single_axes()
-                        # define container for data
-                        self.data_main_canvas = {"x": [], "y": []}
-                        # take a list of the images that contain "CycleTime" metadata
-                        fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]
-                        imgs_metadata_names = [image.name for image in img_layer if "CycleTime" in image.metadata ]
-                        
-                        # check that all images contain contain compatible "CycleTime" metadataotherwise trow error
-                        if fps_metadata and not (len(img_layer) == len(fps_metadata)):
+                        self.img_metadata_dict = img_layer[0].metadata                        
+                    
 
-                            return warn(f"Imcompatible metedata for plotting. Not all images seem to have the same fps metadata as 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata} for images : {imgs_metadata_names}")
-                            
-                        elif not all(fps == fps_metadata[0] for fps in fps_metadata):
+                    if "CycleTime" in self.img_metadata_dict:
+                        self.main_plot_widget.axes.set_xlabel("Time (ms)")
+                        self.xscale = self.img_metadata_dict["CycleTime"] * 1000 
+                    else:
+                        self.main_plot_widget.axes.set_xlabel("Frames")
+                        self.xscale = 1
 
-                            return warn(f"Not all images seem to have the same 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata}")
-                        else:
-                            self.img_metadata_dict = img_layer[0].metadata                        
-                        
+                    # loop over images
+                    for img in img_layer:
+                        # loop over shapes
+                        for roi in range(n_shapes):
+                            if 'ID' in self.shape_layer.features.iloc[roi]:
+                                roi_id = self.shape_layer.features.iloc[roi]['ID']
+                            else:
+                                roi_id = f"{roi}"
 
-                        if "CycleTime" in self.img_metadata_dict:
-                            self.main_plot_widget.axes.set_xlabel("Time (ms)")
-                            self.xscale = self.img_metadata_dict["CycleTime"] * 1000 
-                        else:
-                            self.main_plot_widget.axes.set_xlabel("Frames")
-                            self.xscale = 1
+                            img_label = f"{img.name}_{shapes_items[0]}_ROI:{roi_id}"
+                            x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale)
+                            if len(img_label) > 40:
+                                img_label = img_label[4:][:15] + "..." + img_label[-9:]
+                                self.main_plot_widget.axes.plot(x, y, label= img_label)
+                                # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
+                            else:
+                                self.main_plot_widget.axes.plot(x, y, label= img_label)
 
-                        # loop over images
-                        for img in img_layer:
-                            # loop over shapes
-                            for roi in range(n_shapes):
-                                img_label = f"{img.name}_{shapes_items}_ROI:{roi}"
-                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale)
-                                if len(img_label) > 40:
-                                    img_label = img.name[4:][:12] + "..." + img.name[-12:]
-                                    self.main_plot_widget.axes.plot(x, y, label= img_label)
-                                    # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
-                                else:
-                                    self.main_plot_widget.axes.plot(x, y, label= img_label)
+                            self.main_plot_widget.axes.legend()                                
+                            self.draw()
 
-                                self.main_plot_widget.axes.legend()                                
-                                self.draw()
+                            self.data_main_canvas["x"].append(x)
+                            self.data_main_canvas["y"].append(y)
+                    # update range for cliping trace
+                    max_range = x.size * self.xscale
+                    self.double_slider_clip_trace.setRange(0, max_range  )
+                    self.double_slider_clip_trace.setValue((max_range * 0.2, max_range * 0.8))
 
-                                self.data_main_canvas["x"].append(x)
-                                self.data_main_canvas["y"].append(y)
-                        # update range for cliping trace
-                        max_range = x.size * self.xscale
-                        self.double_slider_clip_trace.setRange(0, max_range  )
-                        self.double_slider_clip_trace.setValue((max_range * 0.2, max_range * 0.8))
-
-                        self.shape_layer.events.data.connect(self._data_changed_callback)
-                except Exception as e:
-                    print(f"You have the following error: --->> {e} <----")
+                    self.shape_layer.events.data.connect(self._data_changed_callback)
+            except Exception as e:
+                print(f"You have the following error: --->> {e} <----")
         else:
             # print('Unchecked')
             self.main_plot_widget.figure.clear()

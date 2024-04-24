@@ -626,7 +626,7 @@ def apply_bilateral_filter(data: "napari.types.ImageData", wind_size, sigma_col,
     return (out_img)
 
 @macro.record
-def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0, interpolate = False):
+def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0, roi_id = None, interpolate = False):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -801,7 +801,11 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
 
     AP_ids = [f'AP_{i}' for i in range(peaks_times.shape[-1])]
-    ROI_ids = [f'ROI_{roi_indx}' for i in range(peaks_times.shape[-1])]
+    if not roi_id:
+        ROI_ids = [f'ROI-{roi_indx}' for i in range(peaks_times.shape[-1])]
+    else:
+        ROI_ids = [f'ROI-{roi_id}' for i in range(peaks_times.shape[-1])]
+        
     apd_perc = [apd_perc for i in range(peaks_times.shape[-1])]
     img_name = [curr_img_name for i in range(peaks_times.shape[-1])]
 
