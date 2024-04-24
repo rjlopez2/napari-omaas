@@ -16,6 +16,7 @@ from napari.utils import progress
 from time import time
 from optimap.image import detect_background_threshold
 from optimap import motion_compensate
+from optimap.video import normalize_pixelwise_slidingwindow
 
 from napari_macrokit import get_macro
 
@@ -119,6 +120,11 @@ def global_normal_fun(
     
     return (im_orig - im_orig.min()) / (im_orig.max() - im_orig.min() + eps)
 
+
+@macro.record
+def slide_window_normalization_func(np_array, slide_window = 20):
+    # NOTE: you have to check an error here.
+    return normalize_pixelwise_slidingwindow(np_array, window_size=  slide_window)
 
 
 @macro.record
@@ -620,7 +626,7 @@ def apply_bilateral_filter(data: "napari.types.ImageData", wind_size, sigma_col,
     return (out_img)
 
 @macro.record
-def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0):
+def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0, roi_id = None, interpolate = False):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -712,24 +718,33 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
         # interpolation to find accurate activation time
         interp_points = 1000;
-        delta = 10;
-        if upstroke_indx - delta <= 0:
-            lower_bound_interp = 1;
-        else:
-            lower_bound_interp = upstroke_indx - delta;
+        if interpolate:
+
+            delta = 10;
+            if upstroke_indx - delta <= 0:
+                lower_bound_interp = 1;
+            else:
+                lower_bound_interp = upstroke_indx - delta;
+            
+            if upstroke_indx + delta > time.shape[-1]:
+                upper_bound_interp = time.shape[-1] -1
+            else:
+                upper_bound_interp = upstroke_indx + delta;
+            
+            time_fine_grid = np.linspace(time[lower_bound_interp], time[upper_bound_interp], interp_points)
+            interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True, bc_type = 'natural')
+            dfdt_interpolated = interpolation_f(time_fine_grid) 
+            # find new dfdt max
+            dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
+            activation_time[peak] = time_fine_grid[dfdt_max_indx]
+            dVdtmax[peak] = dfdt_max * cycle_length_ms
         
-        if upstroke_indx + delta > time.shape[-1]:
-            upper_bound_interp = time.shape[-1]
-        else:
-            upper_bound_interp = upstroke_indx + delta;
-        
-        time_fine_grid = np.linspace(time[lower_bound_interp], time[upper_bound_interp], interp_points)
-        interpolation_f = CubicSpline(time[lower_bound_interp :  upper_bound_interp], dfdt[lower_bound_interp :  upper_bound_interp], extrapolate=True)
-        dfdt_interpolated = interpolation_f(time_fine_grid) 
-        # find new dfdt max
-        dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
-        activation_time[peak] = time_fine_grid[dfdt_max_indx]
-        dVdtmax[peak] = dfdt_max * cycle_length_ms
+        if not interpolate:
+
+            # dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
+            activation_time[peak] = time[upstroke_indx]
+            dVdtmax[peak] = dfdt[upstroke_indx] * cycle_length_ms
+
 
         # compute RMP from before and after upstroke
         end_rmp_indx = upstroke_indx - np.ceil(np.divide(0.005 , cycle_length_ms)).astype(np.int64) # take mean from init_Ap indx until 5 ms before upstroke
@@ -786,7 +801,11 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
 
     AP_ids = [f'AP_{i}' for i in range(peaks_times.shape[-1])]
-    ROI_ids = [f'ROI_{roi_indx}' for i in range(peaks_times.shape[-1])]
+    if not roi_id:
+        ROI_ids = [f'ROI-{roi_indx}' for i in range(peaks_times.shape[-1])]
+    else:
+        ROI_ids = [f'ROI-{roi_id}' for i in range(peaks_times.shape[-1])]
+        
     apd_perc = [apd_perc for i in range(peaks_times.shape[-1])]
     img_name = [curr_img_name for i in range(peaks_times.shape[-1])]
 
@@ -914,7 +933,7 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
     
     elif len(AP_peaks_indx) < 1:
 
-        return ValueError(f"Number of AP founds  = {len(my_1d_array)}. Change the threshold, ROI or check your image")
+        raise ValueError(f"Number of AP founds  = {len(AP_peaks_indx)}. Change the threshold, ROI or check your image")
 
 
     # return splited_arrays
@@ -1057,7 +1076,151 @@ def return_maps(image: "napari.types.ImageData", cycle_time, percentage, map_typ
                         # break
                         raise e
 
-        return (APD * 1000, mask_repol_indx_out, t_index_out)
+        return (APD, mask_repol_indx_out, t_index_out, resting_V)
+    
+def return_index_for_map(image: "napari.types.ImageData", cycle_time, percentage, map_type = 0) -> "napari.types.ImageData":
+    # data: "napari.types.ImageData")-> "napari.types.ImageData":
+    
+    """
+        Find the DF/Dt max using 1st derivative of a given average trace.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            3D stack image of a single AP. ussually teh result from 
+            averageing multiple APs.
+        map_type = 0 for Aactvation time maps, 2 for APD maps
+
+        Returns
+        -------
+        inverted_signal : np.ndarray
+            The image with inverted fluorescence values
+
+    """
+
+    # 1. Get gradient and normalize it
+    dfdt = np.gradient(image, axis=0)
+    dfdt = (dfdt - np.nanmin(dfdt)) / np.nanmax(dfdt)
+    dfdt = np.nan_to_num(dfdt, nan=0)
+
+    activation_times = np.full_like(image[0, ...], fill_value= np.nan,  dtype=np.float64)
+    
+    ini_indices = np.nanargmax(dfdt, axis=0)
+    
+    #  may be a faster way to compute act time. just muktiply cycle_time by the index at max dfdt.
+    activation_times[ini_indices != 0] = ini_indices[ini_indices != 0] * cycle_time
+
+    if map_type == 0:
+
+        if cycle_time == 1:
+            return activation_times
+        else:
+            return activation_times * 1000 # convert to ms
+    
+    elif map_type ==2: 
+
+        delta = 10 # this define the number of frames before and after the ini_indices
+        
+        # 2. get time vector
+        n_frames, y_size, x_size = image.shape
+        time = np.arange(0, n_frames) * cycle_time
+        end_indx = np.argmax(time)
+        # end_indx = np.min(np.append(np.argwhere(time >= peaks_times[peak] + bcl/1.5)[0], time.shape[-1] -2))
+
+        # 3 find peak of signal
+        # max_v = np.max(image, axis = 0)
+        max_v_indx_stack = np.argmax(image, axis = 0)
+        APD = np.full_like(ini_indices, fill_value= np.nan,  dtype=np.float64)
+        
+        mask_repol_indx_out = np.full_like(ini_indices, fill_value= np.nan,  dtype=np.uint16)
+        t_index_out = np.full_like(ini_indices, fill_value= np.nan,  dtype=np.uint16)
+        
+        pre5ms_indx = int(np.ceil(0.005 / cycle_time))
+
+                    
+        # activation_times[activation_times == 0] = np.nan # remove zeros
+        # 4 main loop
+        for y_px  in range(y_size):
+            for x_px in range(x_size):
+                
+                t_index = ini_indices[y_px, x_px]
+                # from_ini_to_end_vector = image[t_index:, y_px, x_px]
+                # trace_length_from_peak = len(from_ini_to_end_vector)
+                # print(max_v_indx_stack.size)
+                max_v_indx = max_v_indx_stack[y_px, x_px]
+                
+                # if  (t_index != 0) | (np.isnan(t_index)) and (from_ini_to_end_vector.size > 0):  #assert that you have a peak
+                # if ~ np.isnan(image[t_index:, y_px, x_px]).any()  :  #assert that is not nan
+                if (t_index != 0):
+                    # print(t_index)
+                    try:
+                                        
+                        Vm_signal = image[:, y_px, x_px]
+                        end_rmp_indx = (t_index) - pre5ms_indx # 5 ms before upstroke
+                        
+                        resting_V = np.nanmean(image[:end_rmp_indx, y_px, x_px]) 
+                        
+                        amp_V = ( ((100 - percentage)/ 100) * (image[max_v_indx, y_px, x_px] - resting_V)) + resting_V
+                        # print(f"amp_V: {amp_V}")
+                        
+                        mask_repol_indx =  np.argwhere(image[max_v_indx:, y_px, x_px]<= amp_V)
+                        # if mask_repol_indx
+                        mask_repol_indx =  max_v_indx + mask_repol_indx[0].min() if mask_repol_indx.size != 0 else max_v_indx
+                        mask_repol_indx_out[y_px, x_px] = mask_repol_indx
+                        t_index_out[y_px, x_px] = t_index
+            
+                        #get APD duration
+                        len_segment = image[t_index:mask_repol_indx, y_px, x_px].size
+                        # print(f"len_segment: {len_segment}")
+                        APD[y_px, x_px] = len_segment * cycle_time
+                        # print(f"APD: {len_segment * cycle_time_in_ms}")
+
+                            
+                    except Exception as e:
+                        # print(mask_repol_indx.size, np.isnan(mask_repol_indx))
+                        # print("you enter the exeception and are not printing")
+                        warnings.warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                        # break
+                        raise e
+
+@macro.record
+def crop_from_shape(shape_layer, img_layer):
+    dshape = img_layer.data.shape
+
+    # NOTE: you need to handel case for 2d images alike 3d images
+    # NOTE: handle rgb images -> no so urgent
+    # NOTE: handel 2d images
+    
+    # label = shape_layer.to_labels(dshape[-2:])
+    # get vertices from shape: top-right, top-left, botton-left, botton-right
+    tl, tr, bl, br = shape_layer.data[0].astype(int)
+    y_ini, y_end = sorted([tr[-2], br[-2]])
+    x_ini, x_end = sorted([tl[-1], tr[-1]])
+    ini_index = [y_ini, x_ini ]
+    end_index = [y_end, x_end]
+    
+    # parse the negative index to the minimum value
+    for index, value in enumerate(ini_index):
+        if value < 0:
+            ini_index[index] = 0
+    # for index, value in enumerate(x_index):
+    #     if value < 0:
+    #         x_index[index] = 0
+
+    # parse the values out of range to the max
+    y_max, x_max = dshape[-2], dshape[-1]
+    if end_index[0] > y_max:
+        end_index[0] = y_max
+    
+    if end_index[1] > x_max:
+        end_index[1] = x_max
+
+    cropped_img = img_layer.data.copy()
+
+    cropped_img = cropped_img[:,ini_index[0]:end_index[0],  ini_index[1]:end_index[1]]
+
+    return cropped_img, ini_index, end_index
+
 
 @macro.record
 def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df = False, percentage = 75):
