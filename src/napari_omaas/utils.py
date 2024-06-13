@@ -16,7 +16,7 @@ from napari.utils import progress
 from time import time
 from optimap.image import detect_background_threshold
 from optimap import motion_compensate
-from optimap.video import normalize_pixelwise_slidingwindow
+from optimap.video import normalize_pixelwise_slidingwindow, normalize_pixelwise
 
 from napari_macrokit import get_macro
 
@@ -84,9 +84,10 @@ def local_normal_fun(
     inverted_signal : np.ndarray
         The image with inverted fluorescence values
     """
-    results = (image - np.min(image, axis = 0)) / np.max(image, axis=0)
-    results = np.nan_to_num(results, nan=0)
-    return results
+    # results = (image - np.min(image, axis = 0)) / np.max(image, axis=0)
+    # results = np.nan_to_num(results, nan=0)
+    # return results
+    return normalize_pixelwise(image)
 
 @macro.record
 def global_normal_fun(
@@ -116,9 +117,9 @@ def global_normal_fun(
     #                 np.percentile(data, 2),
     #                 np.percentile(data, 98)
     #                 )
-    eps = np.finfo(im_orig.dtype).eps
+    # eps = np.finfo(im_orig.dtype).eps
     
-    return (im_orig - im_orig.min()) / (im_orig.max() - im_orig.min() + eps)
+    return (im_orig - im_orig.min()) / (im_orig.max() - im_orig.min() )
 
 
 @macro.record
@@ -830,7 +831,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
     return (rslt_df)
 
 def return_spool_img_fun(path):
-    data, info = sif_parser.np_spool_open(path)
+    data, info = sif_parser.np_spool_open(path, multithreading= True, max_workers=16)
     info = {key: val for key, val in info.items() if (not key.startswith("timestamp") and (not key.startswith("tile"))) }
     return (np.flip(data, axis=(1)), info)
 
