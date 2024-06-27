@@ -429,6 +429,14 @@ class OMAAS(QWidget):
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
         # self.plot_group.glayout.addWidget(self.plot_profile_btn, 1, 1, 1, 1)
         self._plotting_profile_tabs_layout.glayout.addWidget(self.plot_profile_btn, 1, 0, 1, 1)
+
+        self.x_scale_box_label = QLabel("set x scale")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.x_scale_box_label, 1, 1, 1, 1)
+        self.x_scale_box =  QLineEdit()
+        self.x_scale_box.setValidator(QIntValidator()) 
+        self.x_scale_box.setFixedWidth(50)
+        self.x_scale_box.setText(f"{1}")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.x_scale_box, 1, 2, 1, 1)
         
         self.clip_trace_btn = QPushButton("Clip Trace")
         self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_trace_btn, 2, 0, 1, 1)
@@ -1128,6 +1136,7 @@ class OMAAS(QWidget):
         self.compute_ratio_btn.clicked.connect(self._compute_ratio_btn_func)
         self.slider_APD_percentage.valueChanged.connect(self._update_APD_value_for_MAP_func)
         self.slider_APD_map_percentage.valueChanged.connect(self._update_APD_value_for_APD_func)
+        self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
         
         
         
@@ -1706,16 +1715,29 @@ class OMAAS(QWidget):
                     # if metadata["CycleTime"]:
                     # self.xscale = self.img_metadata_dict["CycleTime"]
                         # self.plot_widget.axes.set_xlabel("Time (ms)")
-                    self.fps_val.setText(str(round(1/self.img_metadata_dict["CycleTime"], 2)))
+                    cycl_time = self.img_metadata_dict["CycleTime"]
+                    self.fps_val.setText(f"{round(1/cycl_time, 2)}")
+
+                    # set the current x scale
+                    self.x_scale_box.clear()
+                    self.x_scale_box.setText(f"{round(cycl_time * 1000, 2)}")
+                    self.xscale = cycl_time * 1000
                 else:
-                    # self.xscale = 1
+                    self.x_scale_box.clear()
+                    self.x_scale_box.setText(f"{1}")
+                    self.xscale = 1
                     self.fps_val.setText("Unknown sampling frequency (fps)")
                 
             if not isinstance(value, Image):
                 self.fps_val.setText("")
                 self.metadata_tree.clear()
+                # self.x_scale_box.clear()
+                # self.x_scale_box.setText(f"{1}")
+                # self.xscale = 1
 
-
+    def _update_x_scale_box_func(self, event):
+        new_x_scale = self.x_scale_box.text()
+        self.xscale = new_x_scale
 
     def _get_APD_call_back(self, event):
 
