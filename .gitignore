@@ -85,3 +85,7 @@ venv/
 
 # ignore .sif images files
 **/img/*.sif
+
+# ignore .py files that start with loctest
+
+loctest*.py
