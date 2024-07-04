@@ -429,6 +429,14 @@ class OMAAS(QWidget):
         # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
         # self.plot_group.glayout.addWidget(self.plot_profile_btn, 1, 1, 1, 1)
         self._plotting_profile_tabs_layout.glayout.addWidget(self.plot_profile_btn, 1, 0, 1, 1)
+
+        self.x_scale_box_label = QLabel("set x scale")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.x_scale_box_label, 1, 1, 1, 1)
+        self.x_scale_box =  QLineEdit()
+        self.x_scale_box.setValidator(QDoubleValidator()) 
+        self.x_scale_box.setFixedWidth(50)
+        self.x_scale_box.setText(f"{1}")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.x_scale_box, 1, 2, 1, 1)
         
         self.clip_trace_btn = QPushButton("Clip Trace")
         self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_trace_btn, 2, 0, 1, 1)
@@ -1128,6 +1136,7 @@ class OMAAS(QWidget):
         self.compute_ratio_btn.clicked.connect(self._compute_ratio_btn_func)
         self.slider_APD_percentage.valueChanged.connect(self._update_APD_value_for_MAP_func)
         self.slider_APD_map_percentage.valueChanged.connect(self._update_APD_value_for_APD_func)
+        self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
         
         
         
@@ -1706,16 +1715,33 @@ class OMAAS(QWidget):
                     # if metadata["CycleTime"]:
                     # self.xscale = self.img_metadata_dict["CycleTime"]
                         # self.plot_widget.axes.set_xlabel("Time (ms)")
-                    self.fps_val.setText(str(round(1/self.img_metadata_dict["CycleTime"], 2)))
+                    cycl_time = self.img_metadata_dict["CycleTime"]
+                    self.fps_val.setText(f"{round(1/cycl_time, 2)}")
+
+                    # set the current x scale
+                    self.x_scale_box.clear()
+                    self.x_scale_box.setText(f"{round(cycl_time * 1000, 2)}")
+                    self.xscale = cycl_time * 1000
+                    # self.main_plot_widget.axes.set_xlabel("Time (ms)")
                 else:
-                    # self.xscale = 1
+                    self.x_scale_box.clear()
+                    self.x_scale_box.setText(f"{1}")
+                    self.xscale = 1
+                    # self.main_plot_widget.axes.set_xlabel("Frames")
                     self.fps_val.setText("Unknown sampling frequency (fps)")
                 
             if not isinstance(value, Image):
                 self.fps_val.setText("")
                 self.metadata_tree.clear()
+                # self.x_scale_box.clear()
+                # self.x_scale_box.setText(f"{1}")
+                # self.xscale = 1
 
-
+    def _update_x_scale_box_func(self, event):
+        new_x_scale = self.x_scale_box.text()
+        if len(new_x_scale) > 0:
+            self.xscale = np.float16(new_x_scale)
+            self._on_click_plot_profile_btn_func()
 
     def _get_APD_call_back(self, event):
 
@@ -2179,34 +2205,38 @@ class OMAAS(QWidget):
                 self.shape_layer = self.viewer.layers[shapes_items[0]]
                 n_shapes = len(self.shape_layer.data)
                 if n_shapes == 0:
-                    warn("Draw a new square shape to plot profile in the current selected shape")
+                    return warn("Draw a new square shape to plot profile in the current selected shape")
                 else:
                     self.main_plot_widget.figure.clear()
                     self.main_plot_widget.add_single_axes()
                     # define container for data
                     self.data_main_canvas = {"x": [], "y": []}
                     # take a list of the images that contain "CycleTime" metadata
-                    fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]
-                    imgs_metadata_names = [image.name for image in img_layer if "CycleTime" in image.metadata ]
-                    
-                    # check that all images contain contain compatible "CycleTime" metadataotherwise trow error
-                    if fps_metadata and not (len(img_layer) == len(fps_metadata)):
+                    if len(img_layer) > 1:
 
-                        return warn(f"Imcompatible metedata for plotting. Not all images seem to have the same fps metadata as 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata} for images : {imgs_metadata_names}")
+                        fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]
+                        imgs_metadata_names = [image.name for image in img_layer if "CycleTime" in image.metadata ]
                         
-                    elif not all(fps == fps_metadata[0] for fps in fps_metadata):
+                        # check that all images contain contain compatible "CycleTime" metadataotherwise trow error
+                        if fps_metadata and not (len(img_layer) == len(fps_metadata)):
 
-                        return warn(f"Not all images seem to have the same 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata}")
-                    else:
-                        self.img_metadata_dict = img_layer[0].metadata                        
+                            return warn(f"Imcompatible metedata for plotting. Not all images seem to have the same fps metadata as 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata} for images : {imgs_metadata_names}")
+                            
+                        elif not all(fps == fps_metadata[0] for fps in fps_metadata):
+
+                            return warn(f"Not all images seem to have the same 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata}")
+                        else:
+                            self.img_metadata_dict = img_layer[0].metadata                        
                     
 
-                    if "CycleTime" in self.img_metadata_dict:
-                        self.main_plot_widget.axes.set_xlabel("Time (ms)")
-                        self.xscale = self.img_metadata_dict["CycleTime"] * 1000 
+                    if "CycleTime" in img_layer[0].metadata:
+                        if np.allclose(round(img_layer[0].metadata["CycleTime"] * 1000, 2), round(self.xscale, 2), 2):
+                            self.main_plot_widget.axes.set_xlabel("Time (ms)")
+                        else:
+                            self.main_plot_widget.axes.set_xlabel("Frames/custom")
+                            
                     else:
-                        self.main_plot_widget.axes.set_xlabel("Frames")
-                        self.xscale = 1
+                        self.main_plot_widget.axes.set_xlabel("Frames/custom")
 
                     # loop over images
                     for img in img_layer:
@@ -2238,7 +2268,7 @@ class OMAAS(QWidget):
 
                     self.shape_layer.events.data.connect(self._data_changed_callback)
             except Exception as e:
-                print(f"You have the following error: --->> {e} <----")
+                print(f"You have the following error @ function _on_click_plot_profile_btn_func: --->> '{e}' <----")
         else:
             # print('Unchecked')
             self.main_plot_widget.figure.clear()
@@ -3055,7 +3085,7 @@ class OMAAS(QWidget):
                     else:
                          masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
                 except Exception as e:
-                        print(f"You have the following error: --->> {e} <----")
+                        print(f"You have the following error @_on_click_apply_segmentation_btn_fun: --->> {e} <----")
 
 
 
@@ -3111,7 +3141,7 @@ class OMAAS(QWidget):
             else:
                     masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
         except Exception as e:
-                print(f"You have the following error: --->> {e} <----")
+                print(f"You have the following error @_on_click_segment_manual_btn_func: --->> {e} <----")
         
         self.add_result_img(masked_image, 
                             auto_metadata=False,
