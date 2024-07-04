@@ -64,7 +64,7 @@ def reader_function(path):
     # load all files into array
     # arrays = [np.load(_path) for _path in paths]
     # stack arrays into single array
-    # data, info = sif_parser.np_open(path)
+    data, info = sif_parser.np_open(path)
     # reorder array so it's the same order dimention represented as in the matlab app
     data = np.flip(data, axis=(1))
     # metadata = get_custome_metadata_func(info)
