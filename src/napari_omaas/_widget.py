@@ -964,7 +964,7 @@ class OMAAS(QWidget):
         self.listShapeswidget.itemClicked.connect(self._data_changed_callback)
         self.listImagewidget.itemClicked.connect(self._data_changed_callback)
         # updtae FPS label
-        self.viewer.window.qt_viewer.canvas.measure_fps(callback = self.update_fps)
+        self.viewer.window._qt_viewer.canvas._scene_canvas.measure_fps(callback = self.update_fps)
         # callback for trace plotting
         # self.plot_profile_btn.clicked.connect(self._on_click_plot_profile_btn_func)
         self.plot_profile_btn.stateChanged.connect(self._on_click_plot_profile_btn_func)
