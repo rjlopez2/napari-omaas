@@ -72,8 +72,8 @@ def reader_function(path):
 
     # skip first two frames to avoid peak artifact on first frame?
     # if stack contain more than 3 images will remove the first 2 because of artefact
-    if not metadata["NumberOfFrames"] is None and metadata["NumberOfFrames"] >= 3:
-        data = data[2:,...]
+    # if not metadata["NumberOfFrames"] is None and metadata["NumberOfFrames"] >= 3:
+    #     data = data[2:,...]
  
   
     # optional kwargs for the corresponding viewer.add_* method
