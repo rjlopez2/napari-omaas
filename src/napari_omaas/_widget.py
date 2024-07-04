@@ -1833,6 +1833,7 @@ class OMAAS(QWidget):
                                             # label=f'AP_base',
                                             lw = 0.5, alpha = 0.8)
 
+                        # APD_props[f"ImgIndx{img_indx}_ROIIndx{shape_indx}"] = self.APs_props
                         APD_props.append(self.APs_props)
                         
                         print(f"APD computed on image '{img.name}' with roi: {shape_indx}")
@@ -1844,10 +1845,15 @@ class OMAAS(QWidget):
             self._APD_plot_widget.axes.legend(fontsize="8")
             self._APD_plot_widget.canvas.draw()
 
+        try:
 
-            self.APD_props_df = pd.DataFrame(*APD_props)
+            self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
+            # convert back to the correct type the numeric columns
+            cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
+            cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
 
-            # # convert numeric values to ms and round then
+            self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
+            # convert numeric values to ms and round then
             self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
 
             
@@ -1862,6 +1868,9 @@ class OMAAS(QWidget):
             self.APD_propert_table.setModel(model)
 
             self.add_record_fun()
+        except Exception as e:
+            # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+            raise e
         else:
             return warn("Create a trace first by clicking on 'Display Profile'") 
 
