@@ -69,7 +69,7 @@ def reader_function(path):
     data = np.flip(data, axis=(1))
     # metadata = get_custome_metadata_func(info)
     metadata = {key: val for key, val in info.items() if (not key.startswith("timestamp") and (not key.startswith("tile"))) }
-
+    metadata['CurrentFilename'] = path
     # skip first two frames to avoid peak artifact on first frame?
     # if stack contain more than 3 images will remove the first 2 because of artefact
     # if not metadata["NumberOfFrames"] is None and metadata["NumberOfFrames"] >= 3:
