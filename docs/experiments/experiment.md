@@ -10,7 +10,7 @@ These is a list of ideas for setting up experiments I would like to add.
 The following tutorial describe how to setup the optical mapping equipment to start a new acquisition.
 The guidelines provided here are specific for our lab at the Translational Cardiology/Electrophysiology research group, Univeristy of Bern.
 
-# Starting up the set-up 
+# Starting the set-up 
 
 ## 1. Turning on devices:
 
