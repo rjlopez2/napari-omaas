@@ -20,6 +20,9 @@ contributions:
     - id: napari-omaas.make_func_widget
       python_name: napari_omaas._widget:example_function_widget
       title: Make example function widget
+    - id: napari-omaas.get_reader
+      python_name: napari_omaas._reader:napari_get_reader
+      title: Open sif data with napari-omaas default reader
   writers:
     - command: napari-omaas.write_multiple
       layer_types: ['image*','labels*']
@@ -39,3 +42,7 @@ contributions:
     - command: napari-omaas.make_func_widget
       autogenerate: true
       display_name: Example Function Widget
+  readers:
+    - command: napari-omaas.get_reader
+      accepts_directories: false
+      filename_patterns: ['*.sif']
