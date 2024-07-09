@@ -8,7 +8,7 @@ https://napari.org/stable/plugins/guides.html?#readers
 import sif_parser
 import numpy as np
 
-SUPPORTED_IMAGES = ".sif", ".sif"
+SUPPORTED_IMAGES = ".sif", ".SIF", ".sifx", ".SIFX"
 
 def napari_get_reader(path):
     """A basic implementation of a Reader contribution.
