@@ -44,5 +44,5 @@ contributions:
       display_name: Example Function Widget
   readers:
     - command: napari-omaas.get_reader
-      accepts_directories: false
+      accepts_directories: true
       filename_patterns: ['*.sif']
