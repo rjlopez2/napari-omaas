@@ -7,6 +7,9 @@ https://napari.org/stable/plugins/guides.html?#readers
 """
 import sif_parser
 import numpy as np
+import os
+from glob import glob 
+from warnings import warn
 
 SUPPORTED_IMAGES = ".sif", ".SIF", ".sifx", ".SIFX"
 
@@ -29,10 +32,18 @@ def napari_get_reader(path):
         # if it is a list, it is assumed to be an image stack...
         # so we are only going to look at the first file.
         path = path[0]
+    
+    if isinstance(path, str) and os.path.isdir(path):
 
+        if glob(os.path.join(path, "*.sifx"))[0].endswith(".sifx"):
+            return reader_function
+
+        
     # if we know we cannot read the file, we immediately return None.
     if not any(path.lower().endswith(ext) for ext in SUPPORTED_IMAGES):
         return None
+    
+
 
     # otherwise we return the *function* that can read ``path``.
     return reader_function
@@ -60,16 +71,25 @@ def reader_function(path):
         default to layer_type=="image" if not provided
     """
     # handle both a string and a list of strings
-    paths = [path] if isinstance(path, str) else path
+    # paths = [path] if isinstance(path, str) else path
     # load all files into array
     # arrays = [np.load(_path) for _path in paths]
     # stack arrays into single array
-    data, info = sif_parser.np_open(path)
-    # reorder array so it's the same order dimention represented as in the matlab app
+
+    if os.path.isdir(path):
+        data, info = sif_parser.np_spool_open(path, multithreading=True)
+        
+    elif  os.path.isfile(path):
+        data, info = sif_parser.np_open(path)
+    else:
+        return warn(f"The path or file porvide is not support or not valid")
+
     data = np.flip(data, axis=(1))
-    # metadata = get_custome_metadata_func(info)
     metadata = {key: val for key, val in info.items() if (not key.startswith("timestamp") and (not key.startswith("tile"))) }
     metadata['CurrentFileSource'] = path
+
+    # reorder array so it's the same order dimention represented as in the matlab app
+    # metadata = get_custome_metadata_func(info)
     # skip first two frames to avoid peak artifact on first frame?
     # if stack contain more than 3 images will remove the first 2 because of artefact
     # if not metadata["NumberOfFrames"] is None and metadata["NumberOfFrames"] >= 3:
