@@ -23,10 +23,10 @@ from napari_macrokit import get_macro
 # from numba import jit, prange
 from scipy import signal, ndimage
 from scipy.interpolate import CubicSpline
-from scipy.ndimage import gaussian_filter, binary_fill_holes
-import cupy as cp
-from cupyx.scipy.ndimage import median_filter as cp_median_filter
-from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
+from scipy.ndimage import gaussian_filter, binary_fill_holes, median_filter
+# import cupy as cp
+# from cupyx.scipy.ndimage import median_filter as cp_median_filter
+# from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
 # functions
 
 from napari.types import ImageData, ShapesData
@@ -253,18 +253,28 @@ def apply_gaussian_func (data: "napari.types.ImageData",
         # out_img[plane] = gaussian(img, sigma, preserve_range = True)
         # out_img[plane] = signal.oaconvolve(img, gauss_kernel2d, mode="same")
 
+    # ###########################
+    # scikitimage (CPU) base function
+    # ###########################  
+
     # return (gaussian(data, sigma))
     # return out_img
-    # return gaussian_filter(data, sigma=sigma, order= 0, radius=kernel_size, # axes = (1,2))
-    data_cp = cp.asarray(data)
-    out_img = cp_gaussian_filter(data_cp, 
-                              sigma=(0, sigma, sigma), 
-                              order= 0,
-                              # radius=kernel_size,
-                              truncate=kernel_size,
-                              #axes = (1,2)
-                              )
-    return cp.asnumpy(out_img)
+    return gaussian_filter(data, sigma=sigma, order= 0, radius=kernel_size, axes = (1,2))
+    
+    
+    # ###########################
+    # cupy  (GPU) base function
+    # ###########################    
+    
+    # data_cp = cp.asarray(data)
+    # out_img = cp_gaussian_filter(data_cp, 
+    #                           sigma=(0, sigma, sigma), 
+    #                           order= 0,
+    #                           # radius=kernel_size,
+    #                           truncate=kernel_size,
+    #                           #axes = (1,2)
+    #                           )
+    # return cp.asnumpy(out_img)
 
 
 @macro.record
@@ -307,15 +317,19 @@ def apply_median_filt_func (data: "napari.types.ImageData",
     # for plane, img in enumerate(data):
     #     out_img[plane] = signal.medfilt2d(img, kernel_size = param)
     
-    # out_img = ndimage.median_filter(data, size = (1, param, param))
+    return median_filter(data, size = (1, param, param))
 
     
-    data_cp = cp.asarray(data)
-    # xp = cpx.get_array_module(data_cp, param)  # 'xp' is a standard usage in the community
-    # print("Using:", xp.__name__)
-    out_img = cp_median_filter(data_cp, size = (1, param, param))
+    # ###########################
+    # cupy  (GPU) base function
+    # ###########################    
     
-    return cp.asnumpy(out_img)
+    # data_cp = cp.asarray(data)
+    # # xp = cpx.get_array_module(data_cp, param)  # 'xp' is a standard usage in the community
+    # # print("Using:", xp.__name__)
+    # out_img = cp_median_filter(data_cp, size = (1, param, param))
+    
+    # return cp.asnumpy(out_img)
 
 
 @macro.record
