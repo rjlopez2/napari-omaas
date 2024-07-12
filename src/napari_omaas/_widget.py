@@ -2664,11 +2664,11 @@ class OMAAS(QWidget):
                                                                     apd_perc = apd_percentage, 
                                                                     promi=self.prominence, 
                                                                     interpolate = is_interpolated)
-                                    apd_value = APs_props[4]
-                                    if len(apd_value) == 0:
+                                    if not APs_props["APD"]:
                                         print(f"Could not detect APD at pixel coordinate: [..., {y_px}, {x_px}].")
                                         APD[y_px, x_px] = np.nan
                                     else:
+                                        apd_value = APs_props["APD"]
                                         APD[y_px, x_px] = apd_value
                                 
                                 except Exception as e:
