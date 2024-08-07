@@ -1802,15 +1802,14 @@ class OMAAS(QWidget):
                                                         promi=self.prominence, 
                                                         roi_indx=shape_indx, 
                                                         roi_id = roi_id,
-                                                        interpolate= is_interpolated)
+                                                        interpolate= is_interpolated,
+                                                        curr_file_id = img.metadata["CurrentFileSource"])
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
-                        ini_indx = self.APs_props[-3]
-                        peak_indx = self.APs_props[-2]
-                        end_indx = self.APs_props[-1]
-                        dVdtmax = self.APs_props[5]
-                        resting_V = self.APs_props[8]
-                        y_min = resting_V
+                        ini_indx = self.APs_props["indx_at_AP_upstroke"]
+                        peak_indx = self.APs_props["indx_at_AP_peak"]
+                        end_indx = self.APs_props["indx_at_AP_end"]
 
+                        y_min = self.APs_props["resting_V"]
                         y_max = traces[img_indx + shape_indx][peak_indx]
                         # plot vline of AP start
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][ini_indx], 
@@ -1827,13 +1826,14 @@ class OMAAS(QWidget):
                                             # label=f'AP_end',
                                             lw = 0.5, alpha = 0.8)
                         # plot hline of AP baseline
-                        self._APD_plot_widget.axes.hlines(resting_V,
+                        self._APD_plot_widget.axes.hlines(y_min,
                                             xmin = time[img_indx + shape_indx][ini_indx],
                                             xmax = time[img_indx + shape_indx][end_indx],
                                             linestyles='dashed', color = "grey", 
                                             # label=f'AP_base',
                                             lw = 0.5, alpha = 0.8)
 
+                        # APD_props[f"ImgIndx{img_indx}_ROIIndx{shape_indx}"] = self.APs_props
                         APD_props.append(self.APs_props)
                         
                         print(f"APD computed on image '{img.name}' with roi: {shape_indx}")
@@ -1842,33 +1842,17 @@ class OMAAS(QWidget):
                         # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
                         raise e
 
-            colnames = [ "image_name",
-                         "ROI_id",
-                         "AP_id" ,
-                         "APD_perc" ,
-                         "APD",
-                         "AcTime_dVdtmax",
-                         "amp_Vmax",
-                         "BasCycLength_bcl",
-                         "resting_V",
-                         "time_at_AP_upstroke",
-                         "time_at_AP_peak",
-                         "time_at_AP_end",
-                         "indx_at_AP_upstroke",
-                         "indx_at_AP_peak",
-                         "indx_at_AP_end"]
             self._APD_plot_widget.axes.legend(fontsize="8")
             self._APD_plot_widget.canvas.draw()
 
+        try:
 
-            self.APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
-
+            self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
             # convert back to the correct type the numeric columns
             cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
             cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
 
             self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
-
             # convert numeric values to ms and round then
             self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
 
@@ -1884,6 +1868,9 @@ class OMAAS(QWidget):
             self.APD_propert_table.setModel(model)
 
             self.add_record_fun()
+        except Exception as e:
+            # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+            raise e
         else:
             return warn("Create a trace first by clicking on 'Display Profile'") 
 
@@ -2677,11 +2664,11 @@ class OMAAS(QWidget):
                                                                     apd_perc = apd_percentage, 
                                                                     promi=self.prominence, 
                                                                     interpolate = is_interpolated)
-                                    apd_value = APs_props[4]
-                                    if len(apd_value) == 0:
+                                    if not APs_props["APD"]:
                                         print(f"Could not detect APD at pixel coordinate: [..., {y_px}, {x_px}].")
                                         APD[y_px, x_px] = np.nan
                                     else:
+                                        apd_value = APs_props["APD"]
                                         APD[y_px, x_px] = apd_value
                                 
                                 except Exception as e:

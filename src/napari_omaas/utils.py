@@ -23,10 +23,10 @@ from napari_macrokit import get_macro
 # from numba import jit, prange
 from scipy import signal, ndimage
 from scipy.interpolate import CubicSpline
-from scipy.ndimage import gaussian_filter, binary_fill_holes
-import cupy as cp
-from cupyx.scipy.ndimage import median_filter as cp_median_filter
-from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
+from scipy.ndimage import gaussian_filter, binary_fill_holes, median_filter
+# import cupy as cp
+# from cupyx.scipy.ndimage import median_filter as cp_median_filter
+# from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
 # functions
 
 from napari.types import ImageData, ShapesData
@@ -253,18 +253,28 @@ def apply_gaussian_func (data: "napari.types.ImageData",
         # out_img[plane] = gaussian(img, sigma, preserve_range = True)
         # out_img[plane] = signal.oaconvolve(img, gauss_kernel2d, mode="same")
 
+    # ###########################
+    # scikitimage (CPU) base function
+    # ###########################  
+
     # return (gaussian(data, sigma))
     # return out_img
-    # return gaussian_filter(data, sigma=sigma, order= 0, radius=kernel_size, # axes = (1,2))
-    data_cp = cp.asarray(data)
-    out_img = cp_gaussian_filter(data_cp, 
-                              sigma=(0, sigma, sigma), 
-                              order= 0,
-                              # radius=kernel_size,
-                              truncate=kernel_size,
-                              #axes = (1,2)
-                              )
-    return cp.asnumpy(out_img)
+    return gaussian_filter(data, sigma=sigma, order= 0, radius=kernel_size, axes = (1,2))
+    
+    
+    # ###########################
+    # cupy  (GPU) base function
+    # ###########################    
+    
+    # data_cp = cp.asarray(data)
+    # out_img = cp_gaussian_filter(data_cp, 
+    #                           sigma=(0, sigma, sigma), 
+    #                           order= 0,
+    #                           # radius=kernel_size,
+    #                           truncate=kernel_size,
+    #                           #axes = (1,2)
+    #                           )
+    # return cp.asnumpy(out_img)
 
 
 @macro.record
@@ -307,15 +317,19 @@ def apply_median_filt_func (data: "napari.types.ImageData",
     # for plane, img in enumerate(data):
     #     out_img[plane] = signal.medfilt2d(img, kernel_size = param)
     
-    # out_img = ndimage.median_filter(data, size = (1, param, param))
+    return median_filter(data, size = (1, param, param))
 
     
-    data_cp = cp.asarray(data)
-    # xp = cpx.get_array_module(data_cp, param)  # 'xp' is a standard usage in the community
-    # print("Using:", xp.__name__)
-    out_img = cp_median_filter(data_cp, size = (1, param, param))
+    # ###########################
+    # cupy  (GPU) base function
+    # ###########################    
     
-    return cp.asnumpy(out_img)
+    # data_cp = cp.asarray(data)
+    # # xp = cpx.get_array_module(data_cp, param)  # 'xp' is a standard usage in the community
+    # # print("Using:", xp.__name__)
+    # out_img = cp_median_filter(data_cp, size = (1, param, param))
+    
+    # return cp.asnumpy(out_img)
 
 
 @macro.record
@@ -646,7 +660,7 @@ def apply_bilateral_filter(data: "napari.types.ImageData", wind_size, sigma_col,
     return (out_img)
 
 @macro.record
-def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0, roi_id = None, interpolate = False):
+def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0, roi_id = None, interpolate = False, curr_file_id =None):
     
     """
         Find the DF/Dt max using 1st derivative of a given average trace.
@@ -828,26 +842,65 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         
     apd_perc = [apd_perc for i in range(peaks_times.shape[-1])]
     img_name = [curr_img_name for i in range(peaks_times.shape[-1])]
+    file_id = [curr_file_id for i in range(peaks_times.shape[-1])]
 
 
-    rslt_df = [img_name, 
-                ROI_ids, 
-                AP_ids, 
-                apd_perc, 
-                APD, 
-                dVdtmax, 
-                amp_Vmax, 
-                bcl_list, 
-                resting_V,
-                time[AP_ini], 
-                time[AP_peak], 
-                time[AP_end], 
-                AP_ini, 
-                AP_peak, 
-                AP_end]
+    # rslt_df = [img_name, 
+    #             ROI_ids, 
+    #             AP_ids, 
+    #             apd_perc, 
+    #             APD, 
+    #             dVdtmax, 
+    #             amp_Vmax, 
+    #             bcl_list, 
+    #             resting_V,
+    #             time[AP_ini], 
+    #             time[AP_peak], 
+    #             time[AP_end], 
+    #             AP_ini, 
+    #             AP_peak, 
+    #             AP_end,
+    #             file_id]
+    # rslt_dict = dict(
+    #     img_name = img_name,
+    #     ROI_ids = ROI_ids,
+    #     AP_ids = AP_ids,
+    #     apd_perc = apd_perc,
+    #     APD = APD,
+    #     dVdtmax = dVdtmax,
+    #     amp_Vmax = amp_Vmax,
+    #     bcl_list = bcl_list,
+    #     resting_V = resting_V,
+    #     time_AP_ini = time[AP_ini],
+    #     time_AP_peak = time[AP_peak], 
+    #     time_AP_end = time[AP_end], 
+    #     AP_ini = AP_ini, 
+    #     AP_peak = AP_peak, 
+    #     AP_end = AP_end,
+    #     file_id = file_id
+    # )
+
+    rslt_dict = {
+        "image_name": img_name,
+        "ROI_id": ROI_ids,
+        "AP_id": AP_ids,
+        "APD_perc": apd_perc,
+        "APD": APD,
+        "AcTime_dVdtmax":dVdtmax,
+        "amp_Vmax":amp_Vmax,
+        "BasCycLength_bcl":bcl_list,
+        "resting_V":resting_V,
+        "time_at_AP_upstroke":time[AP_ini],
+        "time_at_AP_peak":time[AP_peak], 
+        "time_at_AP_end":time[AP_end], 
+        "indx_at_AP_upstroke":AP_ini, 
+        "indx_at_AP_peak":AP_peak, 
+        "indx_at_AP_end":AP_end,
+        "curr_file_id":file_id
+        }
      
     # rslt_df = rslt_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) # convert to ms and round values
-    return (rslt_df)
+    return (rslt_dict)
 
 def return_spool_img_fun(path):
     data, info = sif_parser.np_spool_open(path, multithreading= True, max_workers=16)
