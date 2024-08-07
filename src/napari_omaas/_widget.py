@@ -3246,7 +3246,8 @@ class OMAAS(QWidget):
                     # self.add_record_fun()
                     # self.plot_profile_btn.setChecked(False)
                     self.clip_label_range.setChecked(False)
-                    print(f"image '{image.name}' clipped from {round(start_indx * self.xscale, 2)} to {round(end_indx * self.xscale, 2)}")
+                    self.plot_last_generated_img()
+                    print(f"image '{image.name}' clipped from time/index: {round(start_indx * self.xscale, 2)}/[{start_indx}] to {round(end_indx * self.xscale, 2)}/[{end_indx}]")
             else:
                 return warn("Preview the clipping range firts by ticking the 'Show range'.")
         else:
@@ -3455,6 +3456,22 @@ class OMAAS(QWidget):
     def _update_APD_value_for_APD_func(self):
         new_value = self.slider_APD_map_percentage.value()
         self.slider_APD_percentage.setValue(new_value)
+    
+    def plot_last_generated_img(self, shape_indx = 0):
+        """
+        easy helper to change selections and plot last image generated
+        """
+        self.listShapeswidget.clearSelection()
+        self.listShapeswidget.item(shape_indx).setSelected(True)
+        
+        self.listImagewidget.clearSelection()
+        last_img_indx = self.listImagewidget.count() -1 if self.listImagewidget.count() > 0 else None 
+        self.listImagewidget.item(last_img_indx).setSelected(True)
+        if self.plot_profile_btn.isChecked():
+            self.plot_profile_btn.click()
+            self.plot_profile_btn.click()
+        else:
+            self.plot_profile_btn.click()
 
 
 
