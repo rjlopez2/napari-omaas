@@ -362,7 +362,8 @@ class OMAAS(QWidget):
         self.search_spool_dir_btn = QPushButton("Search Directory")
         self.load_spool_group.glayout.addWidget(self.search_spool_dir_btn, 3, 4, 1, 1)
 
-
+        # self.fast_loading = QCheckBox("Multithreading")
+        # self.load_spool_group.glayout.addWidget(self.fast_loading, 3, 5, 1, 1)
 
 
         ######## Segmentation group ########

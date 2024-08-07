@@ -10,6 +10,7 @@ import numpy as np
 import os
 from glob import glob 
 from warnings import warn
+# import napari_omaas as o
 
 SUPPORTED_IMAGES = ".sif", ".SIF", ".sifx", ".SIFX"
 
@@ -82,7 +83,8 @@ def reader_function(path):
     # stack arrays into single array
 
     if os.path.isdir(path):
-        data, info = sif_parser.np_spool_open(path, multithreading=True)
+        # is_multithreading = o.fast_loading.isChecked()
+        data, info = sif_parser.np_spool_open(path, multithreading=False)
         
     elif  os.path.isfile(path):
         data, info = sif_parser.np_open(path)
