@@ -34,9 +34,14 @@ def napari_get_reader(path):
         path = path[0]
     
     if isinstance(path, str) and os.path.isdir(path):
+        sifx_file = glob(os.path.join(path, "*.sifx"))
 
-        if glob(os.path.join(path, "*.sifx"))[0].endswith(".sifx"):
+        if len(sifx_file) > 0:
+            # sifx_file[0].endswith(".sifx"):
             return reader_function
+        else:
+            warn(" No file found in current directory with extension '*.sifx'")
+            return None
 
         
     # if we know we cannot read the file, we immediately return None.
