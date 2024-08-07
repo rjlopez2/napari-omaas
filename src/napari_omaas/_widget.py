@@ -3414,25 +3414,32 @@ class OMAAS(QWidget):
             cropped_img = np.rot90(cropped_img, axes=(1, 2))
             print(f"result image rotate 90° to the left")
 
-            return self.add_result_img(cropped_img,
+            self.add_result_img(cropped_img,
                             img_custom_name=img_name,
                             auto_metadata = False, 
                             custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
                             # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
                             add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90L")
+            self.plot_last_generated_img()
+            self.rotate_l_crop.setChecked(False)
+            return
 
         if self.rotate_r_crop.isChecked():
             cropped_img = np.rot90(cropped_img, axes=(2, 1))
             print(f"result image rotate 90° to the right")
 
-            return self.add_result_img(cropped_img,
+            self.add_result_img(cropped_img,
                             img_custom_name=img_name,
                             auto_metadata = False, 
                             custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
                             # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
                             add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90R")
+            self.plot_last_generated_img()
+            self.rotate_r_crop.setChecked(False)
+            return
+                            
 
         
         else:
