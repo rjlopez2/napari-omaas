@@ -933,9 +933,48 @@ class OMAAS(QWidget):
         self.maps_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
         self.postprocessing_group.glayout.addWidget(self.maps_plot_widget, 0, 0, 1, 5)
 
-        self.plot_curr_map_btn = QPushButton("Plot current map")
-        self.postprocessing_group.glayout.addWidget(self.plot_curr_map_btn, 1, 0, 1, 1)
+        self.map_lower_clip_limit_label = QLabel("Set Lower limit")
+        self.postprocessing_group.glayout.addWidget(self.map_lower_clip_limit_label, 1, 0, 1, 1)
+        self.map_lower_clip_limit =  QLineEdit()
+        self.map_lower_clip_limit.setValidator(QDoubleValidator()) 
+        self.map_lower_clip_limit.setFixedWidth(50)
+        self.map_lower_clip_limit.setText(f"{0}")
+        self.postprocessing_group.glayout.addWidget(self.map_lower_clip_limit, 1, 1, 1, 1)
 
+        self.map_upper_clip_limit_label = QLabel("Set Upper limit")
+        self.postprocessing_group.glayout.addWidget(self.map_upper_clip_limit_label, 2, 0, 1, 1)
+        self.map_upper_clip_limit =  QLineEdit()
+        self.map_upper_clip_limit.setValidator(QDoubleValidator()) 
+        self.map_upper_clip_limit.setFixedWidth(50)
+        self.map_upper_clip_limit.setText(f"{200}")
+        self.postprocessing_group.glayout.addWidget(self.map_upper_clip_limit, 2, 1, 1, 1)
+
+        self.plot_curr_map_btn = QPushButton("Plot current map")
+        self.postprocessing_group.glayout.addWidget(self.plot_curr_map_btn, 1, 4, 1, 1)
+
+        
+        self.colormap_n_levels_label = QLabel("No Levels (colormap)")
+        self.postprocessing_group.glayout.addWidget(self.colormap_n_levels_label, 1, 2, 1, 1)
+        
+        self.colormap_n_levels = QSpinBox()
+        self.colormap_n_levels.setSingleStep(1)
+        self.colormap_n_levels.setValue(10)
+        self.postprocessing_group.glayout.addWidget(self.colormap_n_levels, 1, 3, 1, 1)
+
+
+        self.apply_cip_limits_map_label = QLabel("Apply limits")
+        self.postprocessing_group.glayout.addWidget(self.apply_cip_limits_map_label, 2, 2, 1, 1)
+        
+        self.apply_cip_limits_map = QCheckBox()
+        self.apply_cip_limits_map.setChecked(False)
+        self.postprocessing_group.glayout.addWidget(self.apply_cip_limits_map, 2, 3, 1, 1)
+
+        self.clear_curr_map_btn = QPushButton("Clear map")
+        self.postprocessing_group.glayout.addWidget(self.clear_curr_map_btn, 2, 4, 1, 1)
+
+        self.map_imgs_selector = MultiComboBox()
+        # self.map_imgs_selector.addItems(["Option 1", "Option 2", "Option 3", "Option 4"])
+        self.postprocessing_group.glayout.addWidget(self.map_imgs_selector, 3, 0, 1, 1)
         
 
 
@@ -1158,7 +1197,8 @@ class OMAAS(QWidget):
         self.slider_APD_percentage.valueChanged.connect(self._update_APD_value_for_MAP_func)
         self.slider_APD_map_percentage.valueChanged.connect(self._update_APD_value_for_APD_func)
         self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
-        self.plot_curr_map_btn.clicked.connect(self.plot_curr_map_btn_fun)
+        self.plot_curr_map_btn.clicked.connect(self._plot_curr_map_btn_fun)
+        self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
         
         
         
@@ -2163,6 +2203,10 @@ class OMAAS(QWidget):
                 
                 # self.img_list_manual_segment.clear()
                 # self.img_list_manual_segment.addItems(all_images)
+                all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
+                self.map_imgs_selector.clear()
+                self.map_imgs_selector.addItems(all_images_2d)
+                self.map_imgs_selector.setCurrentIndex(-1)
 
                 # update image selector(s) for computing ratio
                 # NOTE: this apporach is not working
@@ -3526,6 +3570,59 @@ class OMAAS(QWidget):
             self.plot_profile_btn.click()
         else:
             self.plot_profile_btn.click()
+    
+    def _plot_curr_map_btn_fun(self):
+
+        selectedItems = self.map_imgs_selector.lineEdit().text().split(",")
+        # selectedItems = [selectedItems] if isinstance(selectedItems, str) else selectedItems
+        # current_selection = self.viewer.layers.selection.active
+        if len(selectedItems) == 1 and len(selectedItems[0]) > 0:
+            current_selection = self.viewer.layers[selectedItems[0]]
+                
+            print("Selected items:", selectedItems)
+
+            if isinstance(current_selection, Image) and current_selection.ndim == 2:
+                self.maps_plot_widget.figure.clear()
+                self.maps_plot_widget.add_single_axes()
+
+                if self.apply_cip_limits_map.isChecked():
+                    lower_limit = float(self.map_lower_clip_limit.text())
+                    upper_limit = float(self.map_upper_clip_limit.text())
+                    data = np.clip(current_selection.data, lower_limit, upper_limit)
+                    
+                else:
+                    lower_limit = None
+                    upper_limit = None
+                    data = current_selection.data
+                    
+                
+                self.maps_plot_widget.axes.contour(data, 
+                                                levels= self.colormap_n_levels.value(), 
+                                                colors='k', origin="image", linewidths=1)
+                CSF = self.maps_plot_widget.axes.contourf(data, 
+                                                        levels= self.colormap_n_levels.value(), 
+                                                        cmap = "turbo", origin="image", 
+                                                        #   vmin = lower_limit, 
+                                                        #   vmax = upper_limit, 
+                                                        extend = "neither")
+
+                self.maps_plot_widget.figure.colorbar(CSF)
+                self.maps_plot_widget.axes.set_title(f"maps of image: {current_selection.name}", fontsize = 14, y=1.10)
+                self.maps_plot_widget.axes.axis('off')
+
+                print("plotting maps")
+                self.main_plot_widget.canvas.draw()
+        elif len(selectedItems)> 1:
+            return warn("Need to implement this feature or more than one image")
+        else:
+            return warn(f"No image selected. Please select an Image form the selector")
+
+            
+    
+    def _clear_curr_map_btn_func(self):
+        self.maps_plot_widget.figure.clear()
+        print("clearing maps")
+        self.main_plot_widget.canvas.draw()
 
 
 
