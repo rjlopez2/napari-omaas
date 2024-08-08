@@ -114,7 +114,8 @@ class OMAAS(QWidget):
         self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
 
         ######## pre-processing btns ########
-        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
+        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize")        
+        self.inv_and_norm_data_btn.setToolTip(("Invert and Apply Normalization to the current Image."))
         self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 1, 1, 1, 1)
 
         self.inv_data_btn = QPushButton("Invert signal")
@@ -122,15 +123,18 @@ class OMAAS(QWidget):
         self.pre_processing_group.glayout.addWidget(self.inv_data_btn , 2, 1, 1, 1)
 
         self.apply_normalization_btn = QPushButton("Normalize")        
+        self.apply_normalization_btn.setToolTip(("Apply Normalization to the current Image."))
         self.pre_processing_group.glayout.addWidget(self.apply_normalization_btn, 1, 2, 1, 1)
 
         self.data_normalization_options = QComboBox()
-        self.data_normalization_options.addItems(["Normalize (loc max)", "Normalize slide window", "Normalize (global)"])
+        self.data_normalization_options.addItems(["Local max", "Slide window", "Global"])
+        self.data_normalization_options.setToolTip(("List of normalization methods."))
         self.pre_processing_group.glayout.addWidget(self.data_normalization_options, 1, 3, 1, 1)
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
         self.splt_chann_btn = QPushButton("Split Channels")
+        self.splt_chann_btn.setToolTip(("Split the current Image stack when using dual illumination."))
         self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 2, 3, 1, 1)
 
         # self.glob_norm_data_btn = QPushButton("Normalize (global)")
@@ -1191,7 +1195,7 @@ class OMAAS(QWidget):
             elif type_of_normalization == normalization_methods[1]:
                 print(f'computing "{type_of_normalization}" to image {current_selection}')
                 results = slide_window_normalization_func(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
+                self.add_result_img(result_img=results, single_label_sufix="SliWind20", add_to_metadata = "SliWind_norm_signal")
                 self.add_record_fun()
 
             elif type_of_normalization == normalization_methods[2]:
