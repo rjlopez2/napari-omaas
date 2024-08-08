@@ -318,23 +318,23 @@ class OMAAS(QWidget):
         self.is_Expand_mask.setChecked(False)
         self.auto_segmentation_group.glayout.addWidget(self.is_inverted_mask,  1, 3, 1, 1)
 
-        self.apply_segmentation_btn = QPushButton("segment stack")
+        self.apply_segmentation_btn = QPushButton("segment stack (Auto)")
         self.auto_segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 1, 4, 1, 2)
 
         self.manual_segmentation_group = VHGroup('Manual segmentation', orientation='G')
         self.segmentation_group.glayout.addWidget(self.manual_segmentation_group.gbox,  1, 0, 1, 1)
 
-        self.img_list_manual_segment = QComboBox()
-        self.img_list_manual_segment_label = QLabel("Image")
-        self.manual_segmentation_group.glayout.addWidget(self.img_list_manual_segment_label, 0, 0, 1, 1)
-        self.manual_segmentation_group.glayout.addWidget(self.img_list_manual_segment, 0, 1, 1, 1)
+        # self.img_list_manual_segment = QComboBox()
+        # self.img_list_manual_segment_label = QLabel("Image")
+        # self.manual_segmentation_group.glayout.addWidget(self.img_list_manual_segment_label, 0, 0, 1, 1)
+        # self.manual_segmentation_group.glayout.addWidget(self.img_list_manual_segment, 0, 1, 1, 1)
 
         self.mask_list_manual_segment = QComboBox()
         self.mask_list_manual_segment_label = QLabel("Mask")
         self.manual_segmentation_group.glayout.addWidget(self.mask_list_manual_segment_label, 0, 2, 1, 1)
         self.manual_segmentation_group.glayout.addWidget(self.mask_list_manual_segment, 0, 3, 1, 1)
 
-        self.segment_manual_btn = QPushButton("segment stack")
+        self.segment_manual_btn = QPushButton("segment stack (Manual)")
         self.manual_segmentation_group.glayout.addWidget(self.segment_manual_btn, 0, 4, 1, 1)
 
 
@@ -1158,6 +1158,7 @@ class OMAAS(QWidget):
         self.slider_APD_percentage.valueChanged.connect(self._update_APD_value_for_MAP_func)
         self.slider_APD_map_percentage.valueChanged.connect(self._update_APD_value_for_APD_func)
         self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
+        self.plot_curr_map_btn.clicked.connect(self.plot_curr_map_btn_fun)
         
         
         
@@ -2160,8 +2161,8 @@ class OMAAS(QWidget):
                 self.image_selection_crop.clear()
                 self.image_selection_crop.addItems(all_images)
                 
-                self.img_list_manual_segment.clear()
-                self.img_list_manual_segment.addItems(all_images)
+                # self.img_list_manual_segment.clear()
+                # self.img_list_manual_segment.addItems(all_images)
 
                 # update image selector(s) for computing ratio
                 # NOTE: this apporach is not working
@@ -3139,47 +3140,53 @@ class OMAAS(QWidget):
 
     def _on_click_segment_manual_btn_func(self):
 
+        current_selection = self.viewer.layers.selection.active
+        if isinstance(current_selection, Image):
+
         
-        current_selection = self.viewer.layers[self.img_list_manual_segment.currentText()]
-        mask_layer = self.viewer.layers[self.mask_list_manual_segment.currentText()]
-        current_timpe_point = self.viewer.dims.current_step[0]
-        n_frames = current_selection.data.shape[0]
+            # current_selection = self.viewer.layers[self.img_list_manual_segment.currentText()]
+            mask_layer = self.viewer.layers[self.mask_list_manual_segment.currentText()]
+            current_timpe_point = self.viewer.dims.current_step[0]
+            n_frames = current_selection.data.shape[0]
 
-        if mask_layer.data.ndim == 3:
-            mask = mask_layer.data[current_timpe_point, ...] > 0
-        elif mask_layer.data.ndim == 2:
-            mask = mask_layer.data > 0
-        else:
-            raise ValueError(" Not implemented yet how to handle mask of ndim = {mask_layer.data.ndim}. Please report this or file an issue via github")
-
-
-
-        masked_image = current_selection.data.copy()
-
-        if self.is_inverted_mask.isChecked():
-                mask = np.invert(mask.astype(bool))
-
-        try:
-
-            if np.issubdtype(masked_image.dtype, np.integer):
-                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
-            elif np.issubdtype(masked_image.dtype, np.inexact):
-                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+            if mask_layer.data.ndim == 3:
+                mask = mask_layer.data[current_timpe_point, ...] > 0
+            elif mask_layer.data.ndim == 2:
+                mask = mask_layer.data > 0
             else:
+                raise ValueError(" Not implemented yet how to handle mask of ndim = {mask_layer.data.ndim}. Please report this or file an issue via github")
+
+
+
+            masked_image = current_selection.data.copy()
+
+            if self.is_inverted_mask.isChecked():
+                    mask = np.invert(mask.astype(bool))
+
+            try:
+
+                if np.issubdtype(masked_image.dtype, np.integer):
+                    masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
+                elif np.issubdtype(masked_image.dtype, np.inexact):
                     masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-        except Exception as e:
-                print(f"You have the following error @_on_click_segment_manual_btn_func: --->> {e} <----")
+                else:
+                        masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+            except Exception as e:
+                    print(f"You have the following error @_on_click_segment_manual_btn_func: --->> {e} <----")
+            
+            self.add_result_img(masked_image, 
+                                auto_metadata=False,
+                                custom_metadata=current_selection.metadata,
+                                img_custom_name=current_selection.name, 
+                                single_label_sufix = f"NullBckgrnd",
+                                add_to_metadata = f"Background subtracted")
+
+
+
+            print(f"segmenting manually image '{current_selection.name}' from mask '{mask_layer.name}'.")
         
-        self.add_result_img(masked_image, 
-                            auto_metadata=False,
-                            custom_metadata=current_selection.metadata,
-                            img_custom_name=current_selection.name, 
-                            single_label_sufix = f"NullBckgrnd",
-                            add_to_metadata = f"Background subtracted")
-
-
-
-        print(f"segmenting manually image '{current_selection.name}' from mask '{mask_layer.name}'.")
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
     
     
     
