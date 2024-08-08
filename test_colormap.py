@@ -14,6 +14,16 @@ import numpy as np
 # viewer = napari.view_image(data.cells3d(), channel_axis=1, ndisplay=3)
 
 # viewer.open("12h-49m-26s.sif", plugin="napari-"  )
+def show_last_layer():
+    """
+    easy helper to hide all layers but last one
+    """
+    for layer in viewer.layers:
+        layer.visible = False
+    viewer.layers[-1].visible = True
+
+
+
 viewer = napari.Viewer()
 o = napari_omaas.OMAAS(viewer)
 viewer.window.add_dock_widget(o, area='right')
@@ -73,9 +83,70 @@ o.butter_cutoff_freq_val.setText(str(25))
 o.apply_temp_filt_btn.click()
 o.plot_last_generated_img()
 
+########################################
+########## average the traces ##########
+########################################
+o.tabs.setCurrentIndex(3)
+# change the size/position of the ROI if needed
+viewer.layers["my_shape"].data = [np.array([[ 96.64137382,  87.74368408],
+                                            [ 96.64137382, 153.2336691 ],
+                                            [155.86104112, 153.2336691 ],
+                                            [155.86104112,  87.74368408]])]
+my_threshold = 0.0045
+o.slider_APD_detection_threshold.setValue(int(my_threshold * 10000))
+# # viewer.layers.select_previous()
+o.preview_AP_splitted_btn.click()
+# # viewer.layers.selection.active.visible = False
+o.create_average_AP_btn.click()
+viewer.layers["my_shape"].data = my_shape
+o.plot_last_generated_img()
+o.tabs.setCurrentIndex(0)
+# # viewer.layers.selection.active.visible = False
 
+########################################
+########## segment heart shape #########
+########################################
+
+o.return_img_no_backg_btn.setChecked(False)
+o.is_inverted_mask.setChecked(False)
+viewer.layers.selection.active = viewer.layers[0]
+o.apply_segmentation_btn.click()
+viewer.layers.selection.active = viewer.layers[-2]
+viewer.layers.selection.active = viewer.layers[-2]
+# # o.plot_last_generated_img()
+o.segment_manual_btn.click()
+
+show_last_layer()
+o.plot_last_generated_img()
 
 # o.tabs.setCurrentIndex(3)
 # o.mapping_tabs.setCurrentIndex(1)
 # viewer.window.remove_dock_widget(o)
+
+
+########################################
+########## Create maps #########
+########################################
+
+# create act maps
+o.make_maps_btn.click()
+
+# create APD maps
+o.toggle_map_type.setChecked(True)
+map_values = [25, 75, 90]
+for values in map_values:
+    o.slider_APD_map_percentage.setValue(values)
+    viewer.layers.selection.active = viewer.layers["20233011_15h-13m-56_Crop_clip_Inv_GloNor_FiltMedian_MednFilt5_FiltButterworth_cffreq25_ord5_fps356_Ave_NullBckgrnd"]
+    o.make_maps_btn.click()
+
+
+
+# save image
+
+
+
+
+
+
+
 napari.run()  # start the "event loop" and show the viewer
