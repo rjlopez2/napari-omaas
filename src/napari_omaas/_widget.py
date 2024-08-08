@@ -820,6 +820,7 @@ class OMAAS(QWidget):
 
         ######## Mapping tab ########
         # ####################################
+        self.mapping_tabs = QTabWidget()
         self._mapping_processing_layout.setAlignment(Qt.AlignTop)
 
         ##### APD_plot_group ########
@@ -924,6 +925,25 @@ class OMAAS(QWidget):
         self.average_trace_group.glayout.addWidget(self.plot_APD_boundaries_btn, 7, 2, 1, 3)
 
 
+
+        ##### Postprocessing Map group ########
+        self.postprocessing_group = VHGroup('Postprocessing Maps', orientation='G')
+        # self._mapping_processing_layout.addWidget(self.postprocessing_group.gbox)
+
+        self.maps_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+        self.postprocessing_group.glayout.addWidget(self.maps_plot_widget, 0, 0, 1, 5)
+
+        self.plot_curr_map_btn = QPushButton("Plot current map")
+        self.postprocessing_group.glayout.addWidget(self.plot_curr_map_btn, 1, 0, 1, 1)
+
+        
+
+
+
+        # Adding mapping subtabs
+        self.mapping_tabs.addTab(self.average_trace_group.gbox, 'Preprocessing Maps')
+        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Postporecessing Maps')
+        self._mapping_processing_layout.addWidget(self.mapping_tabs)
 
 
 
