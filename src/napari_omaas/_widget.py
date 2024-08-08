@@ -362,7 +362,8 @@ class OMAAS(QWidget):
         self.search_spool_dir_btn = QPushButton("Search Directory")
         self.load_spool_group.glayout.addWidget(self.search_spool_dir_btn, 3, 4, 1, 1)
 
-
+        # self.fast_loading = QCheckBox("Multithreading")
+        # self.load_spool_group.glayout.addWidget(self.fast_loading, 3, 5, 1, 1)
 
 
         ######## Segmentation group ########
@@ -3265,7 +3266,8 @@ class OMAAS(QWidget):
                     # self.add_record_fun()
                     # self.plot_profile_btn.setChecked(False)
                     self.clip_label_range.setChecked(False)
-                    print(f"image '{image.name}' clipped from {round(start_indx * self.xscale, 2)} to {round(end_indx * self.xscale, 2)}")
+                    self.plot_last_generated_img()
+                    print(f"image '{image.name}' clipped from time/index: {round(start_indx * self.xscale, 2)}/[{start_indx}] to {round(end_indx * self.xscale, 2)}/[{end_indx}]")
             else:
                 return warn("Preview the clipping range firts by ticking the 'Show range'.")
         else:
@@ -3431,25 +3433,32 @@ class OMAAS(QWidget):
             cropped_img = np.rot90(cropped_img, axes=(1, 2))
             print(f"result image rotate 90° to the left")
 
-            return self.add_result_img(cropped_img,
+            self.add_result_img(cropped_img,
                             img_custom_name=img_name,
                             auto_metadata = False, 
                             custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
                             # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
                             add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90L")
+            self.plot_last_generated_img()
+            self.rotate_l_crop.setChecked(False)
+            return
 
         if self.rotate_r_crop.isChecked():
             cropped_img = np.rot90(cropped_img, axes=(2, 1))
             print(f"result image rotate 90° to the right")
 
-            return self.add_result_img(cropped_img,
+            self.add_result_img(cropped_img,
                             img_custom_name=img_name,
                             auto_metadata = False, 
                             custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
                             # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
                             add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90R")
+            self.plot_last_generated_img()
+            self.rotate_r_crop.setChecked(False)
+            return
+                            
 
         
         else:
@@ -3474,6 +3483,22 @@ class OMAAS(QWidget):
     def _update_APD_value_for_APD_func(self):
         new_value = self.slider_APD_map_percentage.value()
         self.slider_APD_percentage.setValue(new_value)
+    
+    def plot_last_generated_img(self, shape_indx = 0):
+        """
+        easy helper to change selections and plot last image generated
+        """
+        self.listShapeswidget.clearSelection()
+        self.listShapeswidget.item(shape_indx).setSelected(True)
+        
+        self.listImagewidget.clearSelection()
+        last_img_indx = self.listImagewidget.count() -1 if self.listImagewidget.count() > 0 else None 
+        self.listImagewidget.item(last_img_indx).setSelected(True)
+        if self.plot_profile_btn.isChecked():
+            self.plot_profile_btn.click()
+            self.plot_profile_btn.click()
+        else:
+            self.plot_profile_btn.click()
 
 
 

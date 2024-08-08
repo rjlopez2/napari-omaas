@@ -10,6 +10,7 @@ import numpy as np
 import os
 from glob import glob 
 from warnings import warn
+# import napari_omaas as o
 
 SUPPORTED_IMAGES = ".sif", ".SIF", ".sifx", ".SIFX"
 
@@ -34,9 +35,14 @@ def napari_get_reader(path):
         path = path[0]
     
     if isinstance(path, str) and os.path.isdir(path):
+        sifx_file = glob(os.path.join(path, "*.sifx"))
 
-        if glob(os.path.join(path, "*.sifx"))[0].endswith(".sifx"):
+        if len(sifx_file) > 0:
+            # sifx_file[0].endswith(".sifx"):
             return reader_function
+        else:
+            warn(" No file found in current directory with extension '*.sifx'")
+            return None
 
         
     # if we know we cannot read the file, we immediately return None.
@@ -77,7 +83,8 @@ def reader_function(path):
     # stack arrays into single array
 
     if os.path.isdir(path):
-        data, info = sif_parser.np_spool_open(path, multithreading=True)
+        # is_multithreading = o.fast_loading.isChecked()
+        data, info = sif_parser.np_spool_open(path, multithreading=False)
         
     elif  os.path.isfile(path):
         data, info = sif_parser.np_open(path)
