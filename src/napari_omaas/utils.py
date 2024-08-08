@@ -611,6 +611,51 @@ def apply_butterworth_filt_func(data: "napari.types.ImageData",
 
 
 @macro.record
+def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq
+        )-> "Image":
+        
+        """
+        Transfrom numpy array values to type: np.uint16.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            The image to be processed.
+        
+        ac_freq : float
+            Acquisition time interval betwen each fram in ms.
+        
+        cf_freq : int
+            Cutoff Frequency for butterworth low band filter.
+
+        fil_ord : int
+            Order size of the filter.
+        
+        source: https://chatgpt.com/share/9907ea1b-a997-4547-b21d-493eed893225
+     
+    
+        Returns
+        -------
+            filt_image : np.ndarray with filtered data along time dimension.
+
+        """
+
+        # Design the FIR filter
+        # Define the number of taps (filter length) and the cutoff frequency
+        num_taps = 21  # Length of the filter
+        cutoff_frequency = 0.1  # Normalized cutoff frequency (0 to 1, where 1 is Nyquist frequency)
+
+        # Use firwin to create a low-pass FIR filter
+        fir_coeff = signal.firwin(num_taps, cutoff_frequency, window='hamming')
+
+        # Apply the FIR filter along the temporal axis (axis=0)
+        filt_image = np.apply_along_axis(lambda m: signal.lfilter(fir_coeff, 1.0, m), axis=0, arr=data)
+        return filt_image
+        
+
+
+
+@macro.record
 def apply_box_filter(data: "napari.types.ImageData", kernel_size):
 
     # data = image.active.data

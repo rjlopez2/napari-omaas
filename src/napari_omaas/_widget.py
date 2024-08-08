@@ -197,9 +197,9 @@ class OMAAS(QWidget):
         self.cutoff_freq_label = QLabel("Cutoff frequency")
         self.temp_filter_group.glayout.addWidget(self.cutoff_freq_label, 1, 0, 1, 1)
 
-        self.butter_cutoff_freq_val = QSpinBox()
-        self.butter_cutoff_freq_val.setSingleStep(5)
-        self.butter_cutoff_freq_val.setValue(45)
+        self.butter_cutoff_freq_val = QLineEdit()
+        self.butter_cutoff_freq_val.setValidator(QDoubleValidator()) 
+        self.butter_cutoff_freq_val.setText("45")
         self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_val, 1, 1, 1, 1)
         
         self.filt_order_label = QLabel("Filter order")
@@ -1604,7 +1604,7 @@ class OMAAS(QWidget):
         if isinstance(current_selection, Image):
             filter_type = self.temp_filter_types.currentText()
             all_my_filters = [self.temp_filter_types.itemText(i) for i in range(self.temp_filter_types.count())]
-            cutoff_freq_value = self.butter_cutoff_freq_val.value()
+            cutoff_freq_value = self.butter_cutoff_freq_val.text()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
             metadata = current_selection.metadata
@@ -1612,6 +1612,7 @@ class OMAAS(QWidget):
             if filter_type == all_my_filters[0]:
 
                 print(f'applying "{filter_type}" filter to image {current_selection}')
+                cutoff_freq_value = int(cutoff_freq_value)
                 results = apply_butterworth_filt_func(current_selection.data, 
                                                     ac_freq=fps_val, 
                                                     cf_freq= cutoff_freq_value, 
@@ -1628,8 +1629,26 @@ class OMAAS(QWidget):
                 
             
             elif filter_type == all_my_filters[1]:
+                try:
 
-                return warn("Current filter '{filter_type}' is not supported.")
+                    n_taps = 21
+                    ct_freq = float(cutoff_freq_value)
+
+                    results = apply_FIR_filt_func(current_selection.data, n_taps=n_taps, cf_freq=ct_freq)
+
+                    self.add_result_img(results, 
+                                        auto_metadata=False, 
+                                        custom_metadata=metadata,
+                                        single_label_sufix = f"Filt{filter_type}", 
+                                        cffreq = ct_freq, 
+                                        n_taps = n_taps, 
+                                        add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{ct_freq}_n_taps{n_taps}")
+                    
+                    # return warn("Current filter '{filter_type}' is not supported.")
+                except Exception as e:
+                        # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                        raise e
+
             
             self.add_record_fun()
 
