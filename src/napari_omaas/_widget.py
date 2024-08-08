@@ -3573,47 +3573,85 @@ class OMAAS(QWidget):
     
     def _plot_curr_map_btn_fun(self):
 
-        selectedItems = self.map_imgs_selector.lineEdit().text().split(",")
+        # selectedItems = self.map_imgs_selector.lineEdit().text().split(", ")
+        selectedItems = [x.strip() for x in self.map_imgs_selector.lineEdit().text().split(',')]
         # selectedItems = [selectedItems] if isinstance(selectedItems, str) else selectedItems
         # current_selection = self.viewer.layers.selection.active
         if len(selectedItems) == 1 and len(selectedItems[0]) > 0:
             current_selection = self.viewer.layers[selectedItems[0]]
                 
-            print("Selected items:", selectedItems)
+            # print("Selected items:", selectedItems)
+            self.maps_plot_widget.figure.clear()
+            self.maps_plot_widget.add_single_axes()
 
-            if isinstance(current_selection, Image) and current_selection.ndim == 2:
-                self.maps_plot_widget.figure.clear()
-                self.maps_plot_widget.add_single_axes()
+            if self.apply_cip_limits_map.isChecked():
+                lower_limit = float(self.map_lower_clip_limit.text())
+                upper_limit = float(self.map_upper_clip_limit.text())
+                data = np.clip(current_selection.data, lower_limit, upper_limit)
 
-                if self.apply_cip_limits_map.isChecked():
-                    lower_limit = float(self.map_lower_clip_limit.text())
-                    upper_limit = float(self.map_upper_clip_limit.text())
-                    data = np.clip(current_selection.data, lower_limit, upper_limit)
-                    
-                else:
-                    lower_limit = None
-                    upper_limit = None
-                    data = current_selection.data
-                    
+            else:
+                lower_limit = None
+                upper_limit = None
+                data = current_selection.data
                 
-                self.maps_plot_widget.axes.contour(data, 
-                                                levels= self.colormap_n_levels.value(), 
-                                                colors='k', origin="image", linewidths=1)
-                CSF = self.maps_plot_widget.axes.contourf(data, 
-                                                        levels= self.colormap_n_levels.value(), 
-                                                        cmap = "turbo", origin="image", 
-                                                        #   vmin = lower_limit, 
-                                                        #   vmax = upper_limit, 
-                                                        extend = "neither")
+            
+            self.maps_plot_widget.axes.contour(data, 
+                                            levels= self.colormap_n_levels.value(), 
+                                            colors='k', origin="image", linewidths=1)
+            CSF = self.maps_plot_widget.axes.contourf(data, 
+                                                    levels= self.colormap_n_levels.value(), 
+                                                    cmap = "turbo", origin="image", 
+                                                    #   vmin = lower_limit, 
+                                                    #   vmax = upper_limit, 
+                                                    extend = "neither")
 
-                self.maps_plot_widget.figure.colorbar(CSF)
-                self.maps_plot_widget.axes.set_title(f"maps of image: {current_selection.name}", fontsize = 14, y=1.10)
-                self.maps_plot_widget.axes.axis('off')
+            self.maps_plot_widget.figure.colorbar(CSF)
+            self.maps_plot_widget.axes.set_title(f"maps of image: {current_selection.name}", fontsize = 14, y=1.10)
+            self.maps_plot_widget.axes.axis('off')
 
-                print("plotting maps")
-                self.main_plot_widget.canvas.draw()
+            print("plotting maps")
+            # self.maps_plot_widget.axes.set_facecolor("white")
+            self.maps_plot_widget.figure.set_facecolor("white")
+            self.main_plot_widget.canvas.draw()
+
         elif len(selectedItems)> 1:
-            return warn("Need to implement this feature or more than one image")
+            # return warn("Need to implement this feature or more than one image")
+            self.maps_plot_widget.figure.clear()
+            self.maps_plot_widget.add_single_axes()
+            current_selection = [self.viewer.layers[item].data for item in selectedItems]
+            data = np.concatenate(current_selection, axis = 1)
+
+            if self.apply_cip_limits_map.isChecked():
+                lower_limit = float(self.map_lower_clip_limit.text())
+                upper_limit = float(self.map_upper_clip_limit.text())
+                data = np.clip(data, lower_limit, upper_limit)
+
+            else:
+                lower_limit = None
+                upper_limit = None
+                data = data
+                
+            
+            self.maps_plot_widget.axes.contour(data, 
+                                            levels= self.colormap_n_levels.value(), 
+                                            colors='k', origin="image", linewidths=1)
+            CSF = self.maps_plot_widget.axes.contourf(data, 
+                                                    levels= self.colormap_n_levels.value(), 
+                                                    cmap = "turbo", origin="image", 
+                                                    #   vmin = lower_limit, 
+                                                    #   vmax = upper_limit, 
+                                                    extend = "neither")
+
+            self.maps_plot_widget.figure.colorbar(CSF)
+            self.maps_plot_widget.axes.set_title(f"maps of image: {[item for item in selectedItems]}", fontsize = 14, y=1.10)
+            self.maps_plot_widget.axes.axis('off')
+
+            print("plotting maps")
+            # self.maps_plot_widget.axes.set_facecolor("white")
+            self.maps_plot_widget.figure.set_facecolor("white")
+            self.main_plot_widget.canvas.draw()
+
+        
         else:
             return warn(f"No image selected. Please select an Image form the selector")
 
