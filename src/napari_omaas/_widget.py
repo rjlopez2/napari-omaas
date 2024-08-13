@@ -2192,6 +2192,7 @@ class OMAAS(QWidget):
                 self.ROI_selection_2.addItems(shape_layers)
                 self.ROI_selection_crop.clear()
                 self.ROI_selection_crop.addItems(shape_layers) 
+                self.ROI_selection_crop.setCurrentIndex(0)
                 # update shapes in selector widget
                 for shape in shape_layers:
                     item = QtWidgets.QListWidgetItem(shape)
@@ -2205,6 +2206,7 @@ class OMAAS(QWidget):
                 # update image selector for cropping
                 self.image_selection_crop.clear()
                 self.image_selection_crop.addItems(all_images)
+                self.image_selection_crop.setCurrentIndex(0)
                 
                 # self.img_list_manual_segment.clear()
                 # self.img_list_manual_segment.addItems(all_images)
@@ -3105,16 +3107,16 @@ class OMAAS(QWidget):
             # Handeling size ndim of data (2d or 3d allow only)
             if current_selection.ndim == 3:
                 # data = current_selection.data.mean(axis = 0)
-                data = current_selection.data.max(axis = 0)
+                array2d_for_mask = current_selection.data.max(axis = 0)
             elif current_selection.ndim == 2:
-                data = current_selection.data
+                array2d_for_mask = current_selection.data
             else : 
                 raise ValueError(f"Not implemented segemntation for Image with dimensions = {current_selection.ndim}.")
             
             if segmentation_method_selected == segmentation_methods[0]:
                 print(f'applying "{segmentation_method_selected}" method to image {current_selection}')
                 try:
-                    mask = segment_image_triangle(data)
+                    mask = segment_image_triangle(array2d_for_mask)
                     mask = polish_mask(mask)
                 except Exception as e:
                     raise CustomException(e, sys)
@@ -3122,9 +3124,12 @@ class OMAAS(QWidget):
 
                 
             elif segmentation_method_selected == segmentation_methods[1]:
-                mask, threshold = segment_image_GHT(data, return_threshold=True)
-                mask = polish_mask(mask)
-                print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}" with threshold: {threshold}')
+                try:
+                    mask, threshold = segment_image_GHT(array2d_for_mask, return_threshold=True)
+                    mask = polish_mask(mask)
+                    print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}" with threshold: {threshold}')
+                except Exception as e:
+                    raise CustomException(e, sys)
             
             
             elif segmentation_method_selected == segmentation_methods[2]:
@@ -3134,11 +3139,19 @@ class OMAAS(QWidget):
                 if self.is_Expand_mask.isChecked():
                     expand = int(self.n_pixels_expand.currentText())
                     # using maximum pixels intetnsity as reference
-                    mask = segement_region_based_func(data, lo_t = lo_t, hi_t = hi_t, expand = expand)
+                    try:
+
+                        mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = expand)
+                    except Exception as e:
+                        raise CustomException(e, sys)
 
                 else:
                     # using maximum pixels intetnsity as reference
-                    mask = segement_region_based_func(data, lo_t = lo_t, hi_t = hi_t, expand = None)
+                    try:
+
+                        mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = None)
+                    except Exception as e:
+                        raise CustomException(e, sys)
                 # mask = polish_mask(mask)
                 print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
 
@@ -3164,7 +3177,7 @@ class OMAAS(QWidget):
             if self.return_img_no_backg_btn.isChecked():
                 # 8. remove background using mask
                 n_frames =current_selection.data.shape[0]
-                masked_image = data.copy()
+                masked_image = current_selection.data.copy()
 
                 if masked_image.ndim == 3:
                     
