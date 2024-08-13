@@ -12,6 +12,7 @@ from skimage.restoration import denoise_bilateral
 import warnings
 from napari.layers import Image
 import sif_parser
+import sys
 # from numba import njit
 import tqdm.auto as tqdm
 from napari.utils import progress
@@ -1407,7 +1408,7 @@ def segment_image_triangle(np_array,
     # 3. apply threshold
     # thresh = threshold_otsu(img_adapteq)
     # thresh = threshold_li(one_frame_img)
-    thresh = threshold_triangle(np_array)
+    thresh = threshold_triangle(np.nan_to_num(np.nan))
     # # thresh = threshold_sauvola(one_frame_img, window_size=wind_s)
     # # thresh = threshold_niblack(one_frame_img, window_size=wind_s)
 
