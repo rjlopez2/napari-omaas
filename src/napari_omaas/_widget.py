@@ -28,6 +28,7 @@ from napari.components.layerlist import LayerList
 from napari.utils import progress
 
 from skimage.measure import label
+from random import randint
 
 import copy
 import subprocess
@@ -934,9 +935,9 @@ class OMAAS(QWidget):
         self.maps_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
         self.postprocessing_group.glayout.addWidget(self.maps_plot_widget, 0, 0, 1, 5)
 
-        self.maps_selectro_label =  QLabel("Image selector:")
-        self.maps_selectro_label.setToolTip("Image Selector for diplaying and post-processing maps.")
-        self.postprocessing_group.glayout.addWidget(self.maps_selectro_label, 1, 0, 1, 1)
+        self.maps_selector_label =  QLabel("Image selector:")
+        self.maps_selector_label.setToolTip("Image Selector for diplaying and post-processing maps.")
+        self.postprocessing_group.glayout.addWidget(self.maps_selector_label, 1, 0, 1, 1)
 
         self.map_imgs_selector = MultiComboBox()
         # self.map_imgs_selector.addItems(["Option 1", "Option 2", "Option 3", "Option 4"])
@@ -981,7 +982,16 @@ class OMAAS(QWidget):
         self.clear_curr_map_btn = QPushButton("Clear Maps")
         self.postprocessing_group.glayout.addWidget(self.clear_curr_map_btn, 3, 4, 1, 1)
         
+        self.erode_siluete_label = QLabel("Reduce Map Edge (px)")
+        self.postprocessing_group.glayout.addWidget(self.erode_siluete_label, 4, 0, 1, 1)
 
+        self.n_pixels_erode = QSpinBox()
+        self.n_pixels_erode.setSingleStep(1)
+        self.n_pixels_erode.setValue(1)
+        self.postprocessing_group.glayout.addWidget(self.n_pixels_erode, 4, 1, 1, 1)
+
+        self.preview_erode_btn = QPushButton("Preview")
+        self.postprocessing_group.glayout.addWidget(self.preview_erode_btn, 4, 2, 1, 1)
 
 
         # Adding mapping subtabs
@@ -1204,6 +1214,7 @@ class OMAAS(QWidget):
         self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
         self.plot_curr_map_btn.clicked.connect(self._plot_curr_map_btn_fun)
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
+        self.preview_erode_btn.clicked.connect(self._preview_erode_btn_func)
         
         
         
@@ -3628,11 +3639,11 @@ class OMAAS(QWidget):
 
         if len(selectedItems) == 1 and len(selectedItems[0]) > 0:
             current_selection = self.viewer.layers[selectedItems[0]]
-            data = current_selection.data
+            self.map_data = current_selection.data
 
         elif len(selectedItems) > 1:
             current_selection = [self.viewer.layers[item].data for item in selectedItems]
-            data = np.concatenate(current_selection, axis = 1)
+            self.map_data = np.concatenate(current_selection, axis = 1)
         
         else:
             return warn(f"No image selected. Please select an Image from the selector")
@@ -3642,18 +3653,18 @@ class OMAAS(QWidget):
         if self.apply_cip_limits_map.isChecked():
             lower_limit = float(self.map_lower_clip_limit.text())
             upper_limit = float(self.map_upper_clip_limit.text())
-            data = np.clip(data, lower_limit, upper_limit)
+            self.map_data = np.clip(self.map_data, lower_limit, upper_limit)
 
         else:
             lower_limit = None
             upper_limit = None
-            data = data
+            self.map_data = self.map_data
             
         
-        self.maps_plot_widget.axes.contour(data, 
+        self.maps_plot_widget.axes.contour(self.map_data, 
                                         levels= self.colormap_n_levels.value(), 
                                         colors='k', origin="image", linewidths=1)
-        CSF = self.maps_plot_widget.axes.contourf(data, 
+        CSF = self.maps_plot_widget.axes.contourf(self.map_data, 
                                                 levels= self.colormap_n_levels.value(), 
                                                 cmap = "turbo", origin="image", 
                                                 #   vmin = lower_limit, 
@@ -3684,6 +3695,20 @@ class OMAAS(QWidget):
         self.maps_plot_widget.figure.clear()
         print("clearing maps")
         self.maps_plot_widget.canvas.draw()
+    
+    
+    
+    def _preview_erode_btn_func(self):
+        # self.w = AnotherWindow()
+        # self.w.show()
+
+        self.InterctiveWindod_edit_map = InterctiveWindowMapErode(self.viewer, self)
+        self.InterctiveWindod_edit_map.show()
+
+    
+    def _close_preview_erode_window_btn(self):
+        self.InterctiveWindowMapErode.close()
+
 
 
 
@@ -3751,6 +3776,74 @@ def example_function_widget(img_layer: "napari.layers.Image"):
 #         self.plot_grpup.glayout.addWidget(self.plot_widget, 1, 1, 1, 2)
 #         self.main_layout.addWidget(self.average_APs_widget)
 
+class InterctiveWindowMapErode(QWidget):
+    """
+    This "window" is a QWidget. If it has no parent, it
+    will appear as a free-floating window as we want.
+    """
+    def __init__(self, napari_viewer, OMAAS):
+        self.viewer = napari_viewer
+        self.o = OMAAS
+        super().__init__()
+        # layout = QVBoxLayout()
+        # self.label = QLabel("Another Window % d" % randint(0,100))
+        # layout.addWidget(self.label)
+        # self.setLayout(layout)
+        # self.main_widget = QWidget()
+        self.InterctiveWindowMapErode_layout = QVBoxLayout()
+
+        self.preview_map_erode_group = VHGroup('Erode map image edges', orientation='G')
+
+        self.InterctiveWindowMapErode_layout.addWidget(self.preview_map_erode_group.gbox)
+
+        # self.test_label = QLabel("Another Window % d" % randint(0,100))
+        # self.preview_map_erode_group.glayout.addWidget(self.test_label, 0, 0, 1, 1)
+        self.preview_plotter_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+        self.preview_plotter_widget.add_single_axes()
+        self.map_data = self.o.map_data.copy()
+        self.preview_plotter_widget.axes.imshow(self.map_data, cmap="turbo")
+        # self.maps_plot_widget.axes.contour(data, 
+        #                                 levels= self.colormap_n_levels.value(), 
+        #                                 colors='k', origin="image", linewidths=1)
+        # CSF = self.maps_plot_widget.axes.contourf(data, 
+        #                                         levels= self.colormap_n_levels.value(), 
+        #                                         cmap = "turbo", origin="image", 
+        #                                         #   vmin = lower_limit, 
+        #                                         #   vmax = upper_limit, 
+        #                                         extend = "neither")
+        self.preview_map_erode_group.glayout.addWidget(self.preview_plotter_widget, 0, 0, 1, 3)
+
+        self.n_pixels_erode_label = QLabel("Number of Px:")
+        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_label, 1, 0, 1, 1)
+        
+        self.n_pixels_erode = QLabeledSlider()
+        self.n_pixels_erode.setRange(0, 25)
+        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode, 1, 1, 1, 1)
+
+        self.apply_erosion_btn = QPushButton( "Apply changes")
+        self.preview_map_erode_group.glayout.addWidget(self.apply_erosion_btn, 1, 2, 1, 1)
+                  
+        
+        self.setLayout(self.InterctiveWindowMapErode_layout)
+    
+        ##############
+        # Callbacks ##
+        ##############
+        self.apply_erosion_btn.clicked.connect(self._apply_erosion_btn_func)
+        self.n_pixels_erode.valueChanged.connect(self.n_pixels_erode_func)
+
+
+    def _apply_erosion_btn_func(self):
+        print("responding")
+    
+    def n_pixels_erode_func(self):
+        print("lalala")
+
+        
+        
+        # self.InterctiveWindowMapErode.show()
+
+        # print("preview")
 
 
 
