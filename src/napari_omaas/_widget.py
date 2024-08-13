@@ -35,6 +35,7 @@ import pandas as pd
 
 from .utils import *
 import os
+import sys
 from pathlib import Path
 import h5py
 import tifffile
@@ -3101,15 +3102,27 @@ class OMAAS(QWidget):
             kernel_size = self.filt_kernel_value.value()
             sigma_col = self.sigma_filt_color_value.value()
             
+            # Handeling size ndim of data (2d or 3d allow only)
+            if current_selection.ndim == 3:
+                # data = current_selection.data.mean(axis = 0)
+                data = current_selection.data.max(axis = 0)
+            elif current_selection.ndim == 2:
+                data = current_selection.data
+            else : 
+                raise ValueError(f"Not implemented segemntation for Image with dimensions = {current_selection.ndim}.")
+            
             if segmentation_method_selected == segmentation_methods[0]:
                 print(f'applying "{segmentation_method_selected}" method to image {current_selection}')
-                mask = segment_image_triangle(current_selection.data)
-                mask = polish_mask(mask)
+                try:
+                    mask = segment_image_triangle(data)
+                    mask = polish_mask(mask)
+                except Exception as e:
+                    raise CustomException(e, sys)
                 print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
 
                 
             elif segmentation_method_selected == segmentation_methods[1]:
-                mask, threshold = segment_image_GHT(current_selection.data, return_threshold=True)
+                mask, threshold = segment_image_GHT(data, return_threshold=True)
                 mask = polish_mask(mask)
                 print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}" with threshold: {threshold}')
             
@@ -3121,11 +3134,11 @@ class OMAAS(QWidget):
                 if self.is_Expand_mask.isChecked():
                     expand = int(self.n_pixels_expand.currentText())
                     # using maximum pixels intetnsity as reference
-                    mask = segement_region_based_func(current_selection.data.max(axis = (0)), lo_t = lo_t, hi_t = hi_t, expand = expand)
+                    mask = segement_region_based_func(data, lo_t = lo_t, hi_t = hi_t, expand = expand)
 
                 else:
                     # using maximum pixels intetnsity as reference
-                    mask = segement_region_based_func(current_selection.data.max(axis = (0)), lo_t = lo_t, hi_t = hi_t, expand = None)
+                    mask = segement_region_based_func(data, lo_t = lo_t, hi_t = hi_t, expand = None)
                 # mask = polish_mask(mask)
                 print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
 
@@ -3151,17 +3164,33 @@ class OMAAS(QWidget):
             if self.return_img_no_backg_btn.isChecked():
                 # 8. remove background using mask
                 n_frames =current_selection.data.shape[0]
-                masked_image = current_selection.data.copy()
-                try:
+                masked_image = data.copy()
 
-                    if np.issubdtype(masked_image.dtype, np.integer):
-                        masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
-                    elif np.issubdtype(masked_image.dtype, np.inexact):
-                        masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-                    else:
-                         masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-                except Exception as e:
-                        print(f"You have the following error @_on_click_apply_segmentation_btn_fun: --->> {e} <----")
+                if masked_image.ndim == 3:
+                    
+                    try:
+
+                        if np.issubdtype(masked_image.dtype, np.integer):
+                            masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
+
+                        # elif np.issubdtype(masked_image.dtype, np.inexact):
+                        #     masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+
+                        else:
+                            masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+                    except Exception as e:
+                            raise CustomException(e, sys)
+                else:
+
+                    try:
+                        if np.issubdtype(masked_image.dtype, np.integer):
+                            masked_image[~mask.astype(bool)] = 0
+                        else:
+                            masked_image[~mask.astype(bool)] = None
+
+                    except Exception as e:
+                            raise CustomException(e, sys)
+
 
 
 

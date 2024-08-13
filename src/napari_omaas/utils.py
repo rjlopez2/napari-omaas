@@ -1408,13 +1408,13 @@ def segment_image_triangle(np_array,
     # 3. apply threshold
     # thresh = threshold_otsu(img_adapteq)
     # thresh = threshold_li(one_frame_img)
-    thresh = threshold_triangle(np.nan_to_num(np.nan))
+    thresh = threshold_triangle(np.nan_to_num(np_array))
     # # thresh = threshold_sauvola(one_frame_img, window_size=wind_s)
     # # thresh = threshold_niblack(one_frame_img, window_size=wind_s)
 
     # 4.  create mask
     # mask = one_frame_img > thresh
-    mask = np_array.mean(axis = 0) > thresh
+    mask = np_array > thresh
     # bw = closing(mask, square(square_s))
 
     # # remove artifacts connected to image border
@@ -1472,7 +1472,7 @@ def segment_image_GHT(image, threshold=None, return_threshold=False,
         threshold = detect_background_threshold(image)
         print(f"Creating mask with detected threshold {threshold}")
 
-    mask = image.mean(axis = 0) > threshold
+    mask = image > threshold
     
     if return_threshold:
         return mask, threshold
@@ -1739,7 +1739,7 @@ class MultiComboBox(QComboBox):
 def error_message_detail(error,error_detail:sys):
     _,_,exc_tb=error_detail.exc_info()
     file_name=exc_tb.tb_frame.f_code.co_filename
-    error_message="Error occured in python script name [{0}] line number [{1}] error message[{2}]".format(
+    error_message="\n**************\nError in script file:\n'{0}'.\nLine number:\n'{1}'.\nWith error message:\n---->>>> '{2}' <<<<----\n**************".format(
      file_name,exc_tb.tb_lineno,str(error))
 
     return error_message
