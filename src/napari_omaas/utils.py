@@ -1523,6 +1523,28 @@ def optimap_mot_correction(np_array, c_k, pre_smooth_t, proe_smooth_s, ref_fr):
     return video_warped
 
 
+def gaussian_filter_nan(array, sigma=1, radius=3, axes=(0, 1), truncate = 4):
+    
+    # taken from this post https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
+    
+    # sigma=2.0                  # standard deviation for Gaussian kernel
+    # truncate=4.0               # truncate filter at this many sigmas
+    U = array
+    # U=sp.randn(10,10)          # random array...
+    # U[U>2]=np.nan              # ...with NaNs for testing
+    
+    V=U.copy()
+    V[np.isnan(U)]=0
+    VV=gaussian_filter(V,sigma=sigma, radius= radius, axes = axes, truncate=truncate)
+    
+    W=0*U.copy()+1
+    W[np.isnan(U)]=0
+    WW=gaussian_filter(W,sigma=sigma, radius= radius, axes = axes, truncate=truncate)
+    WW[WW==0]=np.nan
+    
+    return VV/WW
+
+
 
 
 # this class helper allow to make gorup layouts easily"

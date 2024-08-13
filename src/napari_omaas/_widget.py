@@ -3811,17 +3811,40 @@ class InterctiveWindowMapErode(QWidget):
         #                                         #   vmin = lower_limit, 
         #                                         #   vmax = upper_limit, 
         #                                         extend = "neither")
-        self.preview_map_erode_group.glayout.addWidget(self.preview_plotter_widget, 0, 0, 1, 3)
+        self.preview_map_erode_group.glayout.addWidget(self.preview_plotter_widget, 0, 0, 1, 6)
 
         self.n_pixels_erode_label = QLabel("Number of Px:")
         self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_label, 1, 0, 1, 1)
         
         self.n_pixels_erode = QLabeledSlider()
-        self.n_pixels_erode.setRange(0, 25)
+        self.n_pixels_erode.setRange(0, 100)
         self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode, 1, 1, 1, 1)
 
         self.apply_erosion_btn = QPushButton( "Apply changes")
-        self.preview_map_erode_group.glayout.addWidget(self.apply_erosion_btn, 1, 2, 1, 1)
+        self.preview_map_erode_group.glayout.addWidget(self.apply_erosion_btn, 1, 2, 1, 4)
+
+        self.gaussian_filter_label = QLabel("Gaussian Filter")
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_filter_label, 2, 0, 1, 1)
+        
+        self.gaussian_sigam_label = QLabel("Sigma")
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigam_label, 2, 1, 1, 1)
+
+        self.gaussian_sigma = QDoubleSpinBox()
+        self.gaussian_sigma.setSingleStep(0.1)
+        self.gaussian_sigma.setValue(1)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigma, 2, 2, 1, 1)
+                  
+        self.gaussian_radius_label = QLabel("Radius")
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius_label, 2, 3, 1, 1)
+
+        self.gaussian_radius = QSpinBox()
+        self.gaussian_radius.setSingleStep(1)
+        self.gaussian_radius.setValue(4)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius, 2, 4, 1, 1)
+
+        self.apply_gaussian_filt_btn = QPushButton( "Apply changes")
+        self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 2, 5, 1, 1)
+
                   
         
         self.setLayout(self.InterctiveWindowMapErode_layout)
@@ -3831,13 +3854,76 @@ class InterctiveWindowMapErode(QWidget):
         ##############
         self.apply_erosion_btn.clicked.connect(self._apply_erosion_btn_func)
         self.n_pixels_erode.valueChanged.connect(self.n_pixels_erode_func)
+        self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
 
 
     def _apply_erosion_btn_func(self):
-        print("responding")
+
+        self.n_pixels_erode_func()
+        current_image = self.viewer.layers.selection.active
+        
+        self.o.add_result_img(self.result_map_image,
+                            img_custom_name=f"{current_image.name}_postprocessed",
+                            auto_metadata = False, 
+                            custom_metadata = self.viewer.layers.selection.active.metadata, 
+                            single_label_sufix = "Crop",
+                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
+                            add_to_metadata = "Post-precessed_Map[test]")
+        print("Image exported")
     
     def n_pixels_erode_func(self):
-        print("lalala")
+        try:
+
+            # mask = segment_image_triangle(self.map_data)
+            self.result_map_image = self.map_data.copy()
+            mask = np.invert(np.isnan(self.result_map_image))
+
+            
+            # mask = binary_closing(mask, 10)
+            eros_value = self.n_pixels_erode.value()
+            small_holes_s = 4
+            print(f"clossing small object of size = {small_holes_s}")
+            mask = remove_small_objects(mask, small_holes_s)
+            footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
+            mask = binary_closing(mask, footprint=footprint)
+            self.result_map_image = closing(self.result_map_image, footprint=footprint)
+
+
+            mask = morphology.erosion(mask, footprint=disk(eros_value))
+            self.result_map_image[~mask] = None
+            
+            self.preview_plotter_widget.figure.clear()
+            self.preview_plotter_widget.add_single_axes()
+            self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
+            self.preview_plotter_widget.canvas.draw()
+
+            print("lalala")
+        except Exception as e:
+            raise CustomException(e, sys)
+        
+
+    def _apply_gaussian_filt_btn_func(self):
+
+        try:
+
+            self.n_pixels_erode_func()
+
+            # self.result_map_image = self.result_map_image.copy()
+            # NOTE: may be use intepolation method to refill holes in mask
+            # after that you cna do erosion or gaussina filter.
+            # need to try out.
+            sigma = self.gaussian_sigma.value()
+            radius = self.gaussian_radius.value()
+            self.result_map_image = gaussian_filter_nan(self.result_map_image, sigma=sigma, radius=radius)
+
+            self.preview_plotter_widget.figure.clear()
+            self.preview_plotter_widget.add_single_axes()
+            self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
+            self.preview_plotter_widget.canvas.draw()
+            print("applying Gaussian filter")
+        
+        except Exception as e:
+            raise CustomException(e, sys)
 
         
         
