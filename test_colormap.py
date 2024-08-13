@@ -128,16 +128,16 @@ o.plot_last_generated_img()
 ########## Create maps #########
 ########################################
 
-# create act maps
-o.make_maps_btn.click()
+# # create act maps
+# o.make_maps_btn.click()
 
-# create APD maps
-o.toggle_map_type.setChecked(True)
-map_values = [25, 75, 90]
-for values in map_values:
-    o.slider_APD_map_percentage.setValue(values)
-    viewer.layers.selection.active = viewer.layers["20233011_15h-13m-56_Crop_clip_Inv_GloNor_FiltMedian_MednFilt5_FiltButterworth_cffreq25_ord5_fps356_Ave_NullBckgrnd"]
-    o.make_maps_btn.click()
+# # create APD maps
+# o.toggle_map_type.setChecked(True)
+# map_values = [25, 75, 90]
+# for values in map_values:
+#     o.slider_APD_map_percentage.setValue(values)
+#     viewer.layers.selection.active = viewer.layers["20233011_15h-13m-56_Crop_clip_Inv_GloNor_FiltMedian_MednFilt5_FiltButterworth_cffreq25_ord5_fps356_Ave_NullBckgrnd"]
+#     o.make_maps_btn.click()
 
 
 
