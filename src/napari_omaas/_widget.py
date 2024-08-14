@@ -49,6 +49,25 @@ from .utils import (
     apply_box_filter,
     apply_laplace_filter,
     apply_bilateral_filter,
+    transform_to_unit16_func,
+    apply_butterworth_filt_func,
+    segment_heart_func,
+    pick_frames_fun,
+    return_peaks_found_fun,
+    compute_APD_props_func,
+    return_spool_img_fun,
+    extract_ROI_time_series,
+    return_AP_ini_end_indx_func,
+    split_AP_traces_func,
+    segment_image_triangle,
+    segment_image_GHT,
+    polish_mask,
+    segement_region_based_func,
+    optimap_mot_correction,
+    crop_from_shape,
+    macro,
+    return_maps,
+
 )
 import os
 from pathlib import Path
@@ -2444,12 +2463,12 @@ class OMAAS(QWidget):
         self.average_AP_plot_widget.canvas.draw()
     
     # this method can be reomoved
-    def _remove_attribute_widget(self):
-        my_attr_list = ["slider_N_APs", "slider_N_APs_label"]
-        for attr in my_attr_list:
-            if hasattr(self, attr):
-                for widget in list_of_widgets:
-                    widget.destroy() 
+    # def _remove_attribute_widget(self):
+    #     my_attr_list = ["slider_N_APs", "slider_N_APs_label"]
+    #     for attr in my_attr_list:
+    #         if hasattr(self, attr):
+    #             for widget in list_of_widgets:
+    #                 widget.destroy() 
 
         
         
