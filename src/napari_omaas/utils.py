@@ -36,7 +36,7 @@ from optimap.video import normalize_pixelwise_slidingwindow, normalize_pixelwise
 from scipy import signal, ndimage
 from scipy.interpolate import CubicSpline
 from scipy.ndimage import gaussian_filter, binary_fill_holes
-# import numpy as np
+import numpy as np
 # import cupy as cp
 # from cupyx.scipy.ndimage import median_filter as cp_median_filter
 # from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
