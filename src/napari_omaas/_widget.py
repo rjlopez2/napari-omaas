@@ -17,9 +17,9 @@ from qtpy.QtWidgets import (
     QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton, 
     )
 
-from qtpy import QtWidgets
+from qtpy import QtWidgets, QtCore
 from warnings import warn
-from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect
+from qtpy.QtCore import Qt
 from qtpy.QtGui import QIntValidator, QDoubleValidator
 from numpy import ndarray as numpy_ndarray
 from napari_matplotlib.base import BaseNapariMPLWidget
@@ -33,7 +33,23 @@ import copy
 import subprocess
 import pandas as pd
 
-from .utils import *
+import numpy as np
+from .utils import (
+    VHGroup,
+    ToggleButton,
+    PandasModel,
+    
+    invert_signal,
+    local_normal_fun,
+    slide_window_normalization_func,
+    global_normal_fun,
+    split_channels_fun,
+    apply_gaussian_func,
+    apply_median_filt_func,
+    apply_box_filter,
+    apply_laplace_filter,
+    apply_bilateral_filter,
+)
 import os
 from pathlib import Path
 import h5py
@@ -588,66 +604,65 @@ class OMAAS(QWidget):
         # self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
 
         ######## Mot-Correction group ########
-        self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
-        self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
+
+         ####### NOTE: deprecating this method on 14.08.22024 #######
+        # self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
+        # self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
 
 
-        self.fottprint_size_label = QLabel("Foot print size")
-        self.fottprint_size_label.setToolTip(("Footprint size for local normalization"))
-        self.mot_correction_group.glayout.addWidget(self.fottprint_size_label, 3, 0, 1, 1)
+        # self.fottprint_size_label = QLabel("Foot print size")
+        # self.fottprint_size_label.setToolTip(("Footprint size for local normalization"))
+        # self.mot_correction_group.glayout.addWidget(self.fottprint_size_label, 3, 0, 1, 1)
 
-        self.use_GPU_label = QLabel("Use GPU")
-        self.mot_correction_group.glayout.addWidget(self.use_GPU_label, 3, 2, 1, 1)
+        # self.use_GPU_label = QLabel("Use GPU")
+        # self.mot_correction_group.glayout.addWidget(self.use_GPU_label, 3, 2, 1, 1)
         
-        self.use_GPU = QCheckBox()
-        try:
-            subprocess.check_output('nvidia-smi')
-            warn('Nvidia GPU detected!, setting to default GPU use.\nSet GPU use as default')
-            self.use_GPU.setChecked(True)
-        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
-            warn('No Nvidia GPU in system!, setting to default CPU use')
-            self.use_GPU.setChecked(False)
+        # self.use_GPU = QCheckBox()
+        # try:
+        #     subprocess.check_output('nvidia-smi')
+        #     warn('Nvidia GPU detected!, setting to default GPU use.\nSet GPU use as default')
+        #     self.use_GPU.setChecked(True)
+        # except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+        #     warn('No Nvidia GPU in system!, setting to default CPU use')
+        #     self.use_GPU.setChecked(False)
         
-        self.mot_correction_group.glayout.addWidget(self.use_GPU,  3, 3, 1, 1)
+        # self.mot_correction_group.glayout.addWidget(self.use_GPU,  3, 3, 1, 1)
 
 
 
         
-        self.footprint_size = QSpinBox()
-        self.footprint_size.setSingleStep(1)
-        self.footprint_size.setValue(10)
-        self.mot_correction_group.glayout.addWidget(self.footprint_size, 3, 1, 1, 1)
+        # self.footprint_size = QSpinBox()
+        # self.footprint_size.setSingleStep(1)
+        # self.footprint_size.setValue(10)
+        # self.mot_correction_group.glayout.addWidget(self.footprint_size, 3, 1, 1, 1)
 
-        self.radius_size_label = QLabel("Radius size")
-        self.radius_size_label.setToolTip(("Radius of the window considered around each pixel for image registration"))
-        self.mot_correction_group.glayout.addWidget(self.radius_size_label, 4, 0, 1, 1)
+        # self.radius_size_label = QLabel("Radius size")
+        # self.radius_size_label.setToolTip(("Radius of the window considered around each pixel for image registration"))
+        # self.mot_correction_group.glayout.addWidget(self.radius_size_label, 4, 0, 1, 1)
         
-        self.radius_size = QSpinBox()
-        self.radius_size.setSingleStep(1)
-        self.radius_size.setValue(7)
-        self.mot_correction_group.glayout.addWidget(self.radius_size, 4, 1, 1, 1)
+        # self.radius_size = QSpinBox()
+        # self.radius_size.setSingleStep(1)
+        # self.radius_size.setValue(7)
+        # self.mot_correction_group.glayout.addWidget(self.radius_size, 4, 1, 1, 1)
 
-        self.n_warps_label = QLabel("Number of warps")
-        self.mot_correction_group.glayout.addWidget(self.n_warps_label, 5, 0, 1, 1)
+        # self.n_warps_label = QLabel("Number of warps")
+        # self.mot_correction_group.glayout.addWidget(self.n_warps_label, 5, 0, 1, 1)
         
-        self.n_warps = QSpinBox()
-        self.n_warps.setSingleStep(1)
-        self.n_warps.setValue(8)
-        self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
+        # self.n_warps = QSpinBox()
+        # self.n_warps.setSingleStep(1)
+        # self.n_warps.setValue(8)
+        # self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
 
-        self.ref_frame_label = QLabel("Reference frame")
-        self.mot_correction_group.glayout.addWidget(self.ref_frame_label, 4, 2, 1, 1)
+
+        # self.apply_mot_correct_btn = QPushButton("apply")
+        # self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
+        # self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
+
+
         
-        self.ref_frame_val = QLineEdit()
-        self.ref_frame_val.setValidator(QIntValidator()) 
-        self.ref_frame_val.setText("0")
-        self.mot_correction_group.glayout.addWidget(self.ref_frame_val, 4, 3, 1, 1)
-
-        self.apply_mot_correct_btn = QPushButton("apply")
-        self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
-        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
-
-
+        
+        
+        
         # add new group for motion compensation using optimap
         self.mot_correction_group_optimap = VHGroup('Apply image registration (optimap)', orientation='G')
         self._motion_correction_layout.addWidget(self.mot_correction_group_optimap.gbox)
@@ -679,9 +694,17 @@ class OMAAS(QWidget):
         self.pre_smooth_spat.setValue(1)
         self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_spat, 1, 5, 1, 1)
 
-        self.ref_frame_label = QLabel("Ref Frame")
-        # self.c_kernels_label.setToolTip((""))
+        # self.ref_frame_label = QLabel("Ref Frame")
+        # # self.c_kernels_label.setToolTip((""))
+        # self.mot_correction_group_optimap.glayout.addWidget(self.ref_frame_label, 2, 0, 1, 1)
+        
+        self.ref_frame_label = QLabel("Reference frame")
         self.mot_correction_group_optimap.glayout.addWidget(self.ref_frame_label, 2, 0, 1, 1)
+        
+        self.ref_frame_val = QLineEdit()
+        self.ref_frame_val.setValidator(QIntValidator()) 
+        self.ref_frame_val.setText("0")
+        self.mot_correction_group_optimap.glayout.addWidget(self.ref_frame_val, 2, 1, 1, 1)
 
         self.apply_optimap_mot_corr_btn = QPushButton("apply")
         self.mot_correction_group_optimap.glayout.addWidget(self.apply_optimap_mot_corr_btn, 2, 4, 1, 2)
@@ -873,7 +896,7 @@ class OMAAS(QWidget):
 
         self.mv_left_AP_btn = QToolButton()
         self.shif_trace = False
-        self.mv_left_AP_btn.setArrowType(QtCore.Qt.LeftArrow)
+        self.mv_left_AP_btn.setArrowType(QtCore.Qt.LeftArrow) # type: ignore
         self.average_trace_group.glayout.addWidget(self.mv_left_AP_btn, 3, 3, 1, 1)
         
         self.mv_righ_AP_btn = QToolButton()
@@ -1095,7 +1118,7 @@ class OMAAS(QWidget):
         self.ROI_selection_1.activated.connect(self._get_ROI_selection_1_current_text)
         self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
-        self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
+        # self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         self.compute_APD_btn.clicked.connect(self._get_APD_call_back)
@@ -1545,41 +1568,42 @@ class OMAAS(QWidget):
         print(f"Current layer 2 is '{ctext}'")
 
     
-    def _on_click_apply_mot_correct_btn(self):
-        foot_print = self.footprint_size.value()
-        radius_size = self.radius_size.value()
-        n_warps = self.n_warps.value()
-        try:
-            subprocess.check_output('nvidia-smi')
-            print('Nvidia GPU detected!')
-        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
-            warn('No Nvidia GPU in system!, setting to default CPU use')
-            self.use_GPU.setChecked(False)
+    ####### NOTE: deprecating this method on 14.08.22024 #######
+    # def _on_click_apply_mot_correct_btn(self):
+    #     foot_print = self.footprint_size.value()
+    #     radius_size = self.radius_size.value()
+    #     n_warps = self.n_warps.value()
+    #     try:
+    #         subprocess.check_output('nvidia-smi')
+    #         print('Nvidia GPU detected!')
+    #     except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+    #         warn('No Nvidia GPU in system!, setting to default CPU use')
+    #         self.use_GPU.setChecked(False)
         
-        gpu_use = self.use_GPU.isChecked() # put this in the GUI         
-        ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
-        current_selection = self.viewer.layers.selection.active
-        raw_data = current_selection.data
-        if gpu_use == True:
-            raw_data = cp.asarray(raw_data)
+    #     gpu_use = self.use_GPU.isChecked() # put this in the GUI         
+    #     ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
+    #     current_selection = self.viewer.layers.selection.active
+    #     raw_data = current_selection.data
+    #     if gpu_use == True:
+    #         raw_data = cp.asarray(raw_data)
 
-        if current_selection._type_string == "image":
+    #     if current_selection._type_string == "image":
                 
-            scaled_img = scaled_img_func(raw_data, 
-                                        foot_print_size=foot_print)
+    #         scaled_img = scaled_img_func(raw_data, 
+    #                                     foot_print_size=foot_print)
                 
-            results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx)
+    #         results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx)
             
-            if not isinstance(results, numpy_ndarray):
-                results =  results.get()    
+    #         if not isinstance(results, numpy_ndarray):
+    #             results =  results.get()    
 
-            self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+    #         self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
         
-            self.add_record_fun()
+    #         self.add_record_fun()
 
             
-        else:
-            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+    #     else:
+    #         warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
         
         
