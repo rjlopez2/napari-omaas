@@ -24,6 +24,7 @@ import pandas as pd
 from napari.layers import Image
 from napari.types import ImageData, ShapesData
 import sif_parser
+import sys
 # from numba import njit
 from napari.utils import progress
 from napari_macrokit import get_macro
@@ -284,6 +285,10 @@ def apply_gaussian_func (data: "napari.types.ImageData",
         # out_img[plane] = gaussian(img, sigma, preserve_range = True)
         # out_img[plane] = signal.oaconvolve(img, gauss_kernel2d, mode="same")
 
+    # ###########################
+    # scikitimage (CPU) base function
+    # ###########################  
+
     # return (gaussian(data, sigma))
     # return out_img
     # return gaussian_filter(data, sigma=sigma, order= 0, radius=kernel_size, # axes = (1,2))
@@ -360,6 +365,18 @@ def apply_median_filt_func (data: "napari.types.ImageData",
     
 #     return cp.asnumpy(out_img)
 
+
+
+    param = int(param)
+    
+    # Convert data to GPU array if on GPU, else use CPU array
+    data_cp = backend['array'].asarray(data)
+    
+    # Apply the filter using the appropriate backend
+    out_img = backend['median_filter'](data_cp, size=(1, param, param))
+    
+    # Convert back to CPU array if needed
+    return backend['array'].asnumpy(out_img) if backend['use_gpu'] else out_img
 
 
     param = int(param)
@@ -649,6 +666,51 @@ def apply_butterworth_filt_func(data: "napari.types.ImageData",
         filt_image = signal.filtfilt(a, b, data, 0)
         
         return filt_image
+
+
+@macro.record
+def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq
+        )-> "Image":
+        
+        """
+        Transfrom numpy array values to type: np.uint16.
+
+        Parameters
+        ----------
+        image : np.ndarray
+            The image to be processed.
+        
+        ac_freq : float
+            Acquisition time interval betwen each fram in ms.
+        
+        cf_freq : int
+            Cutoff Frequency for butterworth low band filter.
+
+        fil_ord : int
+            Order size of the filter.
+        
+        source: https://chatgpt.com/share/9907ea1b-a997-4547-b21d-493eed893225
+     
+    
+        Returns
+        -------
+            filt_image : np.ndarray with filtered data along time dimension.
+
+        """
+
+        # Design the FIR filter
+        # Define the number of taps (filter length) and the cutoff frequency
+        num_taps = 21  # Length of the filter
+        cutoff_frequency = 0.1  # Normalized cutoff frequency (0 to 1, where 1 is Nyquist frequency)
+
+        # Use firwin to create a low-pass FIR filter
+        fir_coeff = signal.firwin(num_taps, cutoff_frequency, window='hamming')
+
+        # Apply the FIR filter along the temporal axis (axis=0)
+        filt_image = np.apply_along_axis(lambda m: signal.lfilter(fir_coeff, 1.0, m), axis=0, arr=data)
+        return filt_image
+        
+
 
 
 @macro.record
@@ -1401,13 +1463,13 @@ def segment_image_triangle(np_array,
     # 3. apply threshold
     # thresh = threshold_otsu(img_adapteq)
     # thresh = threshold_li(one_frame_img)
-    thresh = threshold_triangle(np_array)
+    thresh = threshold_triangle(np.nan_to_num(np_array))
     # # thresh = threshold_sauvola(one_frame_img, window_size=wind_s)
     # # thresh = threshold_niblack(one_frame_img, window_size=wind_s)
 
     # 4.  create mask
     # mask = one_frame_img > thresh
-    mask = np_array.mean(axis = 0) > thresh
+    mask = np_array > thresh
     # bw = closing(mask, square(square_s))
 
     # # remove artifacts connected to image border
@@ -1465,7 +1527,7 @@ def segment_image_GHT(image, threshold=None, return_threshold=False,
         threshold = detect_background_threshold(image)
         print(f"Creating mask with detected threshold {threshold}")
 
-    mask = image.mean(axis = 0) > threshold
+    mask = image > threshold
     
     if return_threshold:
         return mask, threshold
@@ -1514,6 +1576,28 @@ def optimap_mot_correction(np_array, c_k, pre_smooth_t, proe_smooth_s, ref_fr):
                                        presmooth_spatial=proe_smooth_s)
 
     return video_warped
+
+
+def gaussian_filter_nan(array, sigma=1, radius=3, axes=(0, 1), truncate = 4):
+    
+    # taken from this post https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
+    
+    # sigma=2.0                  # standard deviation for Gaussian kernel
+    # truncate=4.0               # truncate filter at this many sigmas
+    U = array
+    # U=sp.randn(10,10)          # random array...
+    # U[U>2]=np.nan              # ...with NaNs for testing
+    
+    V=U.copy()
+    V[np.isnan(U)]=0
+    VV=gaussian_filter(V,sigma=sigma, radius= radius, axes = axes, truncate=truncate)
+    
+    W=0*U.copy()+1
+    W[np.isnan(U)]=0
+    WW=gaussian_filter(W,sigma=sigma, radius= radius, axes = axes, truncate=truncate)
+    WW[WW==0]=np.nan
+    
+    return VV/WW
 
 
 
@@ -1668,3 +1752,81 @@ class ToggleButton(QCheckBox):
 
             p.setBrush(QColor(self._circle_color))
             p.drawEllipse(self._circle_position, 3, 16, 16)
+
+
+class MultiComboBox(QComboBox):
+    """
+    MultiComboBox this class help to create dropdown 
+    checkable QCombobox
+
+    _extended_summary_
+    source . https://stackoverflow.com/questions/76680387/do-a-multi-selection-in-dropdown-list-in-qt-python
+
+    Parameters
+    ----------
+    QComboBox : _type_
+        _description_
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self.lineEdit().setReadOnly(True)
+        self.setModel(QStandardItemModel(self))
+
+        # Connect to the dataChanged signal to update the text
+        self.model().dataChanged.connect(self.updateText)
+
+    def addItem(self, text: str, data=None):
+        item = QStandardItem()
+        item.setText(text)
+        item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+        item.setData(Qt.CheckState.Unchecked, Qt.ItemDataRole.CheckStateRole)
+        self.model().appendRow(item)
+
+    def addItems(self, items_list: list):
+        for text in items_list:
+            self.addItem(text)
+
+    def updateText(self):
+        selected_items = [self.model().item(i).text() for i in range(self.model().rowCount())
+                          if self.model().item(i).checkState() == Qt.CheckState.Checked]
+        self.lineEdit().setText(", ".join(selected_items))
+
+    def showPopup(self):
+        super().showPopup()
+        # Set the state of each item in the dropdown
+        for i in range(self.model().rowCount()):
+            item = self.model().item(i)
+            combo_box_view = self.view()
+            combo_box_view.setRowHidden(i, False)
+            check_box = combo_box_view.indexWidget(item.index())
+            if check_box:
+                check_box.setChecked(item.checkState() == Qt.CheckState.Checked)
+
+    def hidePopup(self):
+        # Update the check state of each item based on the checkbox state
+        for i in range(self.model().rowCount()):
+            item = self.model().item(i)
+            combo_box_view = self.view()
+            check_box = combo_box_view.indexWidget(item.index())
+            if check_box:
+                item.setCheckState(Qt.CheckState.Checked if check_box.isChecked() else Qt.CheckState.Unchecked)
+        super().hidePopup()
+
+def error_message_detail(error,error_detail:sys):
+    _,_,exc_tb=error_detail.exc_info()
+    file_name=exc_tb.tb_frame.f_code.co_filename
+    error_message="\n**************\nError in script file:\n'{0}'.\nLine number:\n'{1}'.\nWith error message:\n---->>>> '{2}' <<<<----\n**************".format(
+     file_name,exc_tb.tb_lineno,str(error))
+
+    return error_message
+
+    
+
+class CustomException(Exception):
+    def __init__(self,error_message,error_detail:sys):
+        super().__init__(error_message)
+        self.error_message=error_message_detail(error_message,error_detail=error_detail)
+    
+    def __str__(self):
+        return self.error_message
