@@ -1,9 +1,9 @@
 ########## GUI libraries ##########
 from qtpy import QtCore, QtGui
-from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QGroupBox, QGridLayout, QCheckBox
+from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QGroupBox, QGridLayout, QCheckBox, QComboBox
 from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect, QPropertyAnimation, QPoint, QEasingCurve, Property
 # from qtpy.QtCore import *
-from qtpy.QtGui import QColor, QPainter
+from qtpy.QtGui import QColor, QPainter, QStandardItemModel, QStandardItem
 
 ########## cv libraries ##########
 from skimage.filters import gaussian, threshold_triangle, median, rank, sobel
