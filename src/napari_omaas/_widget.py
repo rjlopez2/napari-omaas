@@ -9,7 +9,10 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from superqt import QCollapsible, QLabeledSlider, QLabeledRangeSlider, QRangeSlider, QDoubleRangeSlider, QLabeledDoubleRangeSlider
+from superqt import (
+    QCollapsible, QLabeledSlider, QLabeledRangeSlider, 
+    QRangeSlider, QDoubleRangeSlider, QLabeledDoubleRangeSlider,
+)
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
@@ -21,24 +24,24 @@ from qtpy import QtWidgets, QtCore
 from warnings import warn
 from qtpy.QtCore import Qt
 from qtpy.QtGui import QIntValidator, QDoubleValidator
-from numpy import ndarray as numpy_ndarray
 from napari_matplotlib.base import BaseNapariMPLWidget
 from napari.layers import Shapes, Image, Labels
 from napari.components.layerlist import LayerList
 from napari.utils import progress
 
-from skimage.measure import label
-from random import randint
+from skimage.morphology import disk, binary_closing, remove_small_objects, closing, erosion
 
 import copy
-import subprocess
 import pandas as pd
 
 import numpy as np
+from .custom_exceptions import CustomException
+import sys
 from .utils import (
     VHGroup,
     ToggleButton,
     PandasModel,
+    MultiComboBox,
     
     invert_signal,
     local_normal_fun,
@@ -68,8 +71,11 @@ from .utils import (
     crop_from_shape,
     macro,
     return_maps,
+    apply_FIR_filt_func,
+    gaussian_filter_nan
 
 )
+
 import os
 import sys
 from pathlib import Path
@@ -3936,7 +3942,7 @@ class InterctiveWindowMapErode(QWidget):
             self.result_map_image = closing(self.result_map_image, footprint=footprint)
 
 
-            mask = morphology.erosion(mask, footprint=disk(eros_value))
+            mask = erosion(mask, footprint=disk(eros_value))
             self.result_map_image[~mask] = None
             
             self.preview_plotter_widget.figure.clear()

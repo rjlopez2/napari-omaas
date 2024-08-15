@@ -84,7 +84,8 @@ def reader_function(path):
 
     if os.path.isdir(path):
         # is_multithreading = o.fast_loading.isChecked()
-        data, info = sif_parser.np_spool_open(path, multithreading=False)
+        data, info = sif_parser.np_spool_open(path)
+        # data, info = sif_parser.np_spool_open(path, multithreading=False)
         
     elif  os.path.isfile(path):
         data, info = sif_parser.np_open(path)
