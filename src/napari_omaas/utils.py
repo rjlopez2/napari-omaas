@@ -1,5 +1,11 @@
+########## GUI libraries ##########
 from qtpy import QtCore, QtGui
-import numpy as np
+from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QGroupBox, QGridLayout, QCheckBox, QComboBox
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect, QPropertyAnimation, QPoint, QEasingCurve, Property
+# from qtpy.QtCore import *
+from qtpy.QtGui import QColor, QPainter, QStandardItemModel, QStandardItem
+
+########## cv libraries ##########
 from skimage.filters import gaussian, threshold_triangle, median, rank, sobel
 from skimage.measure import label
 from skimage.filters.rank import mean_bilateral
@@ -7,30 +13,60 @@ from skimage.morphology import disk, binary_closing, remove_small_objects, closi
 from skimage.registration import optical_flow_ilk
 from skimage import transform, exposure, morphology, registration, segmentation
 from skimage.restoration import denoise_bilateral
+
+########## utils ##########
 import warnings
-from napari.layers import Image
-import sif_parser
-# from numba import njit
 import tqdm.auto as tqdm
-from napari.utils import progress
 from time import time
+import pandas as pd
+
+########## napari & friends ##########
+from napari.layers import Image
+from napari.types import ImageData, ShapesData
+import sif_parser
+import sys
+# from numba import njit
+from napari.utils import progress
+from napari_macrokit import get_macro
 from optimap.image import detect_background_threshold
 from optimap import motion_compensate
 from optimap.video import normalize_pixelwise_slidingwindow, normalize_pixelwise
 
-from napari_macrokit import get_macro
-
+########## scientific computing libraries##########
 # from numba import jit, prange
 from scipy import signal, ndimage
 from scipy.interpolate import CubicSpline
-from scipy.ndimage import gaussian_filter, binary_fill_holes, median_filter
+from scipy.ndimage import gaussian_filter, binary_fill_holes
+import numpy as np
 # import cupy as cp
 # from cupyx.scipy.ndimage import median_filter as cp_median_filter
 # from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
-# functions
 
-from napari.types import ImageData, ShapesData
-import pandas as pd
+
+def import_gpu_or_cpu():
+    try:
+        import cupy as cp
+        from cupyx.scipy.ndimage import median_filter as cp_median_filter
+        from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
+        return {
+            'array': cp,
+            'median_filter': cp_median_filter,
+            'gaussian_filter': cp_gaussian_filter,
+            'use_gpu': True
+        }
+    except ImportError:
+        import numpy as np
+        from scipy.ndimage import median_filter, gaussian_filter
+        return {
+            'array': np,
+            'median_filter': median_filter,
+            'gaussian_filter': gaussian_filter,
+            'use_gpu': False
+        }
+
+backend = import_gpu_or_cpu()
+
+
 # def detect_spots(
 #     image: "napari.types.ImageData",
 #     high_pass_sigma: float = 2,
@@ -41,10 +77,6 @@ import pandas as pd
 # import cupyx
 # from cucim.skimage import registration as registration_gpu
 # from cucim.skimage import transform as transform_gpu
-from qtpy.QtWidgets import QHBoxLayout, QVBoxLayout, QGroupBox, QGridLayout, QCheckBox
-from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex, QRect, QPropertyAnimation, QPoint, QEasingCurve, Property
-# from qtpy.QtCore import *
-from qtpy.QtGui import QColor, QPainter
 
 
 # instanciate a macro object
@@ -259,13 +291,9 @@ def apply_gaussian_func (data: "napari.types.ImageData",
 
     # return (gaussian(data, sigma))
     # return out_img
-    return gaussian_filter(data, sigma=sigma, order= 0, radius=kernel_size, axes = (1,2))
-    
-    
-    # ###########################
-    # cupy  (GPU) base function
-    # ###########################    
-    
+    # return gaussian_filter(data, sigma=sigma, order= 0, radius=kernel_size, # axes = (1,2))
+
+
     # data_cp = cp.asarray(data)
     # out_img = cp_gaussian_filter(data_cp, 
     #                           sigma=(0, sigma, sigma), 
@@ -275,6 +303,16 @@ def apply_gaussian_func (data: "napari.types.ImageData",
     #                           #axes = (1,2)
     #                           )
     # return cp.asnumpy(out_img)
+
+    data_cp = backend['array'].asarray(data)
+    out_img = backend['gaussian_filter'](data_cp, 
+                                         sigma=(0, sigma, sigma), 
+                                         order=0,
+                                         truncate=kernel_size)
+    
+    return backend['array'].asnumpy(out_img) if backend['use_gpu'] else out_img
+
+    
 
 
 @macro.record
@@ -299,38 +337,58 @@ def apply_median_filt_func (data: "napari.types.ImageData",
        Smoothed Image with Median filter.
 
     """
+#     param = int(param)
+#     # data = image.active.data
+#     # out_img = np.empty_like(data)
+#     footprint = disk(int(param))
+
+#     # print(f'applying "apply_median_filt_func" to image {image.active}')
+
+#     # for plane, img in enumerate(data):
+#         # out_img[plane] = median(img, footprint = footprint)
+
+#     # for plane in list(range(data.shape[0])):
+#     #     out_img[plane, :, :] = median(data[plane, :, :], footprint = footprint)
+
+# # using numba method #
+#     # out_img = parallel_median(data,footprint)
+#     # for plane, img in enumerate(data):
+#     #     out_img[plane] = signal.medfilt2d(img, kernel_size = param)
+    
+#     # out_img = ndimage.median_filter(data, size = (1, param, param))
+
+    
+#     data_cp = cp.asarray(data)
+#     # xp = cpx.get_array_module(data_cp, param)  # 'xp' is a standard usage in the community
+#     # print("Using:", xp.__name__)
+#     out_img = cp_median_filter(data_cp, size = (1, param, param))
+    
+#     return cp.asnumpy(out_img)
+
+
+
     param = int(param)
-    # data = image.active.data
-    # out_img = np.empty_like(data)
-    footprint = disk(int(param))
-
-    # print(f'applying "apply_median_filt_func" to image {image.active}')
-
-    # for plane, img in enumerate(data):
-        # out_img[plane] = median(img, footprint = footprint)
-
-    # for plane in list(range(data.shape[0])):
-    #     out_img[plane, :, :] = median(data[plane, :, :], footprint = footprint)
-
-# using numba method #
-    # out_img = parallel_median(data,footprint)
-    # for plane, img in enumerate(data):
-    #     out_img[plane] = signal.medfilt2d(img, kernel_size = param)
     
-    return median_filter(data, size = (1, param, param))
+    # Convert data to GPU array if on GPU, else use CPU array
+    data_cp = backend['array'].asarray(data)
+    
+    # Apply the filter using the appropriate backend
+    out_img = backend['median_filter'](data_cp, size=(1, param, param))
+    
+    # Convert back to CPU array if needed
+    return backend['array'].asnumpy(out_img) if backend['use_gpu'] else out_img
 
-    
-    # ###########################
-    # cupy  (GPU) base function
-    # ###########################    
-    
-    # data_cp = cp.asarray(data)
-    # # xp = cpx.get_array_module(data_cp, param)  # 'xp' is a standard usage in the community
-    # # print("Using:", xp.__name__)
-    # out_img = cp_median_filter(data_cp, size = (1, param, param))
-    
-    # return cp.asnumpy(out_img)
 
+    param = int(param)
+    
+    # Convert data to GPU array if on GPU, else use CPU array
+    data_cp = backend['array'].asarray(data)
+    
+    # Apply the filter using the appropriate backend
+    out_img = backend['median_filter'](data_cp, size=(1, param, param))
+    
+    # Convert back to CPU array if needed
+    return backend['array'].asnumpy(out_img) if backend['use_gpu'] else out_img
 
 @macro.record
 def pick_frames_fun(
@@ -1405,13 +1463,13 @@ def segment_image_triangle(np_array,
     # 3. apply threshold
     # thresh = threshold_otsu(img_adapteq)
     # thresh = threshold_li(one_frame_img)
-    thresh = threshold_triangle(np_array)
+    thresh = threshold_triangle(np.nan_to_num(np_array))
     # # thresh = threshold_sauvola(one_frame_img, window_size=wind_s)
     # # thresh = threshold_niblack(one_frame_img, window_size=wind_s)
 
     # 4.  create mask
     # mask = one_frame_img > thresh
-    mask = np_array.mean(axis = 0) > thresh
+    mask = np_array > thresh
     # bw = closing(mask, square(square_s))
 
     # # remove artifacts connected to image border
@@ -1469,7 +1527,7 @@ def segment_image_GHT(image, threshold=None, return_threshold=False,
         threshold = detect_background_threshold(image)
         print(f"Creating mask with detected threshold {threshold}")
 
-    mask = image.mean(axis = 0) > threshold
+    mask = image > threshold
     
     if return_threshold:
         return mask, threshold
@@ -1518,6 +1576,28 @@ def optimap_mot_correction(np_array, c_k, pre_smooth_t, proe_smooth_s, ref_fr):
                                        presmooth_spatial=proe_smooth_s)
 
     return video_warped
+
+
+def gaussian_filter_nan(array, sigma=1, radius=3, axes=(0, 1), truncate = 4):
+    
+    # taken from this post https://stackoverflow.com/questions/18697532/gaussian-filtering-a-image-with-nan-in-python
+    
+    # sigma=2.0                  # standard deviation for Gaussian kernel
+    # truncate=4.0               # truncate filter at this many sigmas
+    U = array
+    # U=sp.randn(10,10)          # random array...
+    # U[U>2]=np.nan              # ...with NaNs for testing
+    
+    V=U.copy()
+    V[np.isnan(U)]=0
+    VV=gaussian_filter(V,sigma=sigma, radius= radius, axes = axes, truncate=truncate)
+    
+    W=0*U.copy()+1
+    W[np.isnan(U)]=0
+    WW=gaussian_filter(W,sigma=sigma, radius= radius, axes = axes, truncate=truncate)
+    WW[WW==0]=np.nan
+    
+    return VV/WW
 
 
 
@@ -1672,3 +1752,81 @@ class ToggleButton(QCheckBox):
 
             p.setBrush(QColor(self._circle_color))
             p.drawEllipse(self._circle_position, 3, 16, 16)
+
+
+class MultiComboBox(QComboBox):
+    """
+    MultiComboBox this class help to create dropdown 
+    checkable QCombobox
+
+    _extended_summary_
+    source . https://stackoverflow.com/questions/76680387/do-a-multi-selection-in-dropdown-list-in-qt-python
+
+    Parameters
+    ----------
+    QComboBox : _type_
+        _description_
+    """
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setEditable(True)
+        self.lineEdit().setReadOnly(True)
+        self.setModel(QStandardItemModel(self))
+
+        # Connect to the dataChanged signal to update the text
+        self.model().dataChanged.connect(self.updateText)
+
+    def addItem(self, text: str, data=None):
+        item = QStandardItem()
+        item.setText(text)
+        item.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
+        item.setData(Qt.CheckState.Unchecked, Qt.ItemDataRole.CheckStateRole)
+        self.model().appendRow(item)
+
+    def addItems(self, items_list: list):
+        for text in items_list:
+            self.addItem(text)
+
+    def updateText(self):
+        selected_items = [self.model().item(i).text() for i in range(self.model().rowCount())
+                          if self.model().item(i).checkState() == Qt.CheckState.Checked]
+        self.lineEdit().setText(", ".join(selected_items))
+
+    def showPopup(self):
+        super().showPopup()
+        # Set the state of each item in the dropdown
+        for i in range(self.model().rowCount()):
+            item = self.model().item(i)
+            combo_box_view = self.view()
+            combo_box_view.setRowHidden(i, False)
+            check_box = combo_box_view.indexWidget(item.index())
+            if check_box:
+                check_box.setChecked(item.checkState() == Qt.CheckState.Checked)
+
+    def hidePopup(self):
+        # Update the check state of each item based on the checkbox state
+        for i in range(self.model().rowCount()):
+            item = self.model().item(i)
+            combo_box_view = self.view()
+            check_box = combo_box_view.indexWidget(item.index())
+            if check_box:
+                item.setCheckState(Qt.CheckState.Checked if check_box.isChecked() else Qt.CheckState.Unchecked)
+        super().hidePopup()
+
+def error_message_detail(error,error_detail:sys):
+    _,_,exc_tb=error_detail.exc_info()
+    file_name=exc_tb.tb_frame.f_code.co_filename
+    error_message="\n**************\nError in script file:\n'{0}'.\nLine number:\n'{1}'.\nWith error message:\n---->>>> '{2}' <<<<----\n**************".format(
+     file_name,exc_tb.tb_lineno,str(error))
+
+    return error_message
+
+    
+
+class CustomException(Exception):
+    def __init__(self,error_message,error_detail:sys):
+        super().__init__(error_message)
+        self.error_message=error_message_detail(error_message,error_detail=error_detail)
+    
+    def __str__(self):
+        return self.error_message

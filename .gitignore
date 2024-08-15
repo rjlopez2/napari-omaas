@@ -86,6 +86,6 @@ venv/
 # ignore .sif images files
 **/img/*.sif
 
-# ignore .py files that start with loctest
+# ignore folder where you run local tests
 
-loctest*.py
+local_experiments/
