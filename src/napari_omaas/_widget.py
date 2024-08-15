@@ -2236,20 +2236,33 @@ class OMAAS(QWidget):
         
     def _layer_list_changed_callback(self, event):
         """Callback function for layer list changes.
-        Update the selector model on each layer list change to insert or remove items accordingly.
+        Update the selector model on each layer list change to insert or remove items accordingly,
+        while preserving the current selection.
         """
         
         value = event.value
         etype = event.type
-        # control selection of Shape layers
+        
         if etype in ['inserted', 'removed', 'reordered']:
 
-            if isinstance(value, Shapes) or isinstance(value, LayerList):
+            # Capture the current selected items
+            curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
             
-                self.listShapeswidget.clear()
-                shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes) ]
+            if isinstance(value, Shapes) or isinstance(value, LayerList):
+                # selected_items = [item.text() for item in self.listShapeswidget.selectedItems()]
 
-                # update shapes transfer widget
+                # Clear and update the list
+                self.listShapeswidget.clear()
+                shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes)]
+                
+                items = [QtWidgets.QListWidgetItem(shape) for shape in shape_layers]
+                for item in items:
+                    self.listShapeswidget.addItem(item)
+                    # Restore the selection if the item was selected before
+                    if item.text() in curr_shapes_items:
+                        item.setSelected(True)
+
+                # Update other selectors
                 self.ROI_selection_1.clear()
                 self.ROI_selection_1.addItems(shape_layers) 
                 self.ROI_selection_2.clear()
@@ -2257,68 +2270,47 @@ class OMAAS(QWidget):
                 self.ROI_selection_crop.clear()
                 self.ROI_selection_crop.addItems(shape_layers) 
                 self.ROI_selection_crop.setCurrentIndex(0)
-                # update shapes in selector widget
-                for shape in shape_layers:
-                    item = QtWidgets.QListWidgetItem(shape)
-                    self.listShapeswidget.addItem(item)
 
-                    
-            
-            if isinstance(value, Image) or isinstance(value, LayerList) :
-            
+            if isinstance(value, Image) or isinstance(value, LayerList):
+                # Capture the current selected items
+                # selected_items = [item.text() for item in self.listImagewidget.selectedItems()]
+
                 all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
-                # update image selector for cropping
+                
+                # Update image selector for cropping
                 self.image_selection_crop.clear()
                 self.image_selection_crop.addItems(all_images)
                 self.image_selection_crop.setCurrentIndex(0)
                 
-                # self.img_list_manual_segment.clear()
-                # self.img_list_manual_segment.addItems(all_images)
                 all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
                 self.map_imgs_selector.clear()
                 self.map_imgs_selector.addItems(all_images_2d)
                 self.map_imgs_selector.setCurrentIndex(-1)
 
-                # update image selector(s) for computing ratio
-                # NOTE: this apporach is not working
-                # try:
-
-                #     sorted_ch_img_list = sorted(all_images, key=lambda x: int(x.split('_Ch')[-1]) if '_Ch' in x else float('inf'))
-
-                # except Exception as e:
-                #     sorted_ch_img_list = all_images
-                #     warn(f">>>>> this is your error: {e}")
-
-                # sorted_ch_img_list_indx = [i for i in range(len(sorted_ch_img_list))]
-                # all_images_indx = [i for i in range(len(all_images))]
-
                 self.Ch0_ratio.clear()
                 self.Ch0_ratio.addItems(all_images)
-                
                 self.Ch1_ratio.clear()
                 self.Ch1_ratio.addItems(all_images)
 
-                if len(all_images) >=3:
-                    # self.Ch1_ratio.addItems([sorted_ch_img_list[1], sorted_ch_img_list[0], *sorted_ch_img_list[2:]])
+                if len(all_images) >= 3:
                     n_imgs = len(all_images)
                     self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
                     self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
 
-
-                # update image selector for main selector
+                # Clear and update the main image list
                 self.listImagewidget.clear()
                 image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
 
                 for image in image_layers:
                     item = QtWidgets.QListWidgetItem(image)
-                    self.listImagewidget.addItem(image)
-            
-            
-            if isinstance(value, Labels) or isinstance(value, LayerList) :
-            
+                    self.listImagewidget.addItem(item)
+                    # Restore the selection if the item was selected before
+                    if item.text() in curr_img_items:
+                        item.setSelected(True)
+
+            if isinstance(value, Labels) or isinstance(value, LayerList):
                 all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
-                
-                # update mask selector for manual segmentation
+                # Update mask selector for manual segmentation
                 self.mask_list_manual_segment.clear()
                 self.mask_list_manual_segment.addItems(all_labels)
 
