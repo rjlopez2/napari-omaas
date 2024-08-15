@@ -24,7 +24,6 @@ import pandas as pd
 from napari.layers import Image
 from napari.types import ImageData, ShapesData
 import sif_parser
-import sys
 # from numba import njit
 from napari.utils import progress
 from napari_macrokit import get_macro
@@ -41,13 +40,16 @@ import numpy as np
 # import cupy as cp
 # from cupyx.scipy.ndimage import median_filter as cp_median_filter
 # from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
+from typing import TYPE_CHECKING
 
+if TYPE_CHECKING:
+  import napari
 
 def import_gpu_or_cpu():
     try:
-        import cupy as cp
-        from cupyx.scipy.ndimage import median_filter as cp_median_filter
-        from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter
+        import cupy as cp # type: ignore
+        from cupyx.scipy.ndimage import median_filter as cp_median_filter # type: ignore
+        from cupyx.scipy.ndimage import gaussian_filter as cp_gaussian_filter # type: ignore
         return {
             'array': cp,
             'median_filter': cp_median_filter,
@@ -84,8 +86,8 @@ macro = get_macro("OMAAS_analysis")
 
 @macro.record
 def invert_signal(
-    data: "napari.types.ImageData"
-    )-> "napari.types.LayerDataTuple":
+    data: 'napari.types.ImageData'
+    )-> 'napari.types.LayerDataTuple':
 
     """Invert signal fluorescence values. This is usefull to properly visulaize
     AP signals from inverted traces.
@@ -547,62 +549,64 @@ def pick_frames_fun(
     
 #     return registered_img
 
-@macro.record
-def scaled_img_func(data, foot_print_size = 10):
-    foot_print = disk(foot_print_size)
+################# NOTE: deprecating function 15.08-2024 #################
+# @macro.record
+# def scaled_img_func(data, foot_print_size = 10):
+#     foot_print = disk(foot_print_size)
     
-    xp = cp.get_array_module(data)
-    xpx = cupyx.scipy.get_array_module(data)
+#     xp = cp.get_array_module(data)
+#     xpx = cupyx.scipy.get_array_module(data)
     
-    # data = xp.asarray(img)
-    print(f"Using: {xp.__name__} in scaled_img_func")
+#     # data = xp.asarray(img)
+#     print(f"Using: {xp.__name__} in scaled_img_func")
     
-    scaled_img = xp.empty_like(data, dtype= (xp.float64))
+#     scaled_img = xp.empty_like(data, dtype= (xp.float64))
     
     
-    for plane, img in enumerate(data):
-        # if plane % 50 == 0:
-        #     print(f"normalizing plane: {plane}")
+#     for plane, img in enumerate(data):
+#         # if plane % 50 == 0:
+#         #     print(f"normalizing plane: {plane}")
             
-        im_min = xpx.ndimage.minimum_filter(img, footprint=foot_print)
-        im_max =xpx.ndimage.maximum_filter(img, footprint=foot_print)
-        scaled_img[plane,...] = xp.divide(xp.subtract(img, im_min),  xp.subtract(im_max, im_min))
+#         im_min = xpx.ndimage.minimum_filter(img, footprint=foot_print)
+#         im_max =xpx.ndimage.maximum_filter(img, footprint=foot_print)
+#         scaled_img[plane,...] = xp.divide(xp.subtract(img, im_min),  xp.subtract(im_max, im_min))
         
     
-    return scaled_img
+#     return scaled_img
 
-@macro.record
-def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp = 8):
-    xp, xpx = cp.get_array_module(data), cupyx.scipy.get_array_module(data)
+################# NOTE: deprecating function 15.08-2024 #################
+# @macro.record
+# def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp = 8):
+#     xp, xpx = cp.get_array_module(data), cupyx.scipy.get_array_module(data)
     
-    if type(data) == cp.ndarray:
-        device_type = "GPU"
-        register_func = registration_gpu
-        transform_func = transform_gpu
-    else:
-        device_type = "CPU"
-        register_func = registration
-        transform_func = transform
+#     if type(data) == cp.ndarray:
+#         device_type = "GPU"
+#         register_func = registration_gpu
+#         transform_func = transform_gpu
+#     else:
+#         device_type = "CPU"
+#         register_func = registration
+#         transform_func = transform
         
-    print (f'using device: {device_type}')
+#     print (f'using device: {device_type}')
     
-    ref_frame_data = data[ref_frame, ...]
-    nr, nc = ref_frame_data.shape
-    registered_img = xp.empty_like(data)
-    # print(type(registered_img))
+#     ref_frame_data = data[ref_frame, ...]
+#     nr, nc = ref_frame_data.shape
+#     registered_img = xp.empty_like(data)
+#     # print(type(registered_img))
         
-    for plane, img in enumerate(data):
-        # if plane % 50 == 0:
-            # print(f"Registering plane: {plane}")
+#     for plane, img in enumerate(data):
+#         # if plane % 50 == 0:
+#             # print(f"Registering plane: {plane}")
         
-        v, u = register_func.optical_flow_ilk(ref_frame_data, img, 
-                                              radius = radius_size, num_warp=num_warp)
-        row_coords, col_coords = xp.meshgrid(xp.arange(nr), xp.arange(nc),
-                                             indexing='ij')
-        registered_img[plane, ...] = transform_func.warp(orig_data[plane], xp.array([row_coords + v, col_coords + u]),
-                                                         mode='edge', preserve_range=True)
+#         v, u = register_func.optical_flow_ilk(ref_frame_data, img, 
+#                                               radius = radius_size, num_warp=num_warp)
+#         row_coords, col_coords = xp.meshgrid(xp.arange(nr), xp.arange(nc),
+#                                              indexing='ij')
+#         registered_img[plane, ...] = transform_func.warp(orig_data[plane], xp.array([row_coords + v, col_coords + u]),
+#                                                          mode='edge', preserve_range=True)
     
-    return registered_img
+#     return registered_img
 
 
 @macro.record
@@ -1812,21 +1816,3 @@ class MultiComboBox(QComboBox):
             if check_box:
                 item.setCheckState(Qt.CheckState.Checked if check_box.isChecked() else Qt.CheckState.Unchecked)
         super().hidePopup()
-
-def error_message_detail(error,error_detail:sys):
-    _,_,exc_tb=error_detail.exc_info()
-    file_name=exc_tb.tb_frame.f_code.co_filename
-    error_message="\n**************\nError in script file:\n'{0}'.\nLine number:\n'{1}'.\nWith error message:\n---->>>> '{2}' <<<<----\n**************".format(
-     file_name,exc_tb.tb_lineno,str(error))
-
-    return error_message
-
-    
-
-class CustomException(Exception):
-    def __init__(self,error_message,error_detail:sys):
-        super().__init__(error_message)
-        self.error_message=error_message_detail(error_message,error_detail=error_detail)
-    
-    def __str__(self):
-        return self.error_message
