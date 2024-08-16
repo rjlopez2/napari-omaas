@@ -1311,25 +1311,29 @@ class OMAAS(QWidget):
         normalization_methods = [self.data_normalization_options.itemText(i) for i in range(self.data_normalization_options.count())]
 
         if isinstance(current_selection, Image):
-            if type_of_normalization == normalization_methods[0]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = local_normal_fun(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
-                self.add_record_fun()
+            try:
 
-            elif type_of_normalization == normalization_methods[1]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = slide_window_normalization_func(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="SliWind20", add_to_metadata = "SliWind_norm_signal")
-                self.add_record_fun()
+                if type_of_normalization == normalization_methods[0]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    results = local_normal_fun(current_selection.data)
+                    self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
+                    self.add_record_fun()
 
-            elif type_of_normalization == normalization_methods[2]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = global_normal_fun(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
-                self.add_record_fun()
-            else:
-                warn(f"Normalization method '{type_of_normalization}' no found.")
+                elif type_of_normalization == normalization_methods[1]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    results = slide_window_normalization_func(current_selection.data)
+                    self.add_result_img(result_img=results, single_label_sufix="SliWind20", add_to_metadata = "SliWind_norm_signal")
+                    self.add_record_fun()
+
+                elif type_of_normalization == normalization_methods[2]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    results = global_normal_fun(current_selection.data)
+                    self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
+                    self.add_record_fun()
+                else:
+                    warn(f"Normalization method '{type_of_normalization}' no found.")
+            except Exception as e:
+                raise CustomException(e, sys)
         else:
            return  warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -2404,6 +2408,7 @@ class OMAAS(QWidget):
                     self.shape_layer.events.data.connect(self._data_changed_callback)
             except Exception as e:
                 print(f"You have the following error @ function _on_click_plot_profile_btn_func: --->> '{e}' <----")
+                raise CustomException(e, sys)
         else:
             # print('Unchecked')
             self.main_plot_widget.figure.clear()
@@ -3470,18 +3475,25 @@ class OMAAS(QWidget):
     
     def _double_slider_clip_trace_func(self):
         state = self.clip_label_range.isChecked()
+
+        try:
         
-        if state == True and self.plot_profile_btn.isChecked():
-            # self._dsiplay_range_func()
+            if state == True and self.plot_profile_btn.isChecked():
+                # self._dsiplay_range_func()
+                n_lines = len(self.main_plot_widget.figure.axes[0].lines)
+                if n_lines == 3:
+                    for i in range(2):
+                        self.main_plot_widget.figure.axes[0].lines[-1].remove()
+                else:
+                    self.main_plot_widget.figure.axes[0].lines[-1].remove()
+                
+                self._dsiplay_range_func()
 
-            for i in range(2):
-                self.main_plot_widget.figure.axes[0].lines[-1].remove()
-            
-            self._dsiplay_range_func()
 
-
-        else:
-            return
+            else:
+                return
+        except Exception as e:
+            raise CustomException(e, sys)
     
     def _export_processing_steps_btn_func(self):
         
