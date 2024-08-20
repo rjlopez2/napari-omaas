@@ -160,9 +160,12 @@ def global_normal_fun(
 
 
 @macro.record
-def slide_window_normalization_func(np_array, slide_window = 20):
+def slide_window_normalization_func(np_array, slide_window = 100):
     # NOTE: you have to check an error here.
-    return normalize_pixelwise_slidingwindow(np_array, window_size=  slide_window)
+    # Either any of the two approach bellow fix issue for dealing with float np.array
+    # np_array = np_array.copy() 
+    # y = np.ascontiguousarray(np_array)
+    return normalize_pixelwise_slidingwindow(np.ascontiguousarray(np_array), window_size=  slide_window)
 
 
 @macro.record

@@ -157,22 +157,31 @@ class OMAAS(QWidget):
         self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
 
         ######## pre-processing btns ########
-        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize")        
-        self.inv_and_norm_data_btn.setToolTip(("Invert and Apply Normalization to the current Image."))
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 1, 1, 1, 1)
 
-        self.inv_data_btn = QPushButton("Invert signal")
-        self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
-        self.pre_processing_group.glayout.addWidget(self.inv_data_btn , 2, 1, 1, 1)
-
-        self.apply_normalization_btn = QPushButton("Normalize")        
+        self.apply_normalization_btn = QPushButton("Normalize")
         self.apply_normalization_btn.setToolTip(("Apply Normalization to the current Image."))
-        self.pre_processing_group.glayout.addWidget(self.apply_normalization_btn, 1, 2, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.apply_normalization_btn, 1, 1, 1, 1)
 
         self.data_normalization_options = QComboBox()
         self.data_normalization_options.addItems(["Local max", "Slide window", "Global"])
         self.data_normalization_options.setToolTip(("List of normalization methods."))
-        self.pre_processing_group.glayout.addWidget(self.data_normalization_options, 1, 3, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.data_normalization_options, 1, 2, 1, 1)
+
+        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize")        
+        self.inv_and_norm_data_btn.setToolTip(("Invert and Apply Normalization to the current Image."))
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 1, 3, 1, 1)
+        
+        self.inv_data_btn = QPushButton("Invert signal")
+        self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
+        self.pre_processing_group.glayout.addWidget(self.inv_data_btn , 2, 1, 1, 1)
+
+        self.slide_wind_n = QSpinBox()
+        self.slide_wind_n.setToolTip(("Windows size for slide window normalization method."))
+        # self.slide_wind_n.setSingleStep(1)
+        self.slide_wind_n.setValue(100)
+        self.slide_wind_n.setMaximum(10000000)
+        self.pre_processing_group.glayout.addWidget(self.slide_wind_n , 2, 2, 1, 1)
+
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
@@ -1311,25 +1320,30 @@ class OMAAS(QWidget):
         normalization_methods = [self.data_normalization_options.itemText(i) for i in range(self.data_normalization_options.count())]
 
         if isinstance(current_selection, Image):
-            if type_of_normalization == normalization_methods[0]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = local_normal_fun(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
-                self.add_record_fun()
+            try:
 
-            elif type_of_normalization == normalization_methods[1]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = slide_window_normalization_func(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="SliWind20", add_to_metadata = "SliWind_norm_signal")
-                self.add_record_fun()
+                if type_of_normalization == normalization_methods[0]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    results = local_normal_fun(current_selection.data)
+                    self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
+                    self.add_record_fun()
 
-            elif type_of_normalization == normalization_methods[2]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = global_normal_fun(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
-                self.add_record_fun()
-            else:
-                warn(f"Normalization method '{type_of_normalization}' no found.")
+                elif type_of_normalization == normalization_methods[1]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    wind_size = self.slide_wind_n.value()
+                    results = slide_window_normalization_func(current_selection.data, slide_window=wind_size)
+                    self.add_result_img(result_img=results, single_label_sufix=f"SliWind{wind_size}", add_to_metadata = "SliWind_norm_signal")
+                    self.add_record_fun()
+
+                elif type_of_normalization == normalization_methods[2]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    results = global_normal_fun(current_selection.data)
+                    self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
+                    self.add_record_fun()
+                else:
+                    warn(f"Normalization method '{type_of_normalization}' no found.")
+            except Exception as e:
+                raise CustomException(e, sys)
         else:
            return  warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -2404,6 +2418,7 @@ class OMAAS(QWidget):
                     self.shape_layer.events.data.connect(self._data_changed_callback)
             except Exception as e:
                 print(f"You have the following error @ function _on_click_plot_profile_btn_func: --->> '{e}' <----")
+                raise CustomException(e, sys)
         else:
             # print('Unchecked')
             self.main_plot_widget.figure.clear()
@@ -3470,18 +3485,25 @@ class OMAAS(QWidget):
     
     def _double_slider_clip_trace_func(self):
         state = self.clip_label_range.isChecked()
+
+        try:
         
-        if state == True and self.plot_profile_btn.isChecked():
-            # self._dsiplay_range_func()
+            if state == True and self.plot_profile_btn.isChecked():
+                # self._dsiplay_range_func()
+                n_lines = len(self.main_plot_widget.figure.axes[0].lines)
+                if n_lines == 3:
+                    for i in range(2):
+                        self.main_plot_widget.figure.axes[0].lines[-1].remove()
+                else:
+                    self.main_plot_widget.figure.axes[0].lines[-1].remove()
+                
+                self._dsiplay_range_func()
 
-            for i in range(2):
-                self.main_plot_widget.figure.axes[0].lines[-1].remove()
-            
-            self._dsiplay_range_func()
 
-
-        else:
-            return
+            else:
+                return
+        except Exception as e:
+            raise CustomException(e, sys)
     
     def _export_processing_steps_btn_func(self):
         
