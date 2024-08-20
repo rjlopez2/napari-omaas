@@ -19,6 +19,10 @@ import warnings
 import tqdm.auto as tqdm
 from time import time
 import pandas as pd
+import yaml
+import toml
+import datetime
+from tifffile import imsave
 
 ########## napari & friends ##########
 from napari.layers import Image
@@ -1819,3 +1823,34 @@ class MultiComboBox(QComboBox):
             if check_box:
                 item.setCheckState(Qt.CheckState.Checked if check_box.isChecked() else Qt.CheckState.Unchecked)
         super().hidePopup()
+
+
+class TrackProcessingSteps:
+    def __init__(self):
+        self.steps = []
+    
+    def add_step(self, operation, method_name, inputs, outputs, parameters):
+        steps = {
+            'id': len(self.steps) + 1,
+            'operation': operation,
+            'method_name': method_name,
+            'inputs': inputs,
+            'outputs': outputs,
+            'parameters': parameters,
+            'timestamp': datetime.datetime.now().isoformat(),
+        }
+        self.steps.append(steps)
+
+    def save_to_yaml(self, file_path):
+        with open(file_path, "w") as f:
+            yaml.dump({"ProcessingSteps": {"steps": self.steps}}, f, sort_keys=False)
+
+    def save_to_toml(self, file_path):
+        with open(file_path, "w") as f:
+            toml.dump({"ProcessingSteps": {"steps": self.steps}}, f)
+
+    def save_to_tiff(self, image, file_path):
+        metadata = {
+            "ProcessingSteps": {"steps": self.steps}
+        }
+        imsave(file_path, image, metadata=metadata)

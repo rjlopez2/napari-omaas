@@ -42,6 +42,7 @@ from .utils import (
     ToggleButton,
     PandasModel,
     MultiComboBox,
+    TrackProcessingSteps,
     
     invert_signal,
     local_normal_fun,
@@ -144,6 +145,8 @@ class OMAAS(QWidget):
         self._settings_layout = QVBoxLayout()
         self.settings.setLayout(self._settings_layout)
         self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
+
+        self.metadata_recording_steps = TrackProcessingSteps()
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -1127,11 +1130,19 @@ class OMAAS(QWidget):
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
 
-        self.export_processing_steps_btn = QPushButton("Export processing steps")
-        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
+        self.record_operations_label = QLabel("Record operations in metadata")
+        self.record_operations_label.setToolTip('Set on if you want to keep track of the processing steps and operations to be recorded and added to the meatadata.')
+        self.metadata_display_group.glayout.addWidget(self.record_operations_label, 1, 0, 1, 1)
+        
+        self.record_metadata_check = QCheckBox()
+        self.record_metadata_check.setChecked(True) 
+        self.metadata_display_group.glayout.addWidget(self.record_metadata_check,  1, 1, 1, 1)
         
         self.export_image_btn = QPushButton("Export Image + meatadata")
         self.metadata_display_group.glayout.addWidget(self.export_image_btn,  1, 2, 1, 1)
+
+        self.export_processing_steps_btn = QPushButton("Export processing steps")
+        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
@@ -1304,13 +1315,30 @@ class OMAAS(QWidget):
     def _on_click_inv_data_btn(self):
         current_selection = self.viewer.layers.selection.active
 
-        if isinstance(current_selection, Image):
-            print(f'computing "invert_signal" to image {current_selection}')
-            results =invert_signal(current_selection.data)
-            self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
-            self.add_record_fun()
-        else:
-           return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+        try:
+            if isinstance(current_selection, Image):
+                print(f'computing "invert_signal" to image {current_selection}')
+                results =invert_signal(current_selection.data)
+                add_metadata = self.record_metadata_check.isChecked()
+                # self.add_result_img(result_img=results, 
+                #                     single_label_sufix="Inv", 
+                #                     operation_name = "inv_signal",
+                #                     track_metadata=add_metadata)    
+                self.add_result_img2(
+                    result_img=results,
+                    operation_name="invert_signal",
+                    method_name= "invert_signal",
+                    sufix="Inv", 
+                    parameters=None, 
+                    track_metadata=add_metadata,
+                    )
+                self.add_record_fun()
+            else:
+                return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+        except Exception as e:
+            raise CustomException(e, sys)
+            # print (CustomException(e, sys))
+            
 
 
     def _on_click_norm_data_btn(self):
@@ -1321,27 +1349,56 @@ class OMAAS(QWidget):
 
         if isinstance(current_selection, Image):
             try:
+                
+                add_metadata = self.record_metadata_check.isChecked()
 
                 if type_of_normalization == normalization_methods[0]:
                     print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    suffix = "LocNor"
+                    method_name = "local_normal_fun"
                     results = local_normal_fun(current_selection.data)
-                    self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
-                    self.add_record_fun()
+
+                    # self.add_result_img(result_img=results, 
+                    #                     single_label_sufix="LocNor", 
+                    #                     operation_name = "Local_norm_signal")
+                    # self.add_record_fun()
 
                 elif type_of_normalization == normalization_methods[1]:
                     print(f'computing "{type_of_normalization}" to image {current_selection}')
                     wind_size = self.slide_wind_n.value()
                     results = slide_window_normalization_func(current_selection.data, slide_window=wind_size)
-                    self.add_result_img(result_img=results, single_label_sufix=f"SliWind{wind_size}", add_to_metadata = "SliWind_norm_signal")
-                    self.add_record_fun()
+                    suffix = f"SliWind{wind_size}"
+                    method_name = "slide_window_normalization_func"
+
+                    # self.add_result_img(result_img=results, 
+                    #                     single_label_sufix=f"SliWind{wind_size}", operation_name = "SliWind_norm_signal")
+                    # self.add_record_fun()
 
                 elif type_of_normalization == normalization_methods[2]:
                     print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    suffix = "GloNor"
+                    method_name = "global_normal_fun"
                     results = global_normal_fun(current_selection.data)
-                    self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
-                    self.add_record_fun()
+                    # self.add_result_img(result_img=results, 
+                    #                     single_label_sufix="GloNor", 
+                    #                     operation_name = "Global_norm_signal")
+                    # self.add_record_fun()
                 else:
                     warn(f"Normalization method '{type_of_normalization}' no found.")
+
+                parameters= {"Normalization_method": type_of_normalization}
+                parameters = {"Normalization_method": type_of_normalization, "options": {"slide_window" : wind_size}} if type_of_normalization == normalization_methods[1] else parameters
+                # parameters = 
+                
+                self.add_result_img2(
+                    result_img=results,
+                    operation_name="Normalization",
+                    method_name= method_name,
+                    sufix=suffix, 
+                    parameters=parameters, 
+                    track_metadata=add_metadata,
+                    )
+                self.add_record_fun()
             except Exception as e:
                 raise CustomException(e, sys)
         else:
@@ -1381,7 +1438,7 @@ class OMAAS(QWidget):
                                     img_custom_name=curr_img_name, 
                                     single_label_sufix=f"Ch{channel}", 
                                     custom_metadata=new_metadata,
-                                    add_to_metadata = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
+                                    operation_name = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -1482,7 +1539,7 @@ class OMAAS(QWidget):
                                     auto_metadata=False,
                                     custom_metadata=metadata,
                                     single_label_sufix = f"Rat_Ch1_Ch0", 
-                                    add_to_metadata = f"Ratio_from {img1_name}/{img0_name}")
+                                    operation_name = f"Ratio_from {img1_name}/{img0_name}")
                 
                 print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
 
@@ -1493,7 +1550,7 @@ class OMAAS(QWidget):
                                     auto_metadata=False,
                                     custom_metadata=metadata,
                                     single_label_sufix = f"Rat_Ch0_Ch1", 
-                                    add_to_metadata = f"Ratio_from {img0_name}/{img1_name}")
+                                    operation_name = f"Ratio_from {img0_name}/{img1_name}")
 
                 print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
 
@@ -1520,7 +1577,7 @@ class OMAAS(QWidget):
                                     single_label_sufix = f"Filt{filter_type}", 
                                     KrnlSiz = kernel_size, 
                                     Sgma = sigma, 
-                                    add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
+                                    operation_name = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
 
             
             elif filter_type == all_my_filters[3]:
@@ -1531,7 +1588,7 @@ class OMAAS(QWidget):
                                     custom_metadata=metadata,
                                     single_label_sufix = f"Filt{filter_type}", 
                                     MednFilt = kernel_size, 
-                                    add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
+                                    operation_name = f"{filter_type}Filt_ksize{kernel_size}")
 
             elif filter_type == all_my_filters[1]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
@@ -1541,7 +1598,7 @@ class OMAAS(QWidget):
                                     custom_metadata=metadata,
                                     single_label_sufix = f"Filt{filter_type}", 
                                     BoxFilt = kernel_size, 
-                                    add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
+                                    operation_name = f"{filter_type}Filt_ksize{kernel_size}")
             
             elif filter_type == all_my_filters[2]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
@@ -1551,7 +1608,7 @@ class OMAAS(QWidget):
                                     custom_metadata=metadata,
                                     single_label_sufix = f"Filt{filter_type}", 
                                     KrnlSiz = kernel_size, Widht = sigma, 
-                                    add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
+                                    operation_name = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
             
             elif filter_type == all_my_filters[4]:
                 print(f'applying "{filter_type}" filter to image {current_selection}')
@@ -1563,7 +1620,7 @@ class OMAAS(QWidget):
                                     WindSiz = kernel_size, 
                                     sigma_spa = sigma,  
                                     sigma_col = sigma_col, 
-                                    add_to_metadata = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
+                                    operation_name = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
             
             self.add_record_fun()
 
@@ -1572,16 +1629,135 @@ class OMAAS(QWidget):
                 
     
     
+    def add_result_img2(self, 
+                        result_img, 
+                        operation_name, 
+                        method_name,
+                        sufix = None, 
+                        parameters = None,
+                        track_metadata = True, 
+                        colormap="turbo"):
+        """
+        add_result_img2 _summary_
+
+        _extended_summary_
+
+        Parameters
+        ----------
+        result_img : 'napari.types.ImageData'
+            Image resulting from an operation.
+
+        operation_name : srt, optional
+            Name of the current processing step or operation, by default None
+
+        method_name : srt, optional
+            Name of the current method or function used, by default None
+
+        sufix : str, optional
+            Add sufix to image, by default None
+
+        parameters : dict, optional
+            Set of parameters currently being used, by default None
+
+        track_metadata : bool, optional
+            Set True if you wish to keep track of operations changes and be added to metadata, by default True
+
+        colormap : str, optional
+            Pseudo-color definition for resulting image, by default "turbo"
+
+        """
+
+        img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
+        img_name = self.viewer.layers.selection.active.name
+        new_img_name = img_name
+
+        if sufix is not None:
+            new_img_name += f"_{sufix}"
+        
+        if track_metadata:
+
+            # create "ProcessingSteps" key if does not exist
+            key_name = "ProcessingSteps"
+
+            # if key_name in img_metadata:
+            self.metadata_recording_steps.steps = img_metadata[key_name] if key_name in img_metadata else []
+                # img_metadata[key_name] = []
+            # else:
+            #     self.metadata_recording_steps.steps = img_metadata[key_name] if len(img_metadata[key_name]) > 1, else: 
+            
+            self.metadata_recording_steps.add_step(
+                    operation=operation_name,
+                    method_name=method_name,
+                    inputs=[img_name],
+                    outputs=[new_img_name],
+                    parameters=parameters
+                    )
+            img_metadata[key_name] = self.metadata_recording_steps.steps
+            
+            
+            return self.viewer.add_image(result_img,
+                        colormap = colormap,
+                        name = new_img_name,
+                        metadata = img_metadata
+                        )
+        else:
+            return self.viewer.add_image(result_img,
+                        colormap = colormap,
+                        name = new_img_name,
+                        metadata = img_metadata
+                        )
+
+
+    
     
     def add_result_img(self, 
                        result_img, 
                        single_label_sufix = None, 
                        auto_metadata = True, 
-                       add_to_metadata = None, 
-                       custom_metadata = None, 
+                       operation_name = None, 
+                       parameters = None,
+                       custom_metadata = None,
+                       track_metadata = True, 
                        colormap="turbo", 
                        img_custom_name = None, 
                        **label_and_value_sufix):
+        """
+        add_result_img: Add new image and handle metadata.
+
+        This function create and handle metadata for the 
+        different processing steps or operations in images.
+
+        Parameters
+        ----------
+        result_img : 'napari.types.ImageData'
+            Image resulting from an operation.
+
+        single_label_sufix : str, optional
+            Add sufix to image, by default None
+
+        auto_metadata : bool, optional
+            If True, tkes curent image metadata and update it, otherwise a new metadata template is required, by default True
+
+        add_to_metadata : str, optional
+            Parameter to add as metadata, typically the name of the operation, by default None
+
+        custom_metadata : dict, optional
+            When auto_metadata = False, metadata dict to use as template, by default None
+
+        track_metadata : bool, optional
+            Set True if you wish to keep track of operations changes and be added to metadata, by default True
+
+        colormap : str, optional
+            Pseudo-color definition for resulting image, by default "turbo"
+            
+        img_custom_name : str, optional
+            When you decide to change or modify the current image name, by default None
+        
+        Returns
+        -------
+        result_img_and_metadata : 'napari.types.ImageData'
+            The image with metadata updated.
+        """
         
 
         if auto_metadata:
@@ -1594,33 +1770,54 @@ class OMAAS(QWidget):
             img_name = img_custom_name
         else:
             img_name = self.viewer.layers.selection.active.name
-            
         
-        # create "ProcessingSteps" key if does not exist
-        key_name = "ProcessingSteps"
+        new_img_name = img_name
+            
+        if track_metadata:
 
-        if key_name not in img_metadata:
-            img_metadata[key_name] = []
+            # create "ProcessingSteps" key if does not exist
+            key_name = "ProcessingSteps"
 
-        # append the given processing step(s) to the key
-        if add_to_metadata is not None:            
-            img_metadata[key_name].append(add_to_metadata)
-
+            if key_name not in img_metadata:
+                img_metadata[key_name] = []
 
         if single_label_sufix is not None:
             # for value in single_label_sufix:
-            img_name += f"_{single_label_sufix}"
+            new_img_name += f"_{single_label_sufix}"
 
         if label_and_value_sufix is not None:
             for key, value in label_and_value_sufix.items():
-                img_name += f"_{key}{value}"
+                new_img_name += f"_{key}{value}"
+                
+
+            # append the given processing step(s) to the key
+            if operation_name is not None:            
+
+                self.metadata_recording_steps.add_step(
+                    operation=operation_name,
+                    inputs=[img_name],
+                    outputs=[new_img_name],
+                    parameters=[None]
+                    )
+                img_metadata[key_name].append(self.metadata_recording_steps.steps)
+
+
+
             
+            return self.viewer.add_image(result_img,
+                        colormap = colormap,
+                        name = new_img_name,
+                        metadata = img_metadata
+                        )
+        else:
+            
+            return self.viewer.add_image(result_img,
+                        colormap = colormap,
+                        name = new_img_name,
+                        metadata = img_metadata
+                        )
 
         
-        self.viewer.add_image(result_img,
-                    colormap = colormap,
-                    name = img_name,
-                    metadata = img_metadata)
         
 
 
@@ -1765,7 +1962,7 @@ class OMAAS(QWidget):
                                     single_label_sufix = f"Filt{filter_type}", 
                                     cffreq = cutoff_freq_value, 
                                     ord = order_value, fps=round(fps_val), 
-                                    add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{cutoff_freq_value}_ord{order_value}")
+                                    operation_name = f"{filter_type}Filt_acfreq{fps_val}_cffreq{cutoff_freq_value}_ord{order_value}")
                 
             
             elif filter_type == all_my_filters[1]:
@@ -1782,7 +1979,7 @@ class OMAAS(QWidget):
                                         single_label_sufix = f"Filt{filter_type}", 
                                         cffreq = ct_freq, 
                                         n_taps = n_taps, 
-                                        add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{ct_freq}_n_taps{n_taps}")
+                                        operation_name = f"{filter_type}Filt_acfreq{fps_val}_cffreq{ct_freq}_n_taps{n_taps}")
                     
                     # return warn("Current filter '{filter_type}' is not supported.")
                 except Exception as e:
@@ -2630,7 +2827,7 @@ class OMAAS(QWidget):
                                     custom_metadata=current_img_selected.metadata,
                                     img_custom_name=current_img_selected.name, 
                                     single_label_sufix="Ave", 
-                                    add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
+                                    operation_name = f"Average stack of {len(ini_i)} AP traces")
                 print("Average trace created")
                 self.add_record_fun()
 
@@ -2803,7 +3000,7 @@ class OMAAS(QWidget):
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
                                     single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
-                                    add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                                    operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
                 
                 elif map_type == 2:
                     image = current_img_selection.data.copy()
@@ -2851,7 +3048,7 @@ class OMAAS(QWidget):
                                         custom_metadata=current_img_selection.metadata,
                                         img_custom_name=current_img_selection.name, 
                                         single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                                        add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
+                                        operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
 
                     print("finished")
 
@@ -3158,7 +3355,7 @@ class OMAAS(QWidget):
         self.add_result_img(result_img=results, 
                             img_custom_name=current_img_selection.name, 
                             single_label_sufix="ActTime", 
-                            add_to_metadata = f"Activation Time")
+                            operation_name = f"Activation Time")
     
 
 
@@ -3288,7 +3485,7 @@ class OMAAS(QWidget):
                                     custom_metadata=current_selection.metadata,
                                     img_custom_name=current_selection.name, 
                                     single_label_sufix = f"NullBckgrnd",
-                                    add_to_metadata = f"Background subtracted")
+                                    operation_name = f"Background subtracted")
                  
                     
             
@@ -3340,7 +3537,7 @@ class OMAAS(QWidget):
                                 custom_metadata=current_selection.metadata,
                                 img_custom_name=current_selection.name, 
                                 single_label_sufix = f"NullBckgrnd",
-                                add_to_metadata = f"Background subtracted")
+                                operation_name = f"Background subtracted")
 
 
 
@@ -3450,7 +3647,7 @@ class OMAAS(QWidget):
                                         custom_metadata=image.metadata,
                                         img_custom_name = image.name, 
                                         single_label_sufix="clip", 
-                                        add_to_metadata = f"Clipped_at_Indx_[{start_indx}:{end_indx}]")
+                                        operation_name = f"Clipped_at_Indx_[{start_indx}:{end_indx}]")
                     # self.add_record_fun()
                     # self.plot_profile_btn.setChecked(False)
                     self.clip_label_range.setChecked(False)
@@ -3518,13 +3715,15 @@ class OMAAS(QWidget):
                 fileName, _ = QFileDialog.getSaveFileName(self,
                                                     "Save File",
                                                         "",
-                                                        "Hierarchical Data Format (*.h5 *.hdf5);;Text Files (*.txt)")
+                                                        "YAML file (yml);;TOML file;;Text Files (*.txt)")
                 if not len(fileName) == 0:
+                    fileName, _ = os.path.splitext(fileName)
+                    self.metadata_recording_steps.save_to_yaml(fileName + ".yml")
                 
-                    with h5py.File(fileName, "w") as hf:
+                    # with h5py.File(fileName, "w") as hf:
 
-                        # NOTE: may be add more information: original image name, date, etc?
-                        hf.attrs.update({key:metadata[key]})
+                    #     # NOTE: may be add more information: original image name, date, etc?
+                    #     hf.attrs.update({key:metadata[key]})
                         
                     print(f"Processing steps for image {current_selection.name} exported")
             else:
@@ -3605,7 +3804,7 @@ class OMAAS(QWidget):
             self.add_result_img(result_img=results, 
                                 img_custom_name = current_selection.name,
                                 single_label_sufix= f'MotStab_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefF{ref_frame_indx}', 
-                                add_to_metadata = f'Motion_correction_optimap_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefFram{ref_frame_indx}')
+                                operation_name = f'Motion_correction_optimap_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefFram{ref_frame_indx}')
             
             self.add_record_fun()
 
@@ -3634,7 +3833,7 @@ class OMAAS(QWidget):
                             custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
                             # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90L")
+                            operation_name = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90L")
             self.plot_last_generated_img()
             self.rotate_l_crop.setChecked(False)
             return
@@ -3649,7 +3848,7 @@ class OMAAS(QWidget):
                             custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
                             # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90R")
+                            operation_name = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90R")
             self.plot_last_generated_img()
             self.rotate_r_crop.setChecked(False)
             return
@@ -3663,7 +3862,7 @@ class OMAAS(QWidget):
                             custom_metadata = img_layer.metadata, 
                             single_label_sufix = "Crop",
                             # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]")
+                            operation_name = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]")
 
 
 
