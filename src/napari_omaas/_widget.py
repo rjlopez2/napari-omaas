@@ -1414,18 +1414,18 @@ class OMAAS(QWidget):
 
             for channel in range(len(my_splitted_images)):
                 
-                # self.add_result_img(result_img=my_splitted_images[channel], 
-                #                     auto_metadata = False,
-                #                     img_custom_name=curr_img_name, 
-                #                     single_label_sufix=f"Ch{channel}", 
-                #                     custom_metadata=new_metadata,
-                #                     operation_name = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
+                params = {"Channel" : channel,
+                          "cycle_time_changed": {"original_cycle_time": round(metadata["CycleTime"], 3), 
+                                                 "new_cycle_time": round(half_cycle_time, 3)}
+                                                 }
                 self.add_result_img(result_img=my_splitted_images[channel], 
                                     operation_name="Split_Channels", 
                                     method_name="split_channels_fun", 
                                     sufix=f"Ch{channel}", 
                                     custom_metadata=new_metadata, 
-                                    parameters={"cycle_time_changed": {"original_cycle_time": round(metadata["CycleTime"], 3), "new_cycle_time": {round(half_cycle_time, 3)}}})
+                                    custom_img_name= curr_img_name,
+                                    custom_outputs=[curr_img_name + "_Ch0", curr_img_name + "_Ch1"],
+                                    parameters=params)
 
                 self.add_record_fun()
         else:
@@ -1528,6 +1528,7 @@ class OMAAS(QWidget):
                                     custom_metadata=metadata,
                                     single_label_sufix = f"Rat_Ch1_Ch0", 
                                     operation_name = f"Ratio_from {img1_name}/{img0_name}")
+                self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/")                                    
                 
                 print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
 
@@ -1622,6 +1623,9 @@ class OMAAS(QWidget):
                         operation_name, 
                         method_name,
                         custom_metadata = None,
+                        custom_img_name = None,
+                        custom_inputs = None,
+                        custom_outputs = None,
                         sufix = None, 
                         parameters = None,
                         track_metadata = None, 
@@ -1662,11 +1666,25 @@ class OMAAS(QWidget):
         else:
             img_metadata = copy.deepcopy(custom_metadata)
 
-        img_name = self.viewer.layers.selection.active.name
+        if custom_img_name is None:
+            img_name = self.viewer.layers.selection.active.name
+        else:
+            img_name = custom_img_name
         new_img_name = img_name
 
         if sufix is not None:
             new_img_name += f"_{sufix}"
+
+        if custom_inputs is None:
+            custom_inputs = [img_name]
+        else:
+            custom_inputs
+        
+        if custom_outputs is None:
+            custom_outputs = [new_img_name]
+        else:
+            custom_outputs
+
 
         track_metadata = self.record_metadata_check.isChecked() if track_metadata is None else track_metadata
         
@@ -1684,8 +1702,8 @@ class OMAAS(QWidget):
             self.metadata_recording_steps.add_step(
                     operation=operation_name,
                     method_name=method_name,
-                    inputs=[img_name],
-                    outputs=[new_img_name],
+                    inputs=custom_inputs,
+                    outputs=custom_outputs,
                     parameters=parameters
                     )
             img_metadata[key_name] = self.metadata_recording_steps.steps
