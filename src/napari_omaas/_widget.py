@@ -1414,7 +1414,7 @@ class OMAAS(QWidget):
 
             for channel in range(len(my_splitted_images)):
                 
-                params = {"Channel" : channel,
+                params = {"Channel" : {"current_channel":channel},
                           "cycle_time_changed": {"original_cycle_time": round(metadata["CycleTime"], 3), 
                                                  "new_cycle_time": round(half_cycle_time, 3)}
                                                  }
@@ -1511,37 +1511,43 @@ class OMAAS(QWidget):
     #    print(f"Current layer 1 is {ctext}")
     
     def _compute_ratio_btn_func(self):
+        
+        
+        # if [img0.data.shape] != [img1.data.shape]:
+        #     return warn(f"The shape of your images does not seems to be the same. Please check the images. dim of '{img0_name}' = {img0.data.shape} and dim of '{img1_name}' = {img1.data.shape}")
+        # else :
         img0_name = self.Ch0_ratio.currentText()
         img0 = self.viewer.layers[img0_name]
         img1_name = self.Ch1_ratio.currentText()
         img1 = self.viewer.layers[img1_name]
-        metadata = img0.metadata
-        
-        if [img0.data.shape] != [img1.data.shape]:
-            return warn(f"The shape of your images does not seems to be the same. Please check the images. dim of '{img0_name}' = {img0.data.shape} and dim of '{img1_name}' = {img1.data.shape}")
-        else :
-            if self.is_ratio_inverted.isChecked():
-                results = img1.data/img0.data
-                self.add_result_img(results, 
-                                    img_custom_name=img0_name[:-4],
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Rat_Ch1_Ch0", 
-                                    operation_name = f"Ratio_from {img1_name}/{img0_name}")
-                self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/")                                    
-                
-                print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
 
-            else:
-                results = img0.data/img1.data
-                self.add_result_img(results, 
-                                    img_custom_name=img0_name[:-4],
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Rat_Ch0_Ch1", 
-                                    operation_name = f"Ratio_from {img0_name}/{img1_name}")
+        # metadata = img0.metadata
+        params = {"is_ratio_inverted": self.is_ratio_inverted.isChecked()}
 
-                print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
+        if self.is_ratio_inverted.isChecked():
+            results = img1.data/img0.data
+
+            # self.add_result_img(results, 
+            #                     img_custom_name=img0_name[:-4],
+            #                     auto_metadata=False,
+            #                     custom_metadata=metadata,
+            #                     single_label_sufix = f"Rat_Ch1_Ch0", 
+            #                     operation_name = f"Ratio_from {img1_name}/{img0_name}")
+            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"Rat_Ch1Ch0", custom_inputs=[img1_name, img0_name], )                                    
+            
+            print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
+
+        else:
+            results = img0.data/img1.data
+            # self.add_result_img(results, 
+            #                     img_custom_name=img0_name[:-4],
+            #                     auto_metadata=False,
+            #                     custom_metadata=metadata,
+            #                     single_label_sufix = f"Rat_Ch0_Ch1", 
+            #                     operation_name = f"Ratio_from {img0_name}/{img1_name}")
+            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"Rat_Ch0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
+
+            print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
 
 
     def _on_click_apply_spat_filt_btn(self):
