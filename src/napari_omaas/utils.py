@@ -680,7 +680,7 @@ def apply_butterworth_filt_func(data: "napari.types.ImageData",
 
 
 @macro.record
-def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq
+def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq, acquisition_freq
         )-> "Image":
         
         """
@@ -711,11 +711,11 @@ def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq
 
         # Design the FIR filter
         # Define the number of taps (filter length) and the cutoff frequency
-        num_taps = 21  # Length of the filter
-        cutoff_frequency = 0.1  # Normalized cutoff frequency (0 to 1, where 1 is Nyquist frequency)
+        # num_taps = 21  # Length of the filter
+        # cutoff_frequency = 0.1  # Normalized cutoff frequency (0 to 1, where 1 is Nyquist frequency)
 
         # Use firwin to create a low-pass FIR filter
-        fir_coeff = signal.firwin(num_taps, cutoff_frequency, window='hamming')
+        fir_coeff = signal.firwin(n_taps, cf_freq, window='hamming', fs = acquisition_freq)
 
         # Apply the FIR filter along the temporal axis (axis=0)
         filt_image = np.apply_along_axis(lambda m: signal.lfilter(fir_coeff, 1.0, m), axis=0, arr=data)

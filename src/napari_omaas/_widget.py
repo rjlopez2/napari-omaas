@@ -1605,7 +1605,7 @@ class OMAAS(QWidget):
                         }
                 
                 self.add_record_fun()
-                self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"Filt{filter_type}", parameters=params)
+                self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"SpatFilt{filter_type}", parameters=params)
                 
             except Exception as e:
                 raise CustomException(e, sys)
@@ -1938,16 +1938,16 @@ class OMAAS(QWidget):
     #         warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
         
+        # NOTE: DEPRECATE this function 21.08.2024
+    # def _on_click_transform_to_uint16_btn(self):
         
-    def _on_click_transform_to_uint16_btn(self):
-        
-        results = transform_to_unit16_func(self.viewer.layers.selection)
-        # print( "is doing something")
+    #     results = transform_to_unit16_func(self.viewer.layers.selection)
+    #     # print( "is doing something")
 
-        self.viewer.add_image(results, 
-            colormap = "turbo",
-         # colormap= "twilight_shifted", 
-            name= f"{self.viewer.layers.selection.active}_uint16")
+    #     self.viewer.add_image(results, 
+    #         colormap = "turbo",
+    #      # colormap= "twilight_shifted", 
+    #         name= f"{self.viewer.layers.selection.active}_uint16")
 
     def _on_click_apply_temp_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
@@ -1958,53 +1958,52 @@ class OMAAS(QWidget):
             cutoff_freq_value = self.butter_cutoff_freq_val.text()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
+            cutoff_freq_value = int(cutoff_freq_value)
             metadata = current_selection.metadata
 
-            if filter_type == all_my_filters[0]:
+            try:
 
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                cutoff_freq_value = int(cutoff_freq_value)
-                results = apply_butterworth_filt_func(current_selection.data, 
-                                                    ac_freq=fps_val, 
-                                                    cf_freq= cutoff_freq_value, 
-                                                    fil_ord=order_value)
+                if filter_type == all_my_filters[0]:
 
-                # self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val), add_to_metadata=f"ButterworthFilt_acfreq{fps_val}_cffreq{cutoff_freq_value}_filtord{order_value}")
-                self.add_result_img(results, 
-                                    auto_metadata=False, 
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    cffreq = cutoff_freq_value, 
-                                    ord = order_value, fps=round(fps_val), 
-                                    operation_name = f"{filter_type}Filt_acfreq{fps_val}_cffreq{cutoff_freq_value}_ord{order_value}")
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    
+                    results = apply_butterworth_filt_func(current_selection.data, 
+                                                        ac_freq=fps_val, 
+                                                        cf_freq= cutoff_freq_value, 
+                                                        fil_ord=order_value)
+                    
+                    met_name = "apply_butterworth_filt_func"
+                    params = {
+                    "filter_type":filter_type,
+                    "acquisition_freq": fps_val,
+                    "cutoff_freq": cutoff_freq_value,
+                    "order_size": order_value
+                    }
+            
+                elif filter_type == all_my_filters[1]:
+                    
+
+                    n_taps = 21 #NOTE: this is hard coded, need to test it if make an impact
+                    
+                    results = apply_FIR_filt_func(current_selection.data, n_taps=n_taps, cf_freq=cutoff_freq_value, acquisition_freq = fps_val)
+
+                    met_name = "apply_FIR_filt_func"
+                    params = {
+                    "acquisition_freq": fps_val,
+                    "n_taps":n_taps,
+                    "cutoff_freq": cutoff_freq_value,
+                    }
+                
+                self.add_record_fun()
+                self.add_result_img(result_img=results, operation_name="Temporal_filter", method_name=met_name, sufix= f"TempFilt{filter_type}", parameters=params)
                 
             
-            elif filter_type == all_my_filters[1]:
-                try:
-
-                    n_taps = 21
-                    ct_freq = float(cutoff_freq_value)
-
-                    results = apply_FIR_filt_func(current_selection.data, n_taps=n_taps, cf_freq=ct_freq)
-
-                    self.add_result_img(results, 
-                                        auto_metadata=False, 
-                                        custom_metadata=metadata,
-                                        single_label_sufix = f"Filt{filter_type}", 
-                                        cffreq = ct_freq, 
-                                        n_taps = n_taps, 
-                                        operation_name = f"{filter_type}Filt_acfreq{fps_val}_cffreq{ct_freq}_n_taps{n_taps}")
-                    
-                    # return warn("Current filter '{filter_type}' is not supported.")
-                except Exception as e:
-                        # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-                        raise e
-
-            
-            self.add_record_fun()
-
+            except Exception as e:
+                # raise CustomException(e, sys)
+                print(CustomException(e, sys))
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+    
                 
 
         # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")
