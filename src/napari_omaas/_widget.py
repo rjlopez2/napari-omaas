@@ -1526,25 +1526,14 @@ class OMAAS(QWidget):
 
         if self.is_ratio_inverted.isChecked():
             results = img1.data/img0.data
-
-            # self.add_result_img(results, 
-            #                     img_custom_name=img0_name[:-4],
-            #                     auto_metadata=False,
-            #                     custom_metadata=metadata,
-            #                     single_label_sufix = f"Rat_Ch1_Ch0", 
-            #                     operation_name = f"Ratio_from {img1_name}/{img0_name}")
+            
             self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"Rat_Ch1Ch0", custom_inputs=[img1_name, img0_name], )                                    
             
             print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
 
         else:
             results = img0.data/img1.data
-            # self.add_result_img(results, 
-            #                     img_custom_name=img0_name[:-4],
-            #                     auto_metadata=False,
-            #                     custom_metadata=metadata,
-            #                     single_label_sufix = f"Rat_Ch0_Ch1", 
-            #                     operation_name = f"Ratio_from {img0_name}/{img1_name}")
+            
             self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"Rat_Ch0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
 
             print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
@@ -1560,64 +1549,82 @@ class OMAAS(QWidget):
             kernel_size = self.filt_kernel_value.value()
             sigma_col = self.sigma_filt_color_value.value()
             metadata = current_selection.metadata
-            
-            if filter_type == all_my_filters[0]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_gaussian_func(current_selection.data, 
-                                            sigma= sigma, 
-                                            kernel_size=kernel_size)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    KrnlSiz = kernel_size, 
-                                    Sgma = sigma, 
-                                    operation_name = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
 
-            
-            elif filter_type == all_my_filters[3]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_median_filt_func(current_selection.data, kernel_size)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    MednFilt = kernel_size, 
-                                    operation_name = f"{filter_type}Filt_ksize{kernel_size}")
+            try:
+                            
+                if filter_type == all_my_filters[0]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_gaussian_func(current_selection.data, 
+                                                sigma= sigma, 
+                                                kernel_size=kernel_size)
+                    
+                    met_name = "apply_gaussian_func"
+                    params = {
+                        "filter_type":filter_type,
+                        "sigma": sigma,
+                        "kernel_size": kernel_size
+                        }
+                            
+                            
+                    # self.add_result_img(results, 
+                    #                     auto_metadata=False,
+                    #                     custom_metadata=metadata,
+                    #                     single_label_sufix = f"Filt{filter_type}", 
+                    #                     KrnlSiz = kernel_size, 
+                    #                     Sgma = sigma, 
+                    #                     operation_name = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
 
-            elif filter_type == all_my_filters[1]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_box_filter(current_selection.data, kernel_size)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    BoxFilt = kernel_size, 
-                                    operation_name = f"{filter_type}Filt_ksize{kernel_size}")
-            
-            elif filter_type == all_my_filters[2]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    KrnlSiz = kernel_size, Widht = sigma, 
-                                    operation_name = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
-            
-            elif filter_type == all_my_filters[4]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    WindSiz = kernel_size, 
-                                    sigma_spa = sigma,  
-                                    sigma_col = sigma_col, 
-                                    operation_name = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
-            
-            self.add_record_fun()
+                
+                elif filter_type == all_my_filters[3]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_median_filt_func(current_selection.data, kernel_size)
+                    self.add_result_img(results, 
+                                        auto_metadata=False,
+                                        custom_metadata=metadata,
+                                        single_label_sufix = f"Filt{filter_type}", 
+                                        MednFilt = kernel_size, 
+                                        operation_name = f"{filter_type}Filt_ksize{kernel_size}")
+
+                elif filter_type == all_my_filters[1]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_box_filter(current_selection.data, kernel_size)
+                    self.add_result_img(results, 
+                                        auto_metadata=False,
+                                        custom_metadata=metadata,
+                                        single_label_sufix = f"Filt{filter_type}", 
+                                        BoxFilt = kernel_size, 
+                                        operation_name = f"{filter_type}Filt_ksize{kernel_size}")
+                
+                elif filter_type == all_my_filters[2]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
+                    self.add_result_img(results, 
+                                        auto_metadata=False,
+                                        custom_metadata=metadata,
+                                        single_label_sufix = f"Filt{filter_type}", 
+                                        KrnlSiz = kernel_size, Widht = sigma, 
+                                        operation_name = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
+                
+                elif filter_type == all_my_filters[4]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
+                    self.add_result_img(results, 
+                                        auto_metadata=False,
+                                        custom_metadata=metadata,
+                                        single_label_sufix = f"Filt{filter_type}", 
+                                        WindSiz = kernel_size, 
+                                        sigma_spa = sigma,  
+                                        sigma_col = sigma_col, 
+                                        operation_name = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
+                
+                self.add_record_fun()
+                self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"Filt{filter_type}", parameters=params)
+                
+            except Exception as e:
+                # raise CustomException(e, sys)
+                print( CustomException(e, sys))
+                
+                
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -3858,56 +3865,46 @@ class OMAAS(QWidget):
 
         img_name = self.image_selection_crop.currentText()
         img_layer = self.viewer.layers[img_name]
+        metadata = img_layer.metadata
 
-        cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
-        
-        if self.rotate_l_crop.isChecked():
-            cropped_img = np.rot90(cropped_img, axes=(1, 2))
-            print(f"result image rotate 90° to the left")
+        try:
+            cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
+            a, b, c, d = shape_layer.data[0]
+            param = {
+                "from_shape": {"name": shape_name,
+                               "data": {"t_right" : a.tolist(),
+                                        "t_left" : b.tolist(),
+                                        "b_left" : c.tolist(),
+                                        "b_right" : d.tolist()}
+                                        },
+                "crop_indexes": {"y": {"ini_index":int(ini_index[0]),
+                                    "end_index": int(end_index[0])},
+                                "x": {"ini_index":int(ini_index[1]),
+                                            "end_index": int(end_index[1])}}
+                                        
+                }
 
-            self.add_result_img(cropped_img,
-                            img_custom_name=img_name,
-                            auto_metadata = False, 
-                            custom_metadata = img_layer.metadata, 
-                            single_label_sufix = "Crop",
-                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            operation_name = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90L")
-            self.plot_last_generated_img()
-            self.rotate_l_crop.setChecked(False)
-            return
+            if self.rotate_l_crop.isChecked():
+                cropped_img = np.rot90(cropped_img, axes=(1, 2))
+                print(f"result image rotate 90° to the left")
+                param["rotate_image"] = {"method_name" : "np.ro90", "axes": [1, 2]}                
 
-        if self.rotate_r_crop.isChecked():
-            cropped_img = np.rot90(cropped_img, axes=(2, 1))
-            print(f"result image rotate 90° to the right")
+            elif self.rotate_r_crop.isChecked():
+                cropped_img = np.rot90(cropped_img, axes=(2, 1))
+                param["rotate_image"] = {"method_name" : "np.ro90", "axes": [2, 1]}
+                print(f"result image rotate 90° to the right")
 
-            self.add_result_img(cropped_img,
-                            img_custom_name=img_name,
-                            auto_metadata = False, 
-                            custom_metadata = img_layer.metadata, 
-                            single_label_sufix = "Crop",
-                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            operation_name = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90R")
-            self.plot_last_generated_img()
-            self.rotate_r_crop.setChecked(False)
-            return
-                            
-
-        
-        else:
-            self.add_result_img(cropped_img,
-                            img_custom_name=img_name,
-                            auto_metadata = False, 
-                            custom_metadata = img_layer.metadata, 
-                            single_label_sufix = "Crop",
-                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            operation_name = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]")
-
-
-
+            self.add_result_img(result_img=cropped_img, operation_name="Crop_image", custom_img_name=img_name, method_name="crop_from_shape", custom_metadata= metadata, sufix="Crop", parameters=param)
             self.add_record_fun()
+            print(f"image '{img_name}' cropped")
+            return
 
-        print(f"image '{img_name}' cropped")
-    
+
+        except Exception as e:
+            raise CustomException(e, sys)
+            # print(CustomException(e, sys))
+                            
+                                
     def _update_APD_value_for_MAP_func(self):
         new_value = self.slider_APD_percentage.value()
         self.slider_APD_map_percentage.setValue(new_value)
