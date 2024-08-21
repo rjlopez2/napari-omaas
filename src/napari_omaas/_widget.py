@@ -1321,18 +1321,18 @@ class OMAAS(QWidget):
             if isinstance(current_selection, Image):
                 print(f'computing "invert_signal" to image {current_selection}')
                 results =invert_signal(current_selection.data)
-                add_metadata = self.record_metadata_check.isChecked()
+                # add_metadata = self.record_metadata_check.isChecked()
                 # self.add_result_img(result_img=results, 
                 #                     single_label_sufix="Inv", 
                 #                     operation_name = "inv_signal",
                 #                     track_metadata=add_metadata)    
-                self.add_result_img2(
+                self.add_result_img(
                     result_img=results,
                     operation_name="invert_signal",
                     method_name= "invert_signal",
                     sufix="Inv", 
                     parameters=None, 
-                    track_metadata=add_metadata,
+                    # track_metadata=add_metadata,
                     )
                 self.add_record_fun()
             else:
@@ -1360,31 +1360,18 @@ class OMAAS(QWidget):
                     method_name = "local_normal_fun"
                     results = local_normal_fun(current_selection.data)
 
-                    # self.add_result_img(result_img=results, 
-                    #                     single_label_sufix="LocNor", 
-                    #                     operation_name = "Local_norm_signal")
-                    # self.add_record_fun()
-
                 elif type_of_normalization == normalization_methods[1]:
                     print(f'computing "{type_of_normalization}" to image {current_selection}')
                     wind_size = self.slide_wind_n.value()
-                    results = slide_window_normalization_func(current_selection.data, slide_window=wind_size)
                     suffix = f"SliWind{wind_size}"
                     method_name = "slide_window_normalization_func"
-
-                    # self.add_result_img(result_img=results, 
-                    #                     single_label_sufix=f"SliWind{wind_size}", operation_name = "SliWind_norm_signal")
-                    # self.add_record_fun()
+                    results = slide_window_normalization_func(current_selection.data, slide_window=wind_size)
 
                 elif type_of_normalization == normalization_methods[2]:
                     print(f'computing "{type_of_normalization}" to image {current_selection}')
                     suffix = "GloNor"
                     method_name = "global_normal_fun"
                     results = global_normal_fun(current_selection.data)
-                    # self.add_result_img(result_img=results, 
-                    #                     single_label_sufix="GloNor", 
-                    #                     operation_name = "Global_norm_signal")
-                    # self.add_record_fun()
                 else:
                     warn(f"Normalization method '{type_of_normalization}' no found.")
 
@@ -1392,7 +1379,7 @@ class OMAAS(QWidget):
                 parameters = {"Normalization_method": type_of_normalization, "options": {"slide_window" : wind_size}} if type_of_normalization == normalization_methods[1] else parameters
                 # parameters = 
                 
-                self.add_result_img2(
+                self.add_result_img(
                     result_img=results,
                     operation_name="Normalization",
                     method_name= method_name,
@@ -1432,15 +1419,15 @@ class OMAAS(QWidget):
 
 
             for channel in range(len(my_splitted_images)):
-                # self.viewer.add_image(my_splitted_images[channel],
-                # colormap= "turbo", 
-                # name= f"{curr_img_name}_ch{channel + 1}")
-                self.add_result_img(result_img=my_splitted_images[channel], 
-                                    auto_metadata = False,
-                                    img_custom_name=curr_img_name, 
-                                    single_label_sufix=f"Ch{channel}", 
-                                    custom_metadata=new_metadata,
-                                    operation_name = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
+                
+                # self.add_result_img(result_img=my_splitted_images[channel], 
+                #                     auto_metadata = False,
+                #                     img_custom_name=curr_img_name, 
+                #                     single_label_sufix=f"Ch{channel}", 
+                #                     custom_metadata=new_metadata,
+                #                     operation_name = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
+                self.add_result_img(result_img=my_splitted_images[channel],)
+
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -1631,18 +1618,19 @@ class OMAAS(QWidget):
                 
     
     
-    def add_result_img2(self, 
+    def add_result_img(self, 
                         result_img, 
                         operation_name, 
                         method_name,
                         sufix = None, 
                         parameters = None,
-                        track_metadata = True, 
+                        track_metadata = None, 
                         colormap="turbo"):
         """
-        add_result_img2 _summary_
+        add_result_img: Add new image and handle metadata.
 
-        _extended_summary_
+        This function create and handle metadata for the 
+        different processing steps or operations in images.
 
         Parameters
         ----------
@@ -1675,6 +1663,8 @@ class OMAAS(QWidget):
 
         if sufix is not None:
             new_img_name += f"_{sufix}"
+
+        track_metadata = self.record_metadata_check.isChecked() if track_metadata is None else track_metadata
         
         if track_metadata:
 
@@ -1711,113 +1701,113 @@ class OMAAS(QWidget):
 
 
     
-    
-    def add_result_img(self, 
-                       result_img, 
-                       single_label_sufix = None, 
-                       auto_metadata = True, 
-                       operation_name = None, 
-                       parameters = None,
-                       custom_metadata = None,
-                       track_metadata = True, 
-                       colormap="turbo", 
-                       img_custom_name = None, 
-                       **label_and_value_sufix):
-        """
-        add_result_img: Add new image and handle metadata.
+    # NOTE: refactor this function 21.082024
+    # def add_result_img(self, 
+    #                    result_img, 
+    #                    single_label_sufix = None, 
+    #                    auto_metadata = True, 
+    #                    operation_name = None, 
+    #                    parameters = None,
+    #                    custom_metadata = None,
+    #                    track_metadata = True, 
+    #                    colormap="turbo", 
+    #                    img_custom_name = None, 
+    #                    **label_and_value_sufix):
+    #     """
+    #     add_result_img: Add new image and handle metadata.
 
-        This function create and handle metadata for the 
-        different processing steps or operations in images.
+    #     This function create and handle metadata for the 
+    #     different processing steps or operations in images.
 
-        Parameters
-        ----------
-        result_img : 'napari.types.ImageData'
-            Image resulting from an operation.
+    #     Parameters
+    #     ----------
+    #     result_img : 'napari.types.ImageData'
+    #         Image resulting from an operation.
 
-        single_label_sufix : str, optional
-            Add sufix to image, by default None
+    #     single_label_sufix : str, optional
+    #         Add sufix to image, by default None
 
-        auto_metadata : bool, optional
-            If True, tkes curent image metadata and update it, otherwise a new metadata template is required, by default True
+    #     auto_metadata : bool, optional
+    #         If True, tkes curent image metadata and update it, otherwise a new metadata template is required, by default True
 
-        add_to_metadata : str, optional
-            Parameter to add as metadata, typically the name of the operation, by default None
+    #     add_to_metadata : str, optional
+    #         Parameter to add as metadata, typically the name of the operation, by default None
 
-        custom_metadata : dict, optional
-            When auto_metadata = False, metadata dict to use as template, by default None
+    #     custom_metadata : dict, optional
+    #         When auto_metadata = False, metadata dict to use as template, by default None
 
-        track_metadata : bool, optional
-            Set True if you wish to keep track of operations changes and be added to metadata, by default True
+    #     track_metadata : bool, optional
+    #         Set True if you wish to keep track of operations changes and be added to metadata, by default True
 
-        colormap : str, optional
-            Pseudo-color definition for resulting image, by default "turbo"
+    #     colormap : str, optional
+    #         Pseudo-color definition for resulting image, by default "turbo"
             
-        img_custom_name : str, optional
-            When you decide to change or modify the current image name, by default None
+    #     img_custom_name : str, optional
+    #         When you decide to change or modify the current image name, by default None
         
-        Returns
-        -------
-        result_img_and_metadata : 'napari.types.ImageData'
-            The image with metadata updated.
-        """
+    #     Returns
+    #     -------
+    #     result_img_and_metadata : 'napari.types.ImageData'
+    #         The image with metadata updated.
+    #     """
         
 
-        if auto_metadata:
-            img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
-        else: 
-            img_metadata = copy.deepcopy(custom_metadata)
+    #     if auto_metadata:
+    #         img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
+    #     else: 
+    #         img_metadata = copy.deepcopy(custom_metadata)
 
 
-        if img_custom_name is not None:
-            img_name = img_custom_name
-        else:
-            img_name = self.viewer.layers.selection.active.name
+    #     if img_custom_name is not None:
+    #         img_name = img_custom_name
+    #     else:
+    #         img_name = self.viewer.layers.selection.active.name
         
-        new_img_name = img_name
+    #     new_img_name = img_name
             
-        if track_metadata:
+    #     if track_metadata:
 
-            # create "ProcessingSteps" key if does not exist
-            key_name = "ProcessingSteps"
+    #         # create "ProcessingSteps" key if does not exist
+    #         key_name = "ProcessingSteps"
 
-            if key_name not in img_metadata:
-                img_metadata[key_name] = []
+    #         if key_name not in img_metadata:
+    #             img_metadata[key_name] = []
 
-        if single_label_sufix is not None:
-            # for value in single_label_sufix:
-            new_img_name += f"_{single_label_sufix}"
+    #     if single_label_sufix is not None:
+    #         # for value in single_label_sufix:
+    #         new_img_name += f"_{single_label_sufix}"
 
-        if label_and_value_sufix is not None:
-            for key, value in label_and_value_sufix.items():
-                new_img_name += f"_{key}{value}"
+    #     if label_and_value_sufix is not None:
+    #         for key, value in label_and_value_sufix.items():
+    #             new_img_name += f"_{key}{value}"
                 
 
-            # append the given processing step(s) to the key
-            if operation_name is not None:            
+    #         # append the given processing step(s) to the key
+    #         if operation_name is not None:            
 
-                self.metadata_recording_steps.add_step(
-                    operation=operation_name,
-                    inputs=[img_name],
-                    outputs=[new_img_name],
-                    parameters=[None]
-                    )
-                img_metadata[key_name].append(self.metadata_recording_steps.steps)
+    #             self.metadata_recording_steps.add_step(
+    #                 operation=operation_name,
+    #                 inputs=[img_name],
+    #                 outputs=[new_img_name],
+    #                 parameters=[None]
+    #                 )
+    #             img_metadata[key_name].append(self.metadata_recording_steps.steps)
 
 
 
             
-            return self.viewer.add_image(result_img,
-                        colormap = colormap,
-                        name = new_img_name,
-                        metadata = img_metadata
-                        )
-        else:
+    #         return self.viewer.add_image(result_img,
+    #                     colormap = colormap,
+    #                     name = new_img_name,
+    #                     metadata = img_metadata
+    #                     )
+    #     else:
             
-            return self.viewer.add_image(result_img,
-                        colormap = colormap,
-                        name = new_img_name,
-                        metadata = img_metadata
-                        )
+    #         return self.viewer.add_image(result_img,
+    #                     colormap = colormap,
+    #                     name = new_img_name,
+    #                     metadata = img_metadata
+    #                     )
 
         
         
@@ -2066,7 +2056,7 @@ class OMAAS(QWidget):
                 # handle metadata in images saved with tifffile
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
                 self.img_metadata_dict = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
-                
+
                 # self.viewer.layers.selection.active.metadata = self.img_metadata_dict
                 # self.viewer.layers.selection.active.metadata = self.viewer.layers.selection.active.metadata["shaped_metadata"][0] if "shaped_metadata" in self.viewer.layers.selection.active.metadata else self.img_metadata_dict
                 # self.viewer.layers.selection.active.metadata = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
