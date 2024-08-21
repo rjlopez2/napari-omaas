@@ -1321,18 +1321,13 @@ class OMAAS(QWidget):
             if isinstance(current_selection, Image):
                 print(f'computing "invert_signal" to image {current_selection}')
                 results =invert_signal(current_selection.data)
-                # add_metadata = self.record_metadata_check.isChecked()
-                # self.add_result_img(result_img=results, 
-                #                     single_label_sufix="Inv", 
-                #                     operation_name = "inv_signal",
-                #                     track_metadata=add_metadata)    
+
                 self.add_result_img(
                     result_img=results,
                     operation_name="invert_signal",
                     method_name= "invert_signal",
                     sufix="Inv", 
                     parameters=None, 
-                    # track_metadata=add_metadata,
                     )
                 self.add_record_fun()
             else:
@@ -1377,7 +1372,6 @@ class OMAAS(QWidget):
 
                 parameters= {"Normalization_method": type_of_normalization}
                 parameters = {"Normalization_method": type_of_normalization, "options": {"slide_window" : wind_size}} if type_of_normalization == normalization_methods[1] else parameters
-                # parameters = 
                 
                 self.add_result_img(
                     result_img=results,
@@ -1426,7 +1420,12 @@ class OMAAS(QWidget):
                 #                     single_label_sufix=f"Ch{channel}", 
                 #                     custom_metadata=new_metadata,
                 #                     operation_name = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
-                self.add_result_img(result_img=my_splitted_images[channel],)
+                self.add_result_img(result_img=my_splitted_images[channel], 
+                                    operation_name="Split_Channels", 
+                                    method_name="split_channels_fun", 
+                                    sufix=f"Ch{channel}", 
+                                    custom_metadata=new_metadata, 
+                                    parameters={"cycle_time_changed": {"original_cycle_time": round(metadata["CycleTime"], 3), "new_cycle_time": {round(half_cycle_time, 3)}}})
 
                 self.add_record_fun()
         else:
@@ -1622,6 +1621,7 @@ class OMAAS(QWidget):
                         result_img, 
                         operation_name, 
                         method_name,
+                        custom_metadata = None,
                         sufix = None, 
                         parameters = None,
                         track_metadata = None, 
@@ -1657,7 +1657,11 @@ class OMAAS(QWidget):
 
         """
 
-        img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
+        if custom_metadata is None:
+            img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
+        else:
+            img_metadata = copy.deepcopy(custom_metadata)
+
         img_name = self.viewer.layers.selection.active.name
         new_img_name = img_name
 
@@ -3716,6 +3720,7 @@ class OMAAS(QWidget):
                                                         "YAML file (yml);;TOML file;;Text Files (*.txt)")
                 if not len(fileName) == 0:
                     fileName, _ = os.path.splitext(fileName)
+                    self.metadata_recording_steps.steps = metadata[key] if key in metadata else []
                     self.metadata_recording_steps.save_to_yaml(fileName + ".yml")
                 
                     # with h5py.File(fileName, "w") as hf:
