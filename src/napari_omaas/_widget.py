@@ -73,7 +73,9 @@ from .utils import (
     macro,
     return_maps,
     apply_FIR_filt_func,
-    gaussian_filter_nan
+    gaussian_filter_nan,
+    # decodeDictionary,
+    convert_to_json_serializable
 
 )
 
@@ -2061,7 +2063,13 @@ class OMAAS(QWidget):
         if event.type in ['active']:
             value = event.value
             if isinstance(value, Image):
+                # handle metadata in images saved with tifffile
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
+                self.img_metadata_dict = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
+                
+                # self.viewer.layers.selection.active.metadata = self.img_metadata_dict
+                # self.viewer.layers.selection.active.metadata = self.viewer.layers.selection.active.metadata["shaped_metadata"][0] if "shaped_metadata" in self.viewer.layers.selection.active.metadata else self.img_metadata_dict
+                # self.viewer.layers.selection.active.metadata = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
                 if "CycleTime" in self.img_metadata_dict:
                     # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
                     self.metadata_tree.clear()
@@ -3738,48 +3746,59 @@ class OMAAS(QWidget):
         
         if isinstance(current_selection, Image):
             
-            options = QFileDialog.Options()
-            # options |= QFileDialog.DontUseNativeDialog                        
-            fileName, extension_ = QFileDialog.getSaveFileName(self,
-                                                    "Save File",
-                                                        "",
-                                                        "OME-TIFF image format (*ome.tif);;All Files (*)",
-                                                        options=options)
-            if fileName:
-                if not len(fileName) == 0:
-                    file_basename = os.path.basename(fileName)
-                    file_dir = os.path.dirname(fileName)
-                    # remove extension if exists and preserve only first part
-                    splitted_file_basename = file_basename.split(".")
-                    fileName = os.path.join(file_dir, splitted_file_basename[0] + ".ome.tif" ) # here you can eventually to change 
+            try:
+                options = QFileDialog.Options()
+                # options |= QFileDialog.DontUseNativeDialog                        
+                fileName, extension_ = QFileDialog.getSaveFileName(self,
+                                                        "Save File",
+                                                            "",
+                                                            "TIFF image format (*.tif);;All Files (*)",
+                                                            options=options)
+                if fileName:
+                    if not len(fileName) == 0:
+                        file_basename = os.path.basename(fileName)
+                        file_dir = os.path.dirname(fileName)
+                        # remove extension if exists and preserve only first part
+                        splitted_file_basename = file_basename.split(".")
+                        fileName = os.path.join(file_dir, splitted_file_basename[0] + ".tif" ) # here you can eventually to change 
 
-                    metadata = current_selection.metadata
+                        metadata = convert_to_json_serializable(current_selection.metadata)
+                        self.metadata_recording_steps.save_to_tiff(
+                            current_selection.data, 
+                            metadata, 
+                            fileName
+                            )
 
-                    # NOTE: still not able to export the metadata correctly with this method
-                    with tifffile.TiffWriter(fileName) as tif:
+                        # NOTE: still not able to export the metadata correctly with this method
+                        # with tifffile.TiffWriter(fileName) as tif:
+                            
+                        #     metadata_tif = {
+                        #         'axes': 'TYX',
+                        #         'fps': 1/metadata['CycleTime'],
+                        #         'comment': metadata
+                        #         # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
+                        #     }
+                        #     options = dict(photometric='minisblack',
+                                           
+                        #                 #    tile=(128, 128),
+                        #                 #    compression='jpeg',
+                        #                 #    resolutionunit='CENTIMETER',
+                        #                    maxworkers=2
+                        #                 )
+                            
+                        #     tif.write(current_selection.data, 
+                        #             #   metadata =  current_selection.metadata,
+                        #             # shaped = False,
+                        #             metadata =  metadata_tif,
+                        #             # metadata =  metadata,
+                        #             **options)
+
                         
-                        metadata_tif = {
-                            'axes': 'TYX',
-                            'fps': 1/metadata['CycleTime']
-                            # 'comment': metadata
-                            # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
-                        }
-                        options = dict(photometric='minisblack',
-                                    #    tile=(128, 128),
-                                    #    compression='jpeg',
-                                    #    resolutionunit='CENTIMETER',
-                                    #    maxworkers=2
-                                    )
-                        
-                        tif.write(current_selection.data, 
-                                #   metadata =  current_selection.metadata,
-                                metadata =  metadata_tif,
-                                **options)
-
-                    
-                    print(f"Image '{current_selection.name}' exported")
-                else:
-                    return
+                        print(f"Image '{current_selection.name}' exported")
+                    else:
+                        return
+            except Exception as e:
+                raise CustomException(e, sys)
         else:
             return warn("Please select an image leyer.")
     

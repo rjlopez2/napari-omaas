@@ -22,7 +22,7 @@ import pandas as pd
 import yaml
 import toml
 import datetime
-from tifffile import imsave
+from tifffile import imwrite
 
 ########## napari & friends ##########
 from napari.layers import Image
@@ -1611,6 +1611,30 @@ def gaussian_filter_nan(array, sigma=1, radius=3, axes=(0, 1), truncate = 4):
     return VV/WW
 
 
+def convert_to_json_serializable(obj):
+    if isinstance(obj, bytes):
+        return obj.decode('utf-8')  # Convert bytes to string
+    elif isinstance(obj, tuple):
+        return list(obj)  # Convert tuple to list
+    elif isinstance(obj, dict):
+        return {k: convert_to_json_serializable(v) for k, v in obj.items()}  # Recursively convert dict
+    elif isinstance(obj, list):
+        return [convert_to_json_serializable(i) for i in obj]  # Recursively convert list
+    return obj  # Return the object if it is already JSON serializable
+
+# def decodeDictionary(dictionary):
+#     # if type(dictionary) == dict:
+#     if isinstance(dictionary, dict):
+        
+#         for key in dictionary.keys():
+#             dictionary[key] = decodeDictionary(dictionary[key])
+    
+#     elif isinstance(**dictionary**, bytes):
+        
+#         dictionary = dictionary.decode('UTF-8') 
+    
+#     # elif type(**dictionary**) == bytes:
+#     return dictionary
 
 
 # this class helper allow to make gorup layouts easily"
@@ -1849,8 +1873,17 @@ class TrackProcessingSteps:
         with open(file_path, "w") as f:
             toml.dump({"ProcessingSteps": {"steps": self.steps}}, f)
 
-    def save_to_tiff(self, image, file_path):
-        metadata = {
-            "ProcessingSteps": {"steps": self.steps}
-        }
-        imsave(file_path, image, metadata=metadata)
+    def save_to_tiff(self, image, metadata, file_path):
+        # metadata = {
+        #     "ProcessingSteps": {"steps": self.steps}
+        # }
+        imwrite(file_path, image, photometric='minisblack', metadata=metadata)
+        # imwrite(
+        #     # shape=(8, 800, 600),
+        #     file_path,
+        #     # dtype='uint16',
+        #     photometric='minisblack',
+        #     # tile=(128, 128),
+        #     metadata=metadata
+        # )
+
