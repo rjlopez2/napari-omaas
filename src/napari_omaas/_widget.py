@@ -1564,65 +1564,52 @@ class OMAAS(QWidget):
                         "sigma": sigma,
                         "kernel_size": kernel_size
                         }
-                            
-                            
-                    # self.add_result_img(results, 
-                    #                     auto_metadata=False,
-                    #                     custom_metadata=metadata,
-                    #                     single_label_sufix = f"Filt{filter_type}", 
-                    #                     KrnlSiz = kernel_size, 
-                    #                     Sgma = sigma, 
-                    #                     operation_name = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
-
                 
                 elif filter_type == all_my_filters[3]:
                     print(f'applying "{filter_type}" filter to image {current_selection}')
                     results = apply_median_filt_func(current_selection.data, kernel_size)
-                    self.add_result_img(results, 
-                                        auto_metadata=False,
-                                        custom_metadata=metadata,
-                                        single_label_sufix = f"Filt{filter_type}", 
-                                        MednFilt = kernel_size, 
-                                        operation_name = f"{filter_type}Filt_ksize{kernel_size}")
+                    met_name = "apply_median_filt_func"
+                    params = {
+                        "filter_type":filter_type,
+                        "kernel_size": kernel_size
+                        }
 
                 elif filter_type == all_my_filters[1]:
                     print(f'applying "{filter_type}" filter to image {current_selection}')
                     results = apply_box_filter(current_selection.data, kernel_size)
-                    self.add_result_img(results, 
-                                        auto_metadata=False,
-                                        custom_metadata=metadata,
-                                        single_label_sufix = f"Filt{filter_type}", 
-                                        BoxFilt = kernel_size, 
-                                        operation_name = f"{filter_type}Filt_ksize{kernel_size}")
+                    met_name = "apply_box_filter"
+                    params = {
+                        "filter_type":filter_type,
+                        "kernel_size": kernel_size
+                        }
                 
                 elif filter_type == all_my_filters[2]:
                     print(f'applying "{filter_type}" filter to image {current_selection}')
                     results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
-                    self.add_result_img(results, 
-                                        auto_metadata=False,
-                                        custom_metadata=metadata,
-                                        single_label_sufix = f"Filt{filter_type}", 
-                                        KrnlSiz = kernel_size, Widht = sigma, 
-                                        operation_name = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
-                
+                    met_name = "apply_laplace_filter"
+                    params = {
+                        "filter_type":filter_type,
+                         "sigma": sigma,
+                        "kernel_size": kernel_size
+                        }
+                                    
                 elif filter_type == all_my_filters[4]:
                     print(f'applying "{filter_type}" filter to image {current_selection}')
                     results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
-                    self.add_result_img(results, 
-                                        auto_metadata=False,
-                                        custom_metadata=metadata,
-                                        single_label_sufix = f"Filt{filter_type}", 
-                                        WindSiz = kernel_size, 
-                                        sigma_spa = sigma,  
-                                        sigma_col = sigma_col, 
-                                        operation_name = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
+                    met_name = "apply_bilateral_filter"
+                    params = {
+                        "filter_type":filter_type,
+                         "sigma_spa": sigma,
+                         "sigma_col": sigma_col,
+                        "wind_size": kernel_size
+                        }
                 
                 self.add_record_fun()
                 self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"Filt{filter_type}", parameters=params)
                 
             except Exception as e:
-                # raise CustomException(e, sys)
-                print( CustomException(e, sys))
+                raise CustomException(e, sys)
+                # print( CustomException(e, sys))
                 
                 
 
@@ -3903,8 +3890,8 @@ class OMAAS(QWidget):
         except Exception as e:
             raise CustomException(e, sys)
             # print(CustomException(e, sys))
-                            
-                                
+
+
     def _update_APD_value_for_MAP_func(self):
         new_value = self.slider_APD_percentage.value()
         self.slider_APD_map_percentage.setValue(new_value)
