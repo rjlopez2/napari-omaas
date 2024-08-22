@@ -3411,7 +3411,7 @@ class OMAAS(QWidget):
                                                               {"parameters":"default"}}}}
                             # {"postprocessing_step":{"method":{polish_mask.__name__:
                             #                                   {"parameters":"default"}}}}}
-                        print(f"{'*'*5} Aplying segmentation method '{segmentation_method_selected}' to image '{current_selection}' {'*'*5}")
+                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
 
                     except Exception as e:
                         raise CustomException(e, sys)
@@ -3427,7 +3427,7 @@ class OMAAS(QWidget):
                                   "postprocessing_step":{"method":{polish_mask.__name__:
                                                               {"parameters":"default"}}}}
 
-                        print(f"{'*'*5} Aplying segmentation method '{segmentation_method_selected}' to image '{current_selection}' {'*'*5}")
+                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
 
                     except Exception as e:
                         raise CustomException(e, sys)
@@ -3456,7 +3456,7 @@ class OMAAS(QWidget):
                             mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = None)                            
                             params["parameters"]["expand"] = None
                             
-                        print(f"{'*'*5} Aplying segmentation method '{segmentation_method_selected}' to image '{current_selection}' {'*'*5}")
+                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
                     except Exception as e:
                         raise CustomException(e, sys)
 
@@ -3487,9 +3487,6 @@ class OMAAS(QWidget):
                             if np.issubdtype(masked_image.dtype, np.integer):
                                 masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
 
-                            # elif np.issubdtype(masked_image.dtype, np.inexact):
-                            #     masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-
                             else:
                                 masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
                         except Exception as e:
@@ -3513,14 +3510,8 @@ class OMAAS(QWidget):
                     
                     masked_image = masked_image - background
 
-                    # self.add_result_img(masked_image, 
-                    #                     auto_metadata=False,
-                    #                     custom_metadata=current_selection.metadata,
-                    #                     img_custom_name=current_selection.name, 
-                    #                     single_label_sufix = f"NullBckgrnd",
-                    #                     operation_name = f"Background subtracted")
                     self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
-                                        sufix=f"Segm{segmentation_method_selected[:3].capitalize()}", 
+                                        sufix=f"{params['Segmentation_mode'][:3]}Segm{segmentation_method_selected[:3].capitalize()}", 
                                         custom_outputs=[current_selection.name + f"_Segm{segmentation_method_selected[:3].capitalize()}", "Heart_labels"],
                                         method_name=meth_name, 
                                         custom_img_name=current_selection.name, parameters=params)
@@ -3548,6 +3539,7 @@ class OMAAS(QWidget):
             mask_layer = self.viewer.layers[self.mask_list_manual_segment.currentText()]
             current_timpe_point = self.viewer.dims.current_step[0]
             n_frames = current_selection.data.shape[0]
+            is_mask_inverted = self.is_inverted_mask.isChecked()
 
             if mask_layer.data.ndim == 3:
                 mask = mask_layer.data[current_timpe_point, ...] > 0
@@ -3556,12 +3548,13 @@ class OMAAS(QWidget):
             else:
                 raise ValueError(" Not implemented yet how to handle mask of ndim = {mask_layer.data.ndim}. Please report this or file an issue via github")
 
-
-
             masked_image = current_selection.data.copy()
 
-            if self.is_inverted_mask.isChecked():
-                    mask = np.invert(mask.astype(bool))
+            if is_mask_inverted:
+                mask = np.invert(mask.astype(bool))
+            
+            params = {"Segmentation_mode": "Manual"}
+            params["inverted_mask"]= is_mask_inverted
 
             try:
 
@@ -3572,19 +3565,23 @@ class OMAAS(QWidget):
                 else:
                         masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
             except Exception as e:
-                    print(f"You have the following error @_on_click_segment_manual_btn_func: --->> {e} <----")
+                raise CustomException(e, sys)
             
-            self.add_result_img(masked_image, 
-                                auto_metadata=False,
-                                custom_metadata=current_selection.metadata,
-                                img_custom_name=current_selection.name, 
-                                single_label_sufix = f"NullBckgrnd",
-                                operation_name = f"Background subtracted")
+            # self.add_result_img(masked_image, 
+            #                     auto_metadata=False,
+            #                     custom_metadata=current_selection.metadata,
+            #                     img_custom_name=current_selection.name, 
+            #                     single_label_sufix = f"NullBckgrnd",
+            #                     operation_name = f"Background subtracted")
 
+            self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
+                                sufix=f"{params['Segmentation_mode'][:3]}Segm", 
+                                custom_inputs=[current_selection.name , mask_layer.name],
+                                method_name=None, 
+                                custom_img_name=current_selection.name, parameters=params)
 
+            print(f"{'*'*5} Aplying 'Manual' segmentation to image: '{current_selection}' {'*'*5}")
 
-            print(f"segmenting manually image '{current_selection.name}' from mask '{mask_layer.name}'.")
-        
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
     
