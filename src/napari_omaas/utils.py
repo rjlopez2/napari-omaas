@@ -1536,7 +1536,7 @@ def segment_image_GHT(image, threshold=None, return_threshold=False,
     
     if threshold is None:
         threshold = detect_background_threshold(image)
-        print(f"Creating mask with detected threshold {threshold}")
+        # print(f"Creating mask with detected threshold {threshold}")
 
     mask = image > threshold
     
@@ -1561,7 +1561,7 @@ def segement_region_based_func(array_2d, lo_t = 0.05, hi_t = 0.2, expand = None)
         mask = segmentation.expand_labels(mask, distance=expand)
     
     # return markers
-    print(type(mask))
+    # print(type(mask))
     return (mask)
 
 @macro.record
