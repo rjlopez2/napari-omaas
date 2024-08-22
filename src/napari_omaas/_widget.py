@@ -3383,132 +3383,155 @@ class OMAAS(QWidget):
     def _on_click_apply_segmentation_btn_fun(self):
         current_selection = self.viewer.layers.selection.active
         if isinstance(current_selection, Image):
+
+            try:
         
-            segmentation_method_selected = self.segmentation_methods.currentText()
-            segmentation_methods = [self.segmentation_methods.itemText(i) for i in range(self.segmentation_methods.count())]
-
-            sigma = self.sigma_filt_spatial_value.value()
-            kernel_size = self.filt_kernel_value.value()
-            sigma_col = self.sigma_filt_color_value.value()
-            
-            # Handeling size ndim of data (2d or 3d allow only)
-            if current_selection.ndim == 3:
-                # data = current_selection.data.mean(axis = 0)
-                array2d_for_mask = current_selection.data.max(axis = 0)
-            elif current_selection.ndim == 2:
-                array2d_for_mask = current_selection.data
-            else : 
-                raise ValueError(f"Not implemented segemntation for Image with dimensions = {current_selection.ndim}.")
-            
-            if segmentation_method_selected == segmentation_methods[0]:
-                print(f'applying "{segmentation_method_selected}" method to image {current_selection}')
-                try:
-                    mask = segment_image_triangle(array2d_for_mask)
-                    mask = polish_mask(mask)
-                except Exception as e:
-                    raise CustomException(e, sys)
-                print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
-
+                segmentation_method_selected = self.segmentation_methods.currentText()
+                segmentation_methods = [self.segmentation_methods.itemText(i) for i in range(self.segmentation_methods.count())]
+                is_mask_inverted = self.is_inverted_mask.isChecked()
+                is_return_image = self.return_img_no_backg_btn.isChecked()
                 
-            elif segmentation_method_selected == segmentation_methods[1]:
-                try:
-                    mask, threshold = segment_image_GHT(array2d_for_mask, return_threshold=True)
-                    mask = polish_mask(mask)
-                    print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}" with threshold: {threshold}')
-                except Exception as e:
-                    raise CustomException(e, sys)
-            
-            
-            elif segmentation_method_selected == segmentation_methods[2]:
-                # take fisrt frame and use it for segementation
-                lo_t = float(self.low_threshold_segmment_value.text())
-                hi_t = float(self.high_threshold_segment_value.text())
-                if self.is_Expand_mask.isChecked():
-                    expand = int(self.n_pixels_expand.currentText())
-                    # using maximum pixels intetnsity as reference
+                # Handeling size ndim of data (2d or 3d allow only)
+                if current_selection.ndim == 3:
+                    # data = current_selection.data.mean(axis = 0)
+                    array2d_for_mask = current_selection.data.max(axis = 0)
+                elif current_selection.ndim == 2:
+                    array2d_for_mask = current_selection.data
+                else : 
+                    raise ValueError(f"Not implemented segemntation for Image with dimensions = {current_selection.ndim}.")
+                
+                if segmentation_method_selected == segmentation_methods[0]:
                     try:
+                        mask = segment_image_triangle(array2d_for_mask)
+                        mask = polish_mask(mask)
+                        meth_name = segment_image_triangle.__name__ 
+                        params = {"Segmentation_mode": "Auto",
+                                  "Segmentation_method": f"{segmentation_method_selected}",
+                                  "postprocessing_step":{"method":{polish_mask.__name__:
+                                                              {"parameters":"default"}}}}
+                            # {"postprocessing_step":{"method":{polish_mask.__name__:
+                            #                                   {"parameters":"default"}}}}}
+                        print(f"{'*'*5} Aplying segmentation method '{segmentation_method_selected}' to image '{current_selection}' {'*'*5}")
 
-                        mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = expand)
                     except Exception as e:
                         raise CustomException(e, sys)
 
-                else:
-                    # using maximum pixels intetnsity as reference
+                    
+                elif segmentation_method_selected == segmentation_methods[1]:
                     try:
+                        mask, threshold = segment_image_GHT(array2d_for_mask, return_threshold=True)
+                        mask = polish_mask(mask)
+                        meth_name = segment_image_GHT.__name__ 
+                        params = {"Segmentation_mode": "Auto",
+                                  "Segmentation_method": f"{segmentation_method_selected}",
+                                  "postprocessing_step":{"method":{polish_mask.__name__:
+                                                              {"parameters":"default"}}}}
 
-                        mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = None)
+                        print(f"{'*'*5} Aplying segmentation method '{segmentation_method_selected}' to image '{current_selection}' {'*'*5}")
+
                     except Exception as e:
                         raise CustomException(e, sys)
-                # mask = polish_mask(mask)
-                print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
-
                 
-            else:
-                return warn( f"selected filter '{segmentation_method_selected}' no known.")
-            
-            
-            # return results
+                
+                elif segmentation_method_selected == segmentation_methods[2]:
+                    # take fisrt frame and use it for segementation
+                    try:   
 
-            # self.viewer.add_labels(mask,
-            #                        name = f"Heart_labels", 
-            #                        metadata = current_selection.metadata)
-            
-            if self.is_inverted_mask.isChecked():
-                mask = np.invert(mask.astype(bool))
+                        lo_t = float(self.low_threshold_segmment_value.text())
+                        hi_t = float(self.high_threshold_segment_value.text())
+                        params = {"Segmentation_mode": "Auto",
+                                    "Segmentation_method": f"{segmentation_method_selected}",
+                                    "parameters":{"lo_t":lo_t, 
+                                                "hi_t": hi_t}}
+                        meth_name = segement_region_based_func.__name__ 
 
-            self.add_result_label(mask, 
-                                    img_custom_name="Heart_labels", 
-                                    single_label_sufix = f"NullBckgrnd", 
-                                    add_to_metadata = f"Background image masked")
-
-            if self.return_img_no_backg_btn.isChecked():
-                # 8. remove background using mask
-                n_frames =current_selection.data.shape[0]
-                masked_image = current_selection.data.copy()
-
-                if masked_image.ndim == 3:
-                    
-                    try:
-
-                        if np.issubdtype(masked_image.dtype, np.integer):
-                            masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
-
-                        # elif np.issubdtype(masked_image.dtype, np.inexact):
-                        #     masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-
+                        if self.is_Expand_mask.isChecked():
+                            expand = int(self.n_pixels_expand.currentText())
+                            # using maximum pixels intetnsity as reference                            
+                            mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = expand)
+                            params["parameters"]["expand"] = expand                            
+                            
                         else:
-                            masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+                            # using maximum pixels intetnsity as reference
+                            mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = None)                            
+                            params["parameters"]["expand"] = None
+                            
+                        print(f"{'*'*5} Aplying segmentation method '{segmentation_method_selected}' to image '{current_selection}' {'*'*5}")
                     except Exception as e:
-                            raise CustomException(e, sys)
+                        raise CustomException(e, sys)
+
+                    
                 else:
-
-                    try:
-                        if np.issubdtype(masked_image.dtype, np.integer):
-                            masked_image[~mask.astype(bool)] = 0
-                        else:
-                            masked_image[~mask.astype(bool)] = None
-
-                    except Exception as e:
-                            raise CustomException(e, sys)
-
-
-
-
-                # 9. subtract bacground from original image 
-                background = np.nanmean(masked_image)
+                    return warn( f"selected filter '{segmentation_method_selected}' no known.")
                 
-                masked_image = masked_image - background
+                
+                if is_mask_inverted:
+                    mask = np.invert(mask.astype(bool))
+                params["inverted_mask"]= is_mask_inverted
 
-                self.add_result_img(masked_image, 
-                                    auto_metadata=False,
-                                    custom_metadata=current_selection.metadata,
-                                    img_custom_name=current_selection.name, 
-                                    single_label_sufix = f"NullBckgrnd",
-                                    operation_name = f"Background subtracted")
-                 
+                self.add_result_label(mask, 
+                                        img_custom_name="Heart_labels", 
+                                        single_label_sufix = f"NullBckgrnd", 
+                                        add_to_metadata = f"Background image masked")
+                
+                if is_return_image:
+                    params["return_image"] = is_return_image
+                    # 8. remove background using mask
+                    n_frames =current_selection.data.shape[0]
+                    masked_image = current_selection.data.copy()
+
+                    if masked_image.ndim == 3:
+                        
+                        try:
+
+                            if np.issubdtype(masked_image.dtype, np.integer):
+                                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
+
+                            # elif np.issubdtype(masked_image.dtype, np.inexact):
+                            #     masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+
+                            else:
+                                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+                        except Exception as e:
+                                raise CustomException(e, sys)
+                    else:
+
+                        try:
+                            if np.issubdtype(masked_image.dtype, np.integer):
+                                masked_image[~mask.astype(bool)] = 0
+                            else:
+                                masked_image[~mask.astype(bool)] = None
+
+                        except Exception as e:
+                                raise CustomException(e, sys)
+
+
+
+
+                    # 9. subtract bacground from original image 
+                    background = np.nanmean(masked_image)
                     
+                    masked_image = masked_image - background
+
+                    # self.add_result_img(masked_image, 
+                    #                     auto_metadata=False,
+                    #                     custom_metadata=current_selection.metadata,
+                    #                     img_custom_name=current_selection.name, 
+                    #                     single_label_sufix = f"NullBckgrnd",
+                    #                     operation_name = f"Background subtracted")
+                    self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
+                                        sufix=f"Segm{segmentation_method_selected[:3].capitalize()}", 
+                                        custom_outputs=[current_selection.name + f"_Segm{segmentation_method_selected[:3].capitalize()}", "Heart_labels"],
+                                        method_name=meth_name, 
+                                        custom_img_name=current_selection.name, parameters=params)
+                    
+                        
+                
+                self.add_record_fun()
             
-            self.add_record_fun()
+            except Exception as e:
+                # raise CustomException(e, sys)
+                print(CustomException(e, sys))
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -3745,7 +3768,7 @@ class OMAAS(QWidget):
                     #     # NOTE: may be add more information: original image name, date, etc?
                     #     hf.attrs.update({key:metadata[key]})
                         
-                    print(f"Processing steps for image {current_selection.name} exported")
+                    print(f"{'*'*5} Exporting porcessing steps for image: '{current_selection.name}' {'*'*5}")
             else:
                 return warn("No 'Preprocessing' steps detected.")
         else:
@@ -3873,11 +3896,11 @@ class OMAAS(QWidget):
             if self.rotate_l_crop.isChecked():
                 cropped_img = np.rot90(cropped_img, axes=(1, 2))
                 print(f"result image rotate 90° to the left")
-                param["rotate_image"] = {"method_name" : "np.ro90", "axes": [1, 2]}                
+                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}                
 
             elif self.rotate_r_crop.isChecked():
                 cropped_img = np.rot90(cropped_img, axes=(2, 1))
-                param["rotate_image"] = {"method_name" : "np.ro90", "axes": [2, 1]}
+                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
                 print(f"result image rotate 90° to the right")
 
             self.add_result_img(result_img=cropped_img, operation_name="Crop_image", custom_img_name=img_name, method_name="crop_from_shape", custom_metadata= metadata, sufix="Crop", parameters=param)
