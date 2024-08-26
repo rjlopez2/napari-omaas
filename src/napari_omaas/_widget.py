@@ -503,8 +503,8 @@ class OMAAS(QWidget):
         self.clip_trace_btn = QPushButton("Clip Trace")
         self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_trace_btn, 2, 0, 1, 1)
         
-        self.clip_label_range = QCheckBox("Show range")
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_label_range, 2, 1, 1, 1)
+        self.is_range_clicked_checkbox = QCheckBox("Show range")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.is_range_clicked_checkbox, 2, 1, 1, 1)
 
         self.double_slider_clip_trace = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self._plotting_profile_tabs_layout.glayout.addWidget(self.double_slider_clip_trace, 2, 2, 1, 1)
@@ -1274,7 +1274,7 @@ class OMAAS(QWidget):
         self.plot_histogram_btn.clicked.connect(self._on_click_plot_histogram_btn_func)
         self.clear_histogram_btn.clicked.connect(self._on_click_clear_histogram_btn_func)
         self.clip_trace_btn.clicked.connect(self._on_click_clip_trace_btn_func)
-        self.clip_label_range.stateChanged.connect(self._dsiplay_range_func)
+        self.is_range_clicked_checkbox.stateChanged.connect(self._dsiplay_range_func)
         self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
         self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
         self.export_image_btn.clicked.connect(self._export_image_btn_func)
@@ -3672,24 +3672,31 @@ class OMAAS(QWidget):
         start_indx, end_indx = self.double_slider_clip_trace.value()
         start_indx = int(start_indx / self.xscale)
         end_indx = int(end_indx / self.xscale)
+        params = {"start_indx": start_indx,
+                  "end_indx": end_indx}
         # assert that there is a trace in the main plotting canvas
         if len(self.main_plot_widget.figure.axes) > 0 :
             
-            if self.clip_label_range.isChecked():
+            if self.is_range_clicked_checkbox.isChecked():
                 
                 time = self.data_main_canvas["x"]
                 selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
                 for image in selected_img_list:
                     results = image.data[start_indx:end_indx]
+                    # self.add_result_img(result_img=results, 
+                    #                     auto_metadata=False,
+                    #                     custom_metadata=image.metadata,
+                    #                     img_custom_name = image.name, 
+                    #                     single_label_sufix="clip", 
+                    #                     operation_name = f"Clipped_at_Indx_[{start_indx}:{end_indx}]")
                     self.add_result_img(result_img=results, 
-                                        auto_metadata=False,
-                                        custom_metadata=image.metadata,
-                                        img_custom_name = image.name, 
-                                        single_label_sufix="clip", 
-                                        operation_name = f"Clipped_at_Indx_[{start_indx}:{end_indx}]")
+                                        operation_name= 
+                                        "clip_image", 
+                                        method_name="indexing", 
+                                        sufix="Clip", parameters=params)
                     # self.add_record_fun()
                     # self.plot_profile_btn.setChecked(False)
-                    self.clip_label_range.setChecked(False)
+                    self.is_range_clicked_checkbox.setChecked(False)
                     self.plot_last_generated_img()
                     print(f"image '{image.name}' clipped from time/index: {round(start_indx * self.xscale, 2)}/[{start_indx}] to {round(end_indx * self.xscale, 2)}/[{end_indx}]")
             else:
@@ -3698,7 +3705,7 @@ class OMAAS(QWidget):
             return warn("Create a trace first by clicking on 'Display Profile'") 
     
     def _dsiplay_range_func(self):
-        state = self.clip_label_range.isChecked()
+        state = self.is_range_clicked_checkbox.isChecked()
         
         if state == True and self.plot_profile_btn.isChecked() :
             start_indx, end_indx = self.double_slider_clip_trace.value()
@@ -3720,7 +3727,7 @@ class OMAAS(QWidget):
             return
     
     def _double_slider_clip_trace_func(self):
-        state = self.clip_label_range.isChecked()
+        state = self.is_range_clicked_checkbox.isChecked()
 
         try:
         
