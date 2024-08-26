@@ -3683,8 +3683,9 @@ class OMAAS(QWidget):
                 for image in selected_img_list:
                     results = image.data[start_indx:end_indx]
                     self.add_result_img(result_img=results, 
-                                        operation_name= 
-                                        "clip_image", 
+                                        custom_metadata=image.metadata,
+                                        custom_img_name=image.name,
+                                        operation_name= "clip_image",
                                         method_name="indexing", 
                                         sufix="Clip", parameters=params)
                     # self.add_record_fun()
