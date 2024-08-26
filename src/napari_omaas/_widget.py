@@ -3368,19 +3368,25 @@ class OMAAS(QWidget):
 
     
     def _on_click_create_AP_gradient_bt_func(self):
-        current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
-        current_img_selection = self.viewer.layers[current_img_selection_name]
-        dim_shape = current_img_selection.data.shape[1:]
-        results = np.gradient(current_img_selection.data, axis=0)
-        # make activation time mask using the gradien
-        # act_map_mask = results == results.max(axis = 0)
-        # act_map_rslt = current_img_selection.data[act_map_mask]
-        # act_map_rslt = act_map_rslt.reshape( dim_shape[0], dim_shape[1])
+        current_img_selected = self.viewer.layers.selection.active
         
-        self.add_result_img(result_img=results, 
-                            img_custom_name=current_img_selection.name, 
-                            single_label_sufix="ActTime", 
-                            operation_name = f"Activation Time")
+        if isinstance(current_img_selected, Image):
+
+            if current_img_selected.ndim == 3:
+                results = np.gradient(current_img_selected.data, axis=0)
+
+                print(f"Computing Gradient on image: {current_img_selected.name}")
+                self.add_result_img(result_img=results, 
+                                    custom_img_name=current_img_selected.name,
+                                    custom_metadata=current_img_selected.metadata,
+                                    operation_name="AP Gradient", 
+                                    method_name=np.gradient.__name__, 
+                                    sufix="ActTime", 
+                                    parameters={"axis": 0})
+            else: 
+                return warn(f"The image selected: '{current_img_selected.name}'  has ndim = {current_img_selected.ndim }. \nPlease select an image with ndim = 3 to compute Gradient.")
+        
+        return warn(f"No an image selected or image. Please select an image layer.")
     
 
 
