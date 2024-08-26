@@ -63,7 +63,7 @@ from .utils import (
     return_spool_img_fun,
     extract_ROI_time_series,
     return_AP_ini_end_indx_func,
-    split_AP_traces_func,
+    split_AP_traces_and_ave_func,
     segment_image_triangle,
     segment_image_GHT,
     polish_mask,
@@ -503,8 +503,8 @@ class OMAAS(QWidget):
         self.clip_trace_btn = QPushButton("Clip Trace")
         self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_trace_btn, 2, 0, 1, 1)
         
-        self.clip_label_range = QCheckBox("Show range")
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_label_range, 2, 1, 1, 1)
+        self.is_range_clicked_checkbox = QCheckBox("Show range")
+        self._plotting_profile_tabs_layout.glayout.addWidget(self.is_range_clicked_checkbox, 2, 1, 1, 1)
 
         self.double_slider_clip_trace = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
         self._plotting_profile_tabs_layout.glayout.addWidget(self.double_slider_clip_trace, 2, 2, 1, 1)
@@ -1061,8 +1061,8 @@ class OMAAS(QWidget):
 
 
         # Adding mapping subtabs
-        self.mapping_tabs.addTab(self.average_trace_group.gbox, 'Preprocessing Maps')
-        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Postporecessing Maps')
+        self.mapping_tabs.addTab(self.average_trace_group.gbox, 'Pre-processing Maps')
+        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Post-proecessing Maps')
         self._mapping_processing_layout.addWidget(self.mapping_tabs)
 
 
@@ -1274,7 +1274,7 @@ class OMAAS(QWidget):
         self.plot_histogram_btn.clicked.connect(self._on_click_plot_histogram_btn_func)
         self.clear_histogram_btn.clicked.connect(self._on_click_clear_histogram_btn_func)
         self.clip_trace_btn.clicked.connect(self._on_click_clip_trace_btn_func)
-        self.clip_label_range.stateChanged.connect(self._dsiplay_range_func)
+        self.is_range_clicked_checkbox.stateChanged.connect(self._dsiplay_range_func)
         self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
         self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
         self.export_image_btn.clicked.connect(self._export_image_btn_func)
@@ -1351,7 +1351,7 @@ class OMAAS(QWidget):
 
                 if type_of_normalization == normalization_methods[0]:
                     print(f'computing "{type_of_normalization}" to image {current_selection}')
-                    suffix = "LocNor"
+                    suffix = "Loc"
                     method_name = "local_normal_fun"
                     results = local_normal_fun(current_selection.data)
 
@@ -1364,7 +1364,7 @@ class OMAAS(QWidget):
 
                 elif type_of_normalization == normalization_methods[2]:
                     print(f'computing "{type_of_normalization}" to image {current_selection}')
-                    suffix = "GloNor"
+                    suffix = "Glob"
                     method_name = "global_normal_fun"
                     results = global_normal_fun(current_selection.data)
                 else:
@@ -1377,7 +1377,7 @@ class OMAAS(QWidget):
                     result_img=results,
                     operation_name="Normalization",
                     method_name= method_name,
-                    sufix=suffix, 
+                    sufix=f"Norm{suffix}", 
                     parameters=parameters, 
                     track_metadata=add_metadata,
                     )
@@ -1527,14 +1527,14 @@ class OMAAS(QWidget):
         if self.is_ratio_inverted.isChecked():
             results = img1.data/img0.data
             
-            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"Rat_Ch1Ch0", custom_inputs=[img1_name, img0_name], )                                    
+            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh1Ch0", custom_inputs=[img1_name, img0_name], )                                    
             
             print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
 
         else:
             results = img0.data/img1.data
             
-            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"Rat_Ch0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
+            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
 
             print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
 
@@ -1553,7 +1553,7 @@ class OMAAS(QWidget):
             try:
                             
                 if filter_type == all_my_filters[0]:
-                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_gaussian_func(current_selection.data, 
                                                 sigma= sigma, 
                                                 kernel_size=kernel_size)
@@ -1566,7 +1566,7 @@ class OMAAS(QWidget):
                         }
                 
                 elif filter_type == all_my_filters[3]:
-                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_median_filt_func(current_selection.data, kernel_size)
                     met_name = "apply_median_filt_func"
                     params = {
@@ -1575,7 +1575,7 @@ class OMAAS(QWidget):
                         }
 
                 elif filter_type == all_my_filters[1]:
-                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_box_filter(current_selection.data, kernel_size)
                     met_name = "apply_box_filter"
                     params = {
@@ -1584,7 +1584,7 @@ class OMAAS(QWidget):
                         }
                 
                 elif filter_type == all_my_filters[2]:
-                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
                     met_name = "apply_laplace_filter"
                     params = {
@@ -1594,7 +1594,7 @@ class OMAAS(QWidget):
                         }
                                     
                 elif filter_type == all_my_filters[4]:
-                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
                     met_name = "apply_bilateral_filter"
                     params = {
@@ -1605,7 +1605,7 @@ class OMAAS(QWidget):
                         }
                 
                 self.add_record_fun()
-                self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"SpatFilt{filter_type}", parameters=params)
+                self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"SpatFilt{filter_type[:4]}", parameters=params)
                 
             except Exception as e:
                 raise CustomException(e, sys)
@@ -1965,7 +1965,7 @@ class OMAAS(QWidget):
 
                 if filter_type == all_my_filters[0]:
 
-                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     
                     results = apply_butterworth_filt_func(current_selection.data, 
                                                         ac_freq=fps_val, 
@@ -1981,6 +1981,7 @@ class OMAAS(QWidget):
                     }
             
                 elif filter_type == all_my_filters[1]:
+                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     
 
                     n_taps = 21 #NOTE: this is hard coded, need to test it if make an impact
@@ -1995,7 +1996,7 @@ class OMAAS(QWidget):
                     }
                 
                 self.add_record_fun()
-                self.add_result_img(result_img=results, operation_name="Temporal_filter", method_name=met_name, sufix= f"TempFilt{filter_type}", parameters=params)
+                self.add_result_img(result_img=results, operation_name="Temporal_filter", method_name=met_name, sufix= f"TempFilt{filter_type[:4]}", parameters=params)
                 
             
             except Exception as e:
@@ -2705,7 +2706,7 @@ class OMAAS(QWidget):
             elif self.ini_i_spl_traces.size > 1:
 
                 # NOTE: need to fix this function
-                self.splitted_stack = split_AP_traces_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
+                self.splitted_stack = split_AP_traces_and_ave_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
                 new_time_len = self.splitted_stack.shape[-1]
                 time = time[:new_time_len]            
 
@@ -2839,14 +2840,19 @@ class OMAAS(QWidget):
                 if len(img_items) > 1:
                     return warn("Please select only one image in the image selector")
                 current_img_selected = img_items[0]
+                params={"prestep": {"method_name": "return_AP_ini_end_indx_func",
+                                      "parameters": {"promi": self.prominence}},
+                        "ini_index": ini_i.tolist(),
+                        "end_index": end_i.tolist()}
                 
-                results= split_AP_traces_func(current_img_selected.data, ini_i, end_i, type = "3d", return_mean=True)
+                results= split_AP_traces_and_ave_func(current_img_selected.data, ini_i, end_i, type = "3d", return_mean=True)
+
                 self.add_result_img(result_img=results, 
-                                    auto_metadata=False,
-                                    custom_metadata=current_img_selected.metadata,
-                                    img_custom_name=current_img_selected.name, 
-                                    single_label_sufix="Ave", 
-                                    operation_name = f"Average stack of {len(ini_i)} AP traces")
+                                    custom_metadata=current_img_selected.metadata, 
+                                    custom_img_name=current_img_selected.name,
+                                    operation_name="Average_from_mutiples_APs", 
+                                    method_name=split_AP_traces_and_ave_func.__name__,
+                                    sufix="AveAP", parameters=params)
                 print("Average trace created")
                 self.add_record_fun()
 
@@ -3015,11 +3021,18 @@ class OMAAS(QWidget):
                                          cycle_time=cycl_t,
                                          map_type = map_type,
                                          percentage = percentage)
+                    params = {"Activation_map":{"cycle_time": cycl_t,
+                              "map_type": map_type,
+                              "percentage": percentage}}
+                    meth_name = return_maps.__name__
+                    sufix = "ActMap"
                     
-                    self.add_result_img(result_img=results, 
-                                    img_custom_name=current_img_selection.name, 
-                                    single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
-                                    operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                    # self.add_result_img(result_img=results, 
+                    #                 img_custom_name=current_img_selection.name, 
+                    #                 single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
+                    #                 operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                    
+                    
                 
                 elif map_type == 2:
                     image = current_img_selection.data.copy()
@@ -3027,13 +3040,13 @@ class OMAAS(QWidget):
                     rmp_method = self.APD_computing_method.currentText()
                     apd_percentage = self.slider_APD_percentage.value()
 
-                    APD = np.zeros((y_size, x_size))
+                    results = np.zeros((y_size, x_size))
                     mask = np.isnan(image[0, ...])
-                    APD[mask] = np.nan
+                    results[mask] = np.nan
 
                     for y_px  in progress(range(y_size)):
                         for x_px in progress(range(x_size)):
-                            if not np.isnan(APD[y_px, x_px]).any():
+                            if not np.isnan(results[y_px, x_px]).any():
                                 try:
                                     APs_props = compute_APD_props_func(image[:, y_px, x_px],
                                                                     curr_img_name = current_img_selection_name, 
@@ -3044,14 +3057,14 @@ class OMAAS(QWidget):
                                                                     promi=self.prominence, 
                                                                     interpolate = is_interpolated)
                                     if not APs_props["APD"]:
-                                        print(f"Could not detect APD at pixel coordinate: [..., {y_px}, {x_px}].")
-                                        APD[y_px, x_px] = np.nan
+                                        print(f"Could not detect APD at pixel coordinate: [{y_px}, {x_px}].")
+                                        results[y_px, x_px] = np.nan
                                     else:
                                         apd_value = APs_props["APD"]
-                                        APD[y_px, x_px] = apd_value
+                                        results[y_px, x_px] = apd_value
                                 
                                 except Exception as e:
-                                    APD[y_px, x_px] = np.nan
+                                    results[y_px, x_px] = np.nan
                                     print(f">>>>> this is your error @ method: '_on_click_make_maps_btn_func': {e}")
                                         
                             # else:
@@ -3060,14 +3073,23 @@ class OMAAS(QWidget):
                     # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
                     # self.average_AP_plot_widget.axes.legend()
                     # self.average_AP_plot_widget.canvas.draw()
-                    np.clip(APD, a_min=0, a_max=None, out=APD)
+                    np.clip(results, a_min=0, a_max=None, out=results)
+
+                    params = {"APD_maps": {"curr_img_name": current_img_selection_name,
+                            "cycle_length_ms": self.xscale,
+                            "rmp_method" : rmp_method, 
+                            "apd_perc" : apd_percentage,
+                            "promi":self.prominence,
+                            "interpolate" : is_interpolated}}
+                    meth_name = compute_APD_props_func.__name__
+                    sufix = f"APDMap{percentage}"
                     
-                    self.add_result_img(result_img=APD, 
-                                        auto_metadata=False, 
-                                        custom_metadata=current_img_selection.metadata,
-                                        img_custom_name=current_img_selection.name, 
-                                        single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                                        operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
+                    # self.add_result_img(result_img=APD, 
+                    #                     auto_metadata=False, 
+                    #                     custom_metadata=current_img_selection.metadata,
+                    #                     img_custom_name=current_img_selection.name, 
+                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
+                    #                     operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
 
                     print("finished")
 
@@ -3119,6 +3141,12 @@ class OMAAS(QWidget):
                     #                     img_custom_name=current_img_selection.name, 
                     #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
                     #                     add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                self.add_result_img(result_img=results, 
+                                    operation_name="Generate_maps", 
+                                    method_name=meth_name, 
+                                    custom_img_name=current_img_selection.name, 
+                                    custom_metadata=current_img_selection.metadata, 
+                                    sufix=sufix, parameters=params)
 
 
                 self.add_record_fun()
@@ -3362,19 +3390,25 @@ class OMAAS(QWidget):
 
     
     def _on_click_create_AP_gradient_bt_func(self):
-        current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
-        current_img_selection = self.viewer.layers[current_img_selection_name]
-        dim_shape = current_img_selection.data.shape[1:]
-        results = np.gradient(current_img_selection.data, axis=0)
-        # make activation time mask using the gradien
-        # act_map_mask = results == results.max(axis = 0)
-        # act_map_rslt = current_img_selection.data[act_map_mask]
-        # act_map_rslt = act_map_rslt.reshape( dim_shape[0], dim_shape[1])
+        current_img_selected = self.viewer.layers.selection.active
         
-        self.add_result_img(result_img=results, 
-                            img_custom_name=current_img_selection.name, 
-                            single_label_sufix="ActTime", 
-                            operation_name = f"Activation Time")
+        if isinstance(current_img_selected, Image):
+
+            if current_img_selected.ndim == 3:
+                results = np.gradient(current_img_selected.data, axis=0)
+
+                print(f"Computing Gradient on image: {current_img_selected.name}")
+                self.add_result_img(result_img=results, 
+                                    custom_img_name=current_img_selected.name,
+                                    custom_metadata=current_img_selected.metadata,
+                                    operation_name="AP Gradient", 
+                                    method_name=np.gradient.__name__, 
+                                    sufix="ActTime", 
+                                    parameters={"axis": 0})
+            else: 
+                return warn(f"The image selected: '{current_img_selected.name}'  has ndim = {current_img_selected.ndim }. \nPlease select an image with ndim = 3 to compute Gradient.")
+        
+        return warn(f"No an image selected or image. Please select an image layer.")
     
 
 
@@ -3566,13 +3600,6 @@ class OMAAS(QWidget):
                         masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
             except Exception as e:
                 raise CustomException(e, sys)
-            
-            # self.add_result_img(masked_image, 
-            #                     auto_metadata=False,
-            #                     custom_metadata=current_selection.metadata,
-            #                     img_custom_name=current_selection.name, 
-            #                     single_label_sufix = f"NullBckgrnd",
-            #                     operation_name = f"Background subtracted")
 
             self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
                                 sufix=f"{params['Segmentation_mode'][:3]}Segm", 
@@ -3672,24 +3699,26 @@ class OMAAS(QWidget):
         start_indx, end_indx = self.double_slider_clip_trace.value()
         start_indx = int(start_indx / self.xscale)
         end_indx = int(end_indx / self.xscale)
+        params = {"start_indx": start_indx,
+                  "end_indx": end_indx}
         # assert that there is a trace in the main plotting canvas
         if len(self.main_plot_widget.figure.axes) > 0 :
             
-            if self.clip_label_range.isChecked():
+            if self.is_range_clicked_checkbox.isChecked():
                 
                 time = self.data_main_canvas["x"]
                 selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
                 for image in selected_img_list:
                     results = image.data[start_indx:end_indx]
                     self.add_result_img(result_img=results, 
-                                        auto_metadata=False,
                                         custom_metadata=image.metadata,
-                                        img_custom_name = image.name, 
-                                        single_label_sufix="clip", 
-                                        operation_name = f"Clipped_at_Indx_[{start_indx}:{end_indx}]")
+                                        custom_img_name=image.name,
+                                        operation_name= "clip_image",
+                                        method_name="indexing", 
+                                        sufix="Clip", parameters=params)
                     # self.add_record_fun()
                     # self.plot_profile_btn.setChecked(False)
-                    self.clip_label_range.setChecked(False)
+                    self.is_range_clicked_checkbox.setChecked(False)
                     self.plot_last_generated_img()
                     print(f"image '{image.name}' clipped from time/index: {round(start_indx * self.xscale, 2)}/[{start_indx}] to {round(end_indx * self.xscale, 2)}/[{end_indx}]")
             else:
@@ -3698,7 +3727,7 @@ class OMAAS(QWidget):
             return warn("Create a trace first by clicking on 'Display Profile'") 
     
     def _dsiplay_range_func(self):
-        state = self.clip_label_range.isChecked()
+        state = self.is_range_clicked_checkbox.isChecked()
         
         if state == True and self.plot_profile_btn.isChecked() :
             start_indx, end_indx = self.double_slider_clip_trace.value()
@@ -3720,7 +3749,7 @@ class OMAAS(QWidget):
             return
     
     def _double_slider_clip_trace_func(self):
-        state = self.clip_label_range.isChecked()
+        state = self.is_range_clicked_checkbox.isChecked()
 
         try:
         
@@ -3845,6 +3874,11 @@ class OMAAS(QWidget):
             pre_smooth_s=self.pre_smooth_spat.value()
             ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
 
+            params = {"Contrast_Kernel": c_k,
+                      "pre_smooth_temporal" : pre_smooth_t,
+                      "pre_smooth_sapatial" : pre_smooth_s,
+                      "reference_frame" : ref_frame_indx}
+
             print("running motion stabilization")
             results = optimap_mot_correction(current_selection.data, 
                                              c_k = c_k,
@@ -3853,9 +3887,10 @@ class OMAAS(QWidget):
                                              ref_fr=ref_frame_indx)
             
             self.add_result_img(result_img=results, 
-                                img_custom_name = current_selection.name,
-                                single_label_sufix= f'MotStab_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefF{ref_frame_indx}', 
-                                operation_name = f'Motion_correction_optimap_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefFram{ref_frame_indx}')
+                                operation_name="Motion_correction", 
+                                method_name="optimap_mot_correction", 
+                                sufix="MotStab", 
+                                parameters=params)
             
             self.add_record_fun()
 
@@ -3900,7 +3935,12 @@ class OMAAS(QWidget):
                 param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
                 print(f"result image rotate 90° to the right")
 
-            self.add_result_img(result_img=cropped_img, operation_name="Crop_image", custom_img_name=img_name, method_name="crop_from_shape", custom_metadata= metadata, sufix="Crop", parameters=param)
+            self.add_result_img(result_img=cropped_img, 
+                                operation_name="Crop_image", 
+                                custom_img_name=img_name, 
+                                method_name="crop_from_shape", 
+                                custom_metadata= metadata, 
+                                sufix="Crop", parameters=param)
             self.add_record_fun()
             print(f"image '{img_name}' cropped")
             return
