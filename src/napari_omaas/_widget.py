@@ -42,6 +42,7 @@ from .utils import (
     ToggleButton,
     PandasModel,
     MultiComboBox,
+    TrackProcessingSteps,
     
     invert_signal,
     local_normal_fun,
@@ -72,7 +73,9 @@ from .utils import (
     macro,
     return_maps,
     apply_FIR_filt_func,
-    gaussian_filter_nan
+    gaussian_filter_nan,
+    # decodeDictionary,
+    convert_to_json_serializable
 
 )
 
@@ -145,6 +148,8 @@ class OMAAS(QWidget):
         self.settings.setLayout(self._settings_layout)
         self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
 
+        self.metadata_recording_steps = TrackProcessingSteps()
+
         #########################################
         ######## Editing indivicual tabs ########
         #########################################
@@ -157,22 +162,31 @@ class OMAAS(QWidget):
         self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
 
         ######## pre-processing btns ########
-        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize")        
-        self.inv_and_norm_data_btn.setToolTip(("Invert and Apply Normalization to the current Image."))
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 1, 1, 1, 1)
 
-        self.inv_data_btn = QPushButton("Invert signal")
-        self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
-        self.pre_processing_group.glayout.addWidget(self.inv_data_btn , 2, 1, 1, 1)
-
-        self.apply_normalization_btn = QPushButton("Normalize")        
+        self.apply_normalization_btn = QPushButton("Normalize")
         self.apply_normalization_btn.setToolTip(("Apply Normalization to the current Image."))
-        self.pre_processing_group.glayout.addWidget(self.apply_normalization_btn, 1, 2, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.apply_normalization_btn, 1, 1, 1, 1)
 
         self.data_normalization_options = QComboBox()
         self.data_normalization_options.addItems(["Local max", "Slide window", "Global"])
         self.data_normalization_options.setToolTip(("List of normalization methods."))
-        self.pre_processing_group.glayout.addWidget(self.data_normalization_options, 1, 3, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.data_normalization_options, 1, 2, 1, 1)
+
+        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize")        
+        self.inv_and_norm_data_btn.setToolTip(("Invert and Apply Normalization to the current Image."))
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 1, 3, 1, 1)
+        
+        self.inv_data_btn = QPushButton("Invert signal")
+        self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
+        self.pre_processing_group.glayout.addWidget(self.inv_data_btn , 2, 1, 1, 1)
+
+        self.slide_wind_n = QSpinBox()
+        self.slide_wind_n.setToolTip(("Windows size for slide window normalization method."))
+        # self.slide_wind_n.setSingleStep(1)
+        self.slide_wind_n.setValue(100)
+        self.slide_wind_n.setMaximum(10000000)
+        self.pre_processing_group.glayout.addWidget(self.slide_wind_n , 2, 2, 1, 1)
+
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
@@ -1118,11 +1132,19 @@ class OMAAS(QWidget):
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
 
-        self.export_processing_steps_btn = QPushButton("Export processing steps")
-        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
+        self.record_operations_label = QLabel("Record operations in metadata")
+        self.record_operations_label.setToolTip('Set on if you want to keep track of the processing steps and operations to be recorded and added to the meatadata.')
+        self.metadata_display_group.glayout.addWidget(self.record_operations_label, 1, 0, 1, 1)
+        
+        self.record_metadata_check = QCheckBox()
+        self.record_metadata_check.setChecked(True) 
+        self.metadata_display_group.glayout.addWidget(self.record_metadata_check,  1, 1, 1, 1)
         
         self.export_image_btn = QPushButton("Export Image + meatadata")
         self.metadata_display_group.glayout.addWidget(self.export_image_btn,  1, 2, 1, 1)
+
+        self.export_processing_steps_btn = QPushButton("Export processing steps")
+        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
@@ -1295,13 +1317,25 @@ class OMAAS(QWidget):
     def _on_click_inv_data_btn(self):
         current_selection = self.viewer.layers.selection.active
 
-        if isinstance(current_selection, Image):
-            print(f'computing "invert_signal" to image {current_selection}')
-            results =invert_signal(current_selection.data)
-            self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
-            self.add_record_fun()
-        else:
-           return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+        try:
+            if isinstance(current_selection, Image):
+                print(f'computing "invert_signal" to image {current_selection}')
+                results =invert_signal(current_selection.data)
+
+                self.add_result_img(
+                    result_img=results,
+                    operation_name="invert_signal",
+                    method_name= "invert_signal",
+                    sufix="Inv", 
+                    parameters=None, 
+                    )
+                self.add_record_fun()
+            else:
+                return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+        except Exception as e:
+            raise CustomException(e, sys)
+            # print (CustomException(e, sys))
+            
 
 
     def _on_click_norm_data_btn(self):
@@ -1311,25 +1345,45 @@ class OMAAS(QWidget):
         normalization_methods = [self.data_normalization_options.itemText(i) for i in range(self.data_normalization_options.count())]
 
         if isinstance(current_selection, Image):
-            if type_of_normalization == normalization_methods[0]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = local_normal_fun(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
-                self.add_record_fun()
+            try:
+                
+                add_metadata = self.record_metadata_check.isChecked()
 
-            elif type_of_normalization == normalization_methods[1]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = slide_window_normalization_func(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="SliWind20", add_to_metadata = "SliWind_norm_signal")
-                self.add_record_fun()
+                if type_of_normalization == normalization_methods[0]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    suffix = "LocNor"
+                    method_name = "local_normal_fun"
+                    results = local_normal_fun(current_selection.data)
 
-            elif type_of_normalization == normalization_methods[2]:
-                print(f'computing "{type_of_normalization}" to image {current_selection}')
-                results = global_normal_fun(current_selection.data)
-                self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
+                elif type_of_normalization == normalization_methods[1]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    wind_size = self.slide_wind_n.value()
+                    suffix = f"SliWind{wind_size}"
+                    method_name = "slide_window_normalization_func"
+                    results = slide_window_normalization_func(current_selection.data, slide_window=wind_size)
+
+                elif type_of_normalization == normalization_methods[2]:
+                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                    suffix = "GloNor"
+                    method_name = "global_normal_fun"
+                    results = global_normal_fun(current_selection.data)
+                else:
+                    warn(f"Normalization method '{type_of_normalization}' no found.")
+
+                parameters= {"Normalization_method": type_of_normalization}
+                parameters = {"Normalization_method": type_of_normalization, "options": {"slide_window" : wind_size}} if type_of_normalization == normalization_methods[1] else parameters
+                
+                self.add_result_img(
+                    result_img=results,
+                    operation_name="Normalization",
+                    method_name= method_name,
+                    sufix=suffix, 
+                    parameters=parameters, 
+                    track_metadata=add_metadata,
+                    )
                 self.add_record_fun()
-            else:
-                warn(f"Normalization method '{type_of_normalization}' no found.")
+            except Exception as e:
+                raise CustomException(e, sys)
         else:
            return  warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -1359,15 +1413,20 @@ class OMAAS(QWidget):
 
 
             for channel in range(len(my_splitted_images)):
-                # self.viewer.add_image(my_splitted_images[channel],
-                # colormap= "turbo", 
-                # name= f"{curr_img_name}_ch{channel + 1}")
+                
+                params = {"Channel" : {"current_channel":channel},
+                          "cycle_time_changed": {"original_cycle_time": round(metadata["CycleTime"], 3), 
+                                                 "new_cycle_time": round(half_cycle_time, 3)}
+                                                 }
                 self.add_result_img(result_img=my_splitted_images[channel], 
-                                    auto_metadata = False,
-                                    img_custom_name=curr_img_name, 
-                                    single_label_sufix=f"Ch{channel}", 
-                                    custom_metadata=new_metadata,
-                                    add_to_metadata = f"SplitChan{channel}_OriginalCycleTimeInms{round(half_cycle_time /2 * 1000, 3)}")
+                                    operation_name="Split_Channels", 
+                                    method_name="split_channels_fun", 
+                                    sufix=f"Ch{channel}", 
+                                    custom_metadata=new_metadata, 
+                                    custom_img_name= curr_img_name,
+                                    custom_outputs=[curr_img_name + "_Ch0", curr_img_name + "_Ch1"],
+                                    parameters=params)
+
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -1452,36 +1511,32 @@ class OMAAS(QWidget):
     #    print(f"Current layer 1 is {ctext}")
     
     def _compute_ratio_btn_func(self):
+        
+        
+        # if [img0.data.shape] != [img1.data.shape]:
+        #     return warn(f"The shape of your images does not seems to be the same. Please check the images. dim of '{img0_name}' = {img0.data.shape} and dim of '{img1_name}' = {img1.data.shape}")
+        # else :
         img0_name = self.Ch0_ratio.currentText()
         img0 = self.viewer.layers[img0_name]
         img1_name = self.Ch1_ratio.currentText()
         img1 = self.viewer.layers[img1_name]
-        metadata = img0.metadata
-        
-        if [img0.data.shape] != [img1.data.shape]:
-            return warn(f"The shape of your images does not seems to be the same. Please check the images. dim of '{img0_name}' = {img0.data.shape} and dim of '{img1_name}' = {img1.data.shape}")
-        else :
-            if self.is_ratio_inverted.isChecked():
-                results = img1.data/img0.data
-                self.add_result_img(results, 
-                                    img_custom_name=img0_name[:-4],
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Rat_Ch1_Ch0", 
-                                    add_to_metadata = f"Ratio_from {img1_name}/{img0_name}")
-                
-                print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
 
-            else:
-                results = img0.data/img1.data
-                self.add_result_img(results, 
-                                    img_custom_name=img0_name[:-4],
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Rat_Ch0_Ch1", 
-                                    add_to_metadata = f"Ratio_from {img0_name}/{img1_name}")
+        # metadata = img0.metadata
+        params = {"is_ratio_inverted": self.is_ratio_inverted.isChecked()}
 
-                print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
+        if self.is_ratio_inverted.isChecked():
+            results = img1.data/img0.data
+            
+            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"Rat_Ch1Ch0", custom_inputs=[img1_name, img0_name], )                                    
+            
+            print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
+
+        else:
+            results = img0.data/img1.data
+            
+            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"Rat_Ch0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
+
+            print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
 
 
     def _on_click_apply_spat_filt_btn(self):
@@ -1494,119 +1549,289 @@ class OMAAS(QWidget):
             kernel_size = self.filt_kernel_value.value()
             sigma_col = self.sigma_filt_color_value.value()
             metadata = current_selection.metadata
-            
-            if filter_type == all_my_filters[0]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_gaussian_func(current_selection.data, 
-                                            sigma= sigma, 
-                                            kernel_size=kernel_size)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    KrnlSiz = kernel_size, 
-                                    Sgma = sigma, 
-                                    add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
 
-            
-            elif filter_type == all_my_filters[3]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_median_filt_func(current_selection.data, kernel_size)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    MednFilt = kernel_size, 
-                                    add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
+            try:
+                            
+                if filter_type == all_my_filters[0]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_gaussian_func(current_selection.data, 
+                                                sigma= sigma, 
+                                                kernel_size=kernel_size)
+                    
+                    met_name = "apply_gaussian_func"
+                    params = {
+                        "filter_type":filter_type,
+                        "sigma": sigma,
+                        "kernel_size": kernel_size
+                        }
+                
+                elif filter_type == all_my_filters[3]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_median_filt_func(current_selection.data, kernel_size)
+                    met_name = "apply_median_filt_func"
+                    params = {
+                        "filter_type":filter_type,
+                        "kernel_size": kernel_size
+                        }
 
-            elif filter_type == all_my_filters[1]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_box_filter(current_selection.data, kernel_size)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    BoxFilt = kernel_size, 
-                                    add_to_metadata = f"{filter_type}Filt_ksize{kernel_size}")
-            
-            elif filter_type == all_my_filters[2]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    KrnlSiz = kernel_size, Widht = sigma, 
-                                    add_to_metadata = f"{filter_type}Filt_sigma{sigma}_ksize{kernel_size}")
-            
-            elif filter_type == all_my_filters[4]:
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
-                self.add_result_img(results, 
-                                    auto_metadata=False,
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    WindSiz = kernel_size, 
-                                    sigma_spa = sigma,  
-                                    sigma_col = sigma_col, 
-                                    add_to_metadata = f"{filter_type}WindSiz{kernel_size}_sigma_spa{sigma}_sigma_col_{sigma_col}")
-            
-            self.add_record_fun()
+                elif filter_type == all_my_filters[1]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_box_filter(current_selection.data, kernel_size)
+                    met_name = "apply_box_filter"
+                    params = {
+                        "filter_type":filter_type,
+                        "kernel_size": kernel_size
+                        }
+                
+                elif filter_type == all_my_filters[2]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
+                    met_name = "apply_laplace_filter"
+                    params = {
+                        "filter_type":filter_type,
+                         "sigma": sigma,
+                        "kernel_size": kernel_size
+                        }
+                                    
+                elif filter_type == all_my_filters[4]:
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
+                    met_name = "apply_bilateral_filter"
+                    params = {
+                        "filter_type":filter_type,
+                         "sigma_spa": sigma,
+                         "sigma_col": sigma_col,
+                        "wind_size": kernel_size
+                        }
+                
+                self.add_record_fun()
+                self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"SpatFilt{filter_type}", parameters=params)
+                
+            except Exception as e:
+                raise CustomException(e, sys)
+                # print( CustomException(e, sys))
+                
+                
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
     
     
-    
     def add_result_img(self, 
-                       result_img, 
-                       single_label_sufix = None, 
-                       auto_metadata = True, 
-                       add_to_metadata = None, 
-                       custom_metadata = None, 
-                       colormap="turbo", 
-                       img_custom_name = None, 
-                       **label_and_value_sufix):
-        
+                        result_img, 
+                        operation_name, 
+                        method_name,
+                        custom_metadata = None,
+                        custom_img_name = None,
+                        custom_inputs = None,
+                        custom_outputs = None,
+                        sufix = None, 
+                        parameters = None,
+                        track_metadata = None, 
+                        colormap="turbo"):
+        """
+        add_result_img: Add new image and handle metadata.
 
-        if auto_metadata:
+        This function create and handle metadata for the 
+        different processing steps or operations in images.
+
+        Parameters
+        ----------
+        result_img : 'napari.types.ImageData'
+            Image resulting from an operation.
+
+        operation_name : srt, optional
+            Name of the current processing step or operation, by default None
+
+        method_name : srt, optional
+            Name of the current method or function used, by default None
+
+        sufix : str, optional
+            Add sufix to image, by default None
+
+        parameters : dict, optional
+            Set of parameters currently being used, by default None
+
+        track_metadata : bool, optional
+            Set True if you wish to keep track of operations changes and be added to metadata, by default True
+
+        colormap : str, optional
+            Pseudo-color definition for resulting image, by default "turbo"
+
+        """
+
+        if custom_metadata is None:
             img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
-        else: 
+        else:
             img_metadata = copy.deepcopy(custom_metadata)
 
-
-        if img_custom_name is not None:
-            img_name = img_custom_name
-        else:
+        if custom_img_name is None:
             img_name = self.viewer.layers.selection.active.name
-            
+        else:
+            img_name = custom_img_name
+        new_img_name = img_name
+
+        if sufix is not None:
+            new_img_name += f"_{sufix}"
+
+        if custom_inputs is None:
+            custom_inputs = [img_name]
+        else:
+            custom_inputs
         
-        # create "ProcessingSteps" key if does not exist
-        key_name = "ProcessingSteps"
-
-        if key_name not in img_metadata:
-            img_metadata[key_name] = []
-
-        # append the given processing step(s) to the key
-        if add_to_metadata is not None:            
-            img_metadata[key_name].append(add_to_metadata)
+        if custom_outputs is None:
+            custom_outputs = [new_img_name]
+        else:
+            custom_outputs
 
 
-        if single_label_sufix is not None:
-            # for value in single_label_sufix:
-            img_name += f"_{single_label_sufix}"
+        track_metadata = self.record_metadata_check.isChecked() if track_metadata is None else track_metadata
+        
+        if track_metadata:
 
-        if label_and_value_sufix is not None:
-            for key, value in label_and_value_sufix.items():
-                img_name += f"_{key}{value}"
+            # create "ProcessingSteps" key if does not exist
+            key_name = "ProcessingSteps"
+
+            # if key_name in img_metadata:
+            self.metadata_recording_steps.steps = img_metadata[key_name] if key_name in img_metadata else []
+                # img_metadata[key_name] = []
+            # else:
+            #     self.metadata_recording_steps.steps = img_metadata[key_name] if len(img_metadata[key_name]) > 1, else: 
             
+            self.metadata_recording_steps.add_step(
+                    operation=operation_name,
+                    method_name=method_name,
+                    inputs=custom_inputs,
+                    outputs=custom_outputs,
+                    parameters=parameters
+                    )
+            img_metadata[key_name] = self.metadata_recording_steps.steps
+            
+            
+            return self.viewer.add_image(result_img,
+                        colormap = colormap,
+                        name = new_img_name,
+                        metadata = img_metadata
+                        )
+        else:
+            return self.viewer.add_image(result_img,
+                        colormap = colormap,
+                        name = new_img_name,
+                        metadata = img_metadata
+                        )
+
+
+    
+    # NOTE: refactor this function 21.082024
+    # def add_result_img(self, 
+    #                    result_img, 
+    #                    single_label_sufix = None, 
+    #                    auto_metadata = True, 
+    #                    operation_name = None, 
+    #                    parameters = None,
+    #                    custom_metadata = None,
+    #                    track_metadata = True, 
+    #                    colormap="turbo", 
+    #                    img_custom_name = None, 
+    #                    **label_and_value_sufix):
+    #     """
+    #     add_result_img: Add new image and handle metadata.
+
+    #     This function create and handle metadata for the 
+    #     different processing steps or operations in images.
+
+    #     Parameters
+    #     ----------
+    #     result_img : 'napari.types.ImageData'
+    #         Image resulting from an operation.
+
+    #     single_label_sufix : str, optional
+    #         Add sufix to image, by default None
+
+    #     auto_metadata : bool, optional
+    #         If True, tkes curent image metadata and update it, otherwise a new metadata template is required, by default True
+
+    #     add_to_metadata : str, optional
+    #         Parameter to add as metadata, typically the name of the operation, by default None
+
+    #     custom_metadata : dict, optional
+    #         When auto_metadata = False, metadata dict to use as template, by default None
+
+    #     track_metadata : bool, optional
+    #         Set True if you wish to keep track of operations changes and be added to metadata, by default True
+
+    #     colormap : str, optional
+    #         Pseudo-color definition for resulting image, by default "turbo"
+            
+    #     img_custom_name : str, optional
+    #         When you decide to change or modify the current image name, by default None
+        
+    #     Returns
+    #     -------
+    #     result_img_and_metadata : 'napari.types.ImageData'
+    #         The image with metadata updated.
+    #     """
+        
+
+    #     if auto_metadata:
+    #         img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
+    #     else: 
+    #         img_metadata = copy.deepcopy(custom_metadata)
+
+
+    #     if img_custom_name is not None:
+    #         img_name = img_custom_name
+    #     else:
+    #         img_name = self.viewer.layers.selection.active.name
+        
+    #     new_img_name = img_name
+            
+    #     if track_metadata:
+
+    #         # create "ProcessingSteps" key if does not exist
+    #         key_name = "ProcessingSteps"
+
+    #         if key_name not in img_metadata:
+    #             img_metadata[key_name] = []
+
+    #     if single_label_sufix is not None:
+    #         # for value in single_label_sufix:
+    #         new_img_name += f"_{single_label_sufix}"
+
+    #     if label_and_value_sufix is not None:
+    #         for key, value in label_and_value_sufix.items():
+    #             new_img_name += f"_{key}{value}"
+                
+
+    #         # append the given processing step(s) to the key
+    #         if operation_name is not None:            
+
+    #             self.metadata_recording_steps.add_step(
+    #                 operation=operation_name,
+    #                 inputs=[img_name],
+    #                 outputs=[new_img_name],
+    #                 parameters=[None]
+    #                 )
+    #             img_metadata[key_name].append(self.metadata_recording_steps.steps)
+
+
+
+            
+    #         return self.viewer.add_image(result_img,
+    #                     colormap = colormap,
+    #                     name = new_img_name,
+    #                     metadata = img_metadata
+    #                     )
+    #     else:
+            
+    #         return self.viewer.add_image(result_img,
+    #                     colormap = colormap,
+    #                     name = new_img_name,
+    #                     metadata = img_metadata
+    #                     )
 
         
-        self.viewer.add_image(result_img,
-                    colormap = colormap,
-                    name = img_name,
-                    metadata = img_metadata)
         
 
 
@@ -1713,16 +1938,16 @@ class OMAAS(QWidget):
     #         warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
         
+        # NOTE: DEPRECATE this function 21.08.2024
+    # def _on_click_transform_to_uint16_btn(self):
         
-    def _on_click_transform_to_uint16_btn(self):
-        
-        results = transform_to_unit16_func(self.viewer.layers.selection)
-        # print( "is doing something")
+    #     results = transform_to_unit16_func(self.viewer.layers.selection)
+    #     # print( "is doing something")
 
-        self.viewer.add_image(results, 
-            colormap = "turbo",
-         # colormap= "twilight_shifted", 
-            name= f"{self.viewer.layers.selection.active}_uint16")
+    #     self.viewer.add_image(results, 
+    #         colormap = "turbo",
+    #      # colormap= "twilight_shifted", 
+    #         name= f"{self.viewer.layers.selection.active}_uint16")
 
     def _on_click_apply_temp_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
@@ -1733,53 +1958,52 @@ class OMAAS(QWidget):
             cutoff_freq_value = self.butter_cutoff_freq_val.text()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
+            cutoff_freq_value = int(cutoff_freq_value)
             metadata = current_selection.metadata
 
-            if filter_type == all_my_filters[0]:
+            try:
 
-                print(f'applying "{filter_type}" filter to image {current_selection}')
-                cutoff_freq_value = int(cutoff_freq_value)
-                results = apply_butterworth_filt_func(current_selection.data, 
-                                                    ac_freq=fps_val, 
-                                                    cf_freq= cutoff_freq_value, 
-                                                    fil_ord=order_value)
+                if filter_type == all_my_filters[0]:
 
-                # self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val), add_to_metadata=f"ButterworthFilt_acfreq{fps_val}_cffreq{cutoff_freq_value}_filtord{order_value}")
-                self.add_result_img(results, 
-                                    auto_metadata=False, 
-                                    custom_metadata=metadata,
-                                    single_label_sufix = f"Filt{filter_type}", 
-                                    cffreq = cutoff_freq_value, 
-                                    ord = order_value, fps=round(fps_val), 
-                                    add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{cutoff_freq_value}_ord{order_value}")
+                    print(f'applying "{filter_type}" filter to image {current_selection}')
+                    
+                    results = apply_butterworth_filt_func(current_selection.data, 
+                                                        ac_freq=fps_val, 
+                                                        cf_freq= cutoff_freq_value, 
+                                                        fil_ord=order_value)
+                    
+                    met_name = "apply_butterworth_filt_func"
+                    params = {
+                    "filter_type":filter_type,
+                    "acquisition_freq": fps_val,
+                    "cutoff_freq": cutoff_freq_value,
+                    "order_size": order_value
+                    }
+            
+                elif filter_type == all_my_filters[1]:
+                    
+
+                    n_taps = 21 #NOTE: this is hard coded, need to test it if make an impact
+                    
+                    results = apply_FIR_filt_func(current_selection.data, n_taps=n_taps, cf_freq=cutoff_freq_value, acquisition_freq = fps_val)
+
+                    met_name = "apply_FIR_filt_func"
+                    params = {
+                    "acquisition_freq": fps_val,
+                    "n_taps":n_taps,
+                    "cutoff_freq": cutoff_freq_value,
+                    }
+                
+                self.add_record_fun()
+                self.add_result_img(result_img=results, operation_name="Temporal_filter", method_name=met_name, sufix= f"TempFilt{filter_type}", parameters=params)
                 
             
-            elif filter_type == all_my_filters[1]:
-                try:
-
-                    n_taps = 21
-                    ct_freq = float(cutoff_freq_value)
-
-                    results = apply_FIR_filt_func(current_selection.data, n_taps=n_taps, cf_freq=ct_freq)
-
-                    self.add_result_img(results, 
-                                        auto_metadata=False, 
-                                        custom_metadata=metadata,
-                                        single_label_sufix = f"Filt{filter_type}", 
-                                        cffreq = ct_freq, 
-                                        n_taps = n_taps, 
-                                        add_to_metadata = f"{filter_type}Filt_acfreq{fps_val}_cffreq{ct_freq}_n_taps{n_taps}")
-                    
-                    # return warn("Current filter '{filter_type}' is not supported.")
-                except Exception as e:
-                        # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-                        raise e
-
-            
-            self.add_record_fun()
-
+            except Exception as e:
+                # raise CustomException(e, sys)
+                print(CustomException(e, sys))
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+    
                 
 
         # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")
@@ -1850,7 +2074,13 @@ class OMAAS(QWidget):
         if event.type in ['active']:
             value = event.value
             if isinstance(value, Image):
+                # handle metadata in images saved with tifffile
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
+                self.img_metadata_dict = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
+
+                # self.viewer.layers.selection.active.metadata = self.img_metadata_dict
+                # self.viewer.layers.selection.active.metadata = self.viewer.layers.selection.active.metadata["shaped_metadata"][0] if "shaped_metadata" in self.viewer.layers.selection.active.metadata else self.img_metadata_dict
+                # self.viewer.layers.selection.active.metadata = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
                 if "CycleTime" in self.img_metadata_dict:
                     # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
                     self.metadata_tree.clear()
@@ -2236,20 +2466,33 @@ class OMAAS(QWidget):
         
     def _layer_list_changed_callback(self, event):
         """Callback function for layer list changes.
-        Update the selector model on each layer list change to insert or remove items accordingly.
+        Update the selector model on each layer list change to insert or remove items accordingly,
+        while preserving the current selection.
         """
         
         value = event.value
         etype = event.type
-        # control selection of Shape layers
+        
         if etype in ['inserted', 'removed', 'reordered']:
 
-            if isinstance(value, Shapes) or isinstance(value, LayerList):
+            # Capture the current selected items
+            curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
             
-                self.listShapeswidget.clear()
-                shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes) ]
+            if isinstance(value, Shapes) or isinstance(value, LayerList):
+                # selected_items = [item.text() for item in self.listShapeswidget.selectedItems()]
 
-                # update shapes transfer widget
+                # Clear and update the list
+                self.listShapeswidget.clear()
+                shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes)]
+                
+                items = [QtWidgets.QListWidgetItem(shape) for shape in shape_layers]
+                for item in items:
+                    self.listShapeswidget.addItem(item)
+                    # Restore the selection if the item was selected before
+                    if item.text() in curr_shapes_items:
+                        item.setSelected(True)
+
+                # Update other selectors
                 self.ROI_selection_1.clear()
                 self.ROI_selection_1.addItems(shape_layers) 
                 self.ROI_selection_2.clear()
@@ -2257,68 +2500,47 @@ class OMAAS(QWidget):
                 self.ROI_selection_crop.clear()
                 self.ROI_selection_crop.addItems(shape_layers) 
                 self.ROI_selection_crop.setCurrentIndex(0)
-                # update shapes in selector widget
-                for shape in shape_layers:
-                    item = QtWidgets.QListWidgetItem(shape)
-                    self.listShapeswidget.addItem(item)
 
-                    
-            
-            if isinstance(value, Image) or isinstance(value, LayerList) :
-            
+            if isinstance(value, Image) or isinstance(value, LayerList):
+                # Capture the current selected items
+                # selected_items = [item.text() for item in self.listImagewidget.selectedItems()]
+
                 all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
-                # update image selector for cropping
+                
+                # Update image selector for cropping
                 self.image_selection_crop.clear()
                 self.image_selection_crop.addItems(all_images)
                 self.image_selection_crop.setCurrentIndex(0)
                 
-                # self.img_list_manual_segment.clear()
-                # self.img_list_manual_segment.addItems(all_images)
                 all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
                 self.map_imgs_selector.clear()
                 self.map_imgs_selector.addItems(all_images_2d)
                 self.map_imgs_selector.setCurrentIndex(-1)
 
-                # update image selector(s) for computing ratio
-                # NOTE: this apporach is not working
-                # try:
-
-                #     sorted_ch_img_list = sorted(all_images, key=lambda x: int(x.split('_Ch')[-1]) if '_Ch' in x else float('inf'))
-
-                # except Exception as e:
-                #     sorted_ch_img_list = all_images
-                #     warn(f">>>>> this is your error: {e}")
-
-                # sorted_ch_img_list_indx = [i for i in range(len(sorted_ch_img_list))]
-                # all_images_indx = [i for i in range(len(all_images))]
-
                 self.Ch0_ratio.clear()
                 self.Ch0_ratio.addItems(all_images)
-                
                 self.Ch1_ratio.clear()
                 self.Ch1_ratio.addItems(all_images)
 
-                if len(all_images) >=3:
-                    # self.Ch1_ratio.addItems([sorted_ch_img_list[1], sorted_ch_img_list[0], *sorted_ch_img_list[2:]])
+                if len(all_images) >= 3:
                     n_imgs = len(all_images)
                     self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
                     self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
 
-
-                # update image selector for main selector
+                # Clear and update the main image list
                 self.listImagewidget.clear()
                 image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
 
                 for image in image_layers:
                     item = QtWidgets.QListWidgetItem(image)
-                    self.listImagewidget.addItem(image)
-            
-            
-            if isinstance(value, Labels) or isinstance(value, LayerList) :
-            
+                    self.listImagewidget.addItem(item)
+                    # Restore the selection if the item was selected before
+                    if item.text() in curr_img_items:
+                        item.setSelected(True)
+
+            if isinstance(value, Labels) or isinstance(value, LayerList):
                 all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
-                
-                # update mask selector for manual segmentation
+                # Update mask selector for manual segmentation
                 self.mask_list_manual_segment.clear()
                 self.mask_list_manual_segment.addItems(all_labels)
 
@@ -2412,6 +2634,7 @@ class OMAAS(QWidget):
                     self.shape_layer.events.data.connect(self._data_changed_callback)
             except Exception as e:
                 print(f"You have the following error @ function _on_click_plot_profile_btn_func: --->> '{e}' <----")
+                raise CustomException(e, sys)
         else:
             # print('Unchecked')
             self.main_plot_widget.figure.clear()
@@ -2623,7 +2846,7 @@ class OMAAS(QWidget):
                                     custom_metadata=current_img_selected.metadata,
                                     img_custom_name=current_img_selected.name, 
                                     single_label_sufix="Ave", 
-                                    add_to_metadata = f"Average stack of {len(ini_i)} AP traces")
+                                    operation_name = f"Average stack of {len(ini_i)} AP traces")
                 print("Average trace created")
                 self.add_record_fun()
 
@@ -2796,7 +3019,7 @@ class OMAAS(QWidget):
                     self.add_result_img(result_img=results, 
                                     img_custom_name=current_img_selection.name, 
                                     single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
-                                    add_to_metadata = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                                    operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
                 
                 elif map_type == 2:
                     image = current_img_selection.data.copy()
@@ -2844,7 +3067,7 @@ class OMAAS(QWidget):
                                         custom_metadata=current_img_selection.metadata,
                                         img_custom_name=current_img_selection.name, 
                                         single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                                        add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
+                                        operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
 
                     print("finished")
 
@@ -3151,7 +3374,7 @@ class OMAAS(QWidget):
         self.add_result_img(result_img=results, 
                             img_custom_name=current_img_selection.name, 
                             single_label_sufix="ActTime", 
-                            add_to_metadata = f"Activation Time")
+                            operation_name = f"Activation Time")
     
 
 
@@ -3160,132 +3383,146 @@ class OMAAS(QWidget):
     def _on_click_apply_segmentation_btn_fun(self):
         current_selection = self.viewer.layers.selection.active
         if isinstance(current_selection, Image):
+
+            try:
         
-            segmentation_method_selected = self.segmentation_methods.currentText()
-            segmentation_methods = [self.segmentation_methods.itemText(i) for i in range(self.segmentation_methods.count())]
-
-            sigma = self.sigma_filt_spatial_value.value()
-            kernel_size = self.filt_kernel_value.value()
-            sigma_col = self.sigma_filt_color_value.value()
-            
-            # Handeling size ndim of data (2d or 3d allow only)
-            if current_selection.ndim == 3:
-                # data = current_selection.data.mean(axis = 0)
-                array2d_for_mask = current_selection.data.max(axis = 0)
-            elif current_selection.ndim == 2:
-                array2d_for_mask = current_selection.data
-            else : 
-                raise ValueError(f"Not implemented segemntation for Image with dimensions = {current_selection.ndim}.")
-            
-            if segmentation_method_selected == segmentation_methods[0]:
-                print(f'applying "{segmentation_method_selected}" method to image {current_selection}')
-                try:
-                    mask = segment_image_triangle(array2d_for_mask)
-                    mask = polish_mask(mask)
-                except Exception as e:
-                    raise CustomException(e, sys)
-                print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
-
+                segmentation_method_selected = self.segmentation_methods.currentText()
+                segmentation_methods = [self.segmentation_methods.itemText(i) for i in range(self.segmentation_methods.count())]
+                is_mask_inverted = self.is_inverted_mask.isChecked()
+                is_return_image = self.return_img_no_backg_btn.isChecked()
                 
-            elif segmentation_method_selected == segmentation_methods[1]:
-                try:
-                    mask, threshold = segment_image_GHT(array2d_for_mask, return_threshold=True)
-                    mask = polish_mask(mask)
-                    print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}" with threshold: {threshold}')
-                except Exception as e:
-                    raise CustomException(e, sys)
-            
-            
-            elif segmentation_method_selected == segmentation_methods[2]:
-                # take fisrt frame and use it for segementation
-                lo_t = float(self.low_threshold_segmment_value.text())
-                hi_t = float(self.high_threshold_segment_value.text())
-                if self.is_Expand_mask.isChecked():
-                    expand = int(self.n_pixels_expand.currentText())
-                    # using maximum pixels intetnsity as reference
+                # Handeling size ndim of data (2d or 3d allow only)
+                if current_selection.ndim == 3:
+                    # data = current_selection.data.mean(axis = 0)
+                    array2d_for_mask = current_selection.data.max(axis = 0)
+                elif current_selection.ndim == 2:
+                    array2d_for_mask = current_selection.data
+                else : 
+                    raise ValueError(f"Not implemented segemntation for Image with dimensions = {current_selection.ndim}.")
+                
+                if segmentation_method_selected == segmentation_methods[0]:
                     try:
+                        mask = segment_image_triangle(array2d_for_mask)
+                        mask = polish_mask(mask)
+                        meth_name = segment_image_triangle.__name__ 
+                        params = {"Segmentation_mode": "Auto",
+                                  "Segmentation_method": f"{segmentation_method_selected}",
+                                  "postprocessing_step":{"method":{polish_mask.__name__:
+                                                              {"parameters":"default"}}}}
+                            # {"postprocessing_step":{"method":{polish_mask.__name__:
+                            #                                   {"parameters":"default"}}}}}
+                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
 
-                        mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = expand)
                     except Exception as e:
                         raise CustomException(e, sys)
 
-                else:
-                    # using maximum pixels intetnsity as reference
+                    
+                elif segmentation_method_selected == segmentation_methods[1]:
                     try:
+                        mask, threshold = segment_image_GHT(array2d_for_mask, return_threshold=True)
+                        mask = polish_mask(mask)
+                        meth_name = segment_image_GHT.__name__ 
+                        params = {"Segmentation_mode": "Auto",
+                                  "Segmentation_method": f"{segmentation_method_selected}",
+                                  "postprocessing_step":{"method":{polish_mask.__name__:
+                                                              {"parameters":"default"}}}}
 
-                        mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = None)
+                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
+
                     except Exception as e:
                         raise CustomException(e, sys)
-                # mask = polish_mask(mask)
-                print(f'Segmenting using "{segmentation_method_selected}" method to image "{current_selection}"')
-
                 
-            else:
-                return warn( f"selected filter '{segmentation_method_selected}' no known.")
-            
-            
-            # return results
+                
+                elif segmentation_method_selected == segmentation_methods[2]:
+                    # take fisrt frame and use it for segementation
+                    try:   
 
-            # self.viewer.add_labels(mask,
-            #                        name = f"Heart_labels", 
-            #                        metadata = current_selection.metadata)
-            
-            if self.is_inverted_mask.isChecked():
-                mask = np.invert(mask.astype(bool))
+                        lo_t = float(self.low_threshold_segmment_value.text())
+                        hi_t = float(self.high_threshold_segment_value.text())
+                        params = {"Segmentation_mode": "Auto",
+                                    "Segmentation_method": f"{segmentation_method_selected}",
+                                    "parameters":{"lo_t":lo_t, 
+                                                "hi_t": hi_t}}
+                        meth_name = segement_region_based_func.__name__ 
 
-            self.add_result_label(mask, 
-                                    img_custom_name="Heart_labels", 
-                                    single_label_sufix = f"NullBckgrnd", 
-                                    add_to_metadata = f"Background image masked")
-
-            if self.return_img_no_backg_btn.isChecked():
-                # 8. remove background using mask
-                n_frames =current_selection.data.shape[0]
-                masked_image = current_selection.data.copy()
-
-                if masked_image.ndim == 3:
-                    
-                    try:
-
-                        if np.issubdtype(masked_image.dtype, np.integer):
-                            masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
-
-                        # elif np.issubdtype(masked_image.dtype, np.inexact):
-                        #     masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-
+                        if self.is_Expand_mask.isChecked():
+                            expand = int(self.n_pixels_expand.currentText())
+                            # using maximum pixels intetnsity as reference                            
+                            mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = expand)
+                            params["parameters"]["expand"] = expand                            
+                            
                         else:
-                            masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+                            # using maximum pixels intetnsity as reference
+                            mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = None)                            
+                            params["parameters"]["expand"] = None
+                            
+                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
                     except Exception as e:
-                            raise CustomException(e, sys)
+                        raise CustomException(e, sys)
+
+                    
                 else:
-
-                    try:
-                        if np.issubdtype(masked_image.dtype, np.integer):
-                            masked_image[~mask.astype(bool)] = 0
-                        else:
-                            masked_image[~mask.astype(bool)] = None
-
-                    except Exception as e:
-                            raise CustomException(e, sys)
-
-
-
-
-                # 9. subtract bacground from original image 
-                background = np.nanmean(masked_image)
+                    return warn( f"selected filter '{segmentation_method_selected}' no known.")
                 
-                masked_image = masked_image - background
+                
+                if is_mask_inverted:
+                    mask = np.invert(mask.astype(bool))
+                params["inverted_mask"]= is_mask_inverted
 
-                self.add_result_img(masked_image, 
-                                    auto_metadata=False,
-                                    custom_metadata=current_selection.metadata,
-                                    img_custom_name=current_selection.name, 
-                                    single_label_sufix = f"NullBckgrnd",
-                                    add_to_metadata = f"Background subtracted")
-                 
+                self.add_result_label(mask, 
+                                        img_custom_name="Heart_labels", 
+                                        single_label_sufix = f"NullBckgrnd", 
+                                        add_to_metadata = f"Background image masked")
+                
+                if is_return_image:
+                    params["return_image"] = is_return_image
+                    # 8. remove background using mask
+                    n_frames =current_selection.data.shape[0]
+                    masked_image = current_selection.data.copy()
+
+                    if masked_image.ndim == 3:
+                        
+                        try:
+
+                            if np.issubdtype(masked_image.dtype, np.integer):
+                                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
+
+                            else:
+                                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
+                        except Exception as e:
+                                raise CustomException(e, sys)
+                    else:
+
+                        try:
+                            if np.issubdtype(masked_image.dtype, np.integer):
+                                masked_image[~mask.astype(bool)] = 0
+                            else:
+                                masked_image[~mask.astype(bool)] = None
+
+                        except Exception as e:
+                                raise CustomException(e, sys)
+
+
+
+
+                    # 9. subtract bacground from original image 
+                    background = np.nanmean(masked_image)
                     
+                    masked_image = masked_image - background
+
+                    self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
+                                        sufix=f"{params['Segmentation_mode'][:3]}Segm{segmentation_method_selected[:3].capitalize()}", 
+                                        custom_outputs=[current_selection.name + f"_Segm{segmentation_method_selected[:3].capitalize()}", "Heart_labels"],
+                                        method_name=meth_name, 
+                                        custom_img_name=current_selection.name, parameters=params)
+                    
+                        
+                
+                self.add_record_fun()
             
-            self.add_record_fun()
+            except Exception as e:
+                # raise CustomException(e, sys)
+                print(CustomException(e, sys))
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -3302,6 +3539,7 @@ class OMAAS(QWidget):
             mask_layer = self.viewer.layers[self.mask_list_manual_segment.currentText()]
             current_timpe_point = self.viewer.dims.current_step[0]
             n_frames = current_selection.data.shape[0]
+            is_mask_inverted = self.is_inverted_mask.isChecked()
 
             if mask_layer.data.ndim == 3:
                 mask = mask_layer.data[current_timpe_point, ...] > 0
@@ -3310,12 +3548,13 @@ class OMAAS(QWidget):
             else:
                 raise ValueError(" Not implemented yet how to handle mask of ndim = {mask_layer.data.ndim}. Please report this or file an issue via github")
 
-
-
             masked_image = current_selection.data.copy()
 
-            if self.is_inverted_mask.isChecked():
-                    mask = np.invert(mask.astype(bool))
+            if is_mask_inverted:
+                mask = np.invert(mask.astype(bool))
+            
+            params = {"Segmentation_mode": "Manual"}
+            params["inverted_mask"]= is_mask_inverted
 
             try:
 
@@ -3326,19 +3565,23 @@ class OMAAS(QWidget):
                 else:
                         masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
             except Exception as e:
-                    print(f"You have the following error @_on_click_segment_manual_btn_func: --->> {e} <----")
+                raise CustomException(e, sys)
             
-            self.add_result_img(masked_image, 
-                                auto_metadata=False,
-                                custom_metadata=current_selection.metadata,
-                                img_custom_name=current_selection.name, 
-                                single_label_sufix = f"NullBckgrnd",
-                                add_to_metadata = f"Background subtracted")
+            # self.add_result_img(masked_image, 
+            #                     auto_metadata=False,
+            #                     custom_metadata=current_selection.metadata,
+            #                     img_custom_name=current_selection.name, 
+            #                     single_label_sufix = f"NullBckgrnd",
+            #                     operation_name = f"Background subtracted")
 
+            self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
+                                sufix=f"{params['Segmentation_mode'][:3]}Segm", 
+                                custom_inputs=[current_selection.name , mask_layer.name],
+                                method_name=None, 
+                                custom_img_name=current_selection.name, parameters=params)
 
+            print(f"{'*'*5} Aplying 'Manual' segmentation to image: '{current_selection}' {'*'*5}")
 
-            print(f"segmenting manually image '{current_selection.name}' from mask '{mask_layer.name}'.")
-        
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
     
@@ -3443,7 +3686,7 @@ class OMAAS(QWidget):
                                         custom_metadata=image.metadata,
                                         img_custom_name = image.name, 
                                         single_label_sufix="clip", 
-                                        add_to_metadata = f"Clipped_at_Indx_[{start_indx}:{end_indx}]")
+                                        operation_name = f"Clipped_at_Indx_[{start_indx}:{end_indx}]")
                     # self.add_record_fun()
                     # self.plot_profile_btn.setChecked(False)
                     self.clip_label_range.setChecked(False)
@@ -3478,18 +3721,25 @@ class OMAAS(QWidget):
     
     def _double_slider_clip_trace_func(self):
         state = self.clip_label_range.isChecked()
+
+        try:
         
-        if state == True and self.plot_profile_btn.isChecked():
-            # self._dsiplay_range_func()
+            if state == True and self.plot_profile_btn.isChecked():
+                # self._dsiplay_range_func()
+                n_lines = len(self.main_plot_widget.figure.axes[0].lines)
+                if n_lines == 3:
+                    for i in range(2):
+                        self.main_plot_widget.figure.axes[0].lines[-1].remove()
+                else:
+                    self.main_plot_widget.figure.axes[0].lines[-1].remove()
+                
+                self._dsiplay_range_func()
 
-            for i in range(2):
-                self.main_plot_widget.figure.axes[0].lines[-1].remove()
-            
-            self._dsiplay_range_func()
 
-
-        else:
-            return
+            else:
+                return
+        except Exception as e:
+            raise CustomException(e, sys)
     
     def _export_processing_steps_btn_func(self):
         
@@ -3504,15 +3754,18 @@ class OMAAS(QWidget):
                 fileName, _ = QFileDialog.getSaveFileName(self,
                                                     "Save File",
                                                         "",
-                                                        "Hierarchical Data Format (*.h5 *.hdf5);;Text Files (*.txt)")
+                                                        "YAML file (yml);;TOML file;;Text Files (*.txt)")
                 if not len(fileName) == 0:
+                    fileName, _ = os.path.splitext(fileName)
+                    self.metadata_recording_steps.steps = metadata[key] if key in metadata else []
+                    self.metadata_recording_steps.save_to_yaml(fileName + ".yml")
                 
-                    with h5py.File(fileName, "w") as hf:
+                    # with h5py.File(fileName, "w") as hf:
 
-                        # NOTE: may be add more information: original image name, date, etc?
-                        hf.attrs.update({key:metadata[key]})
+                    #     # NOTE: may be add more information: original image name, date, etc?
+                    #     hf.attrs.update({key:metadata[key]})
                         
-                    print(f"Processing steps for image {current_selection.name} exported")
+                    print(f"{'*'*5} Exporting porcessing steps for image: '{current_selection.name}' {'*'*5}")
             else:
                 return warn("No 'Preprocessing' steps detected.")
         else:
@@ -3525,48 +3778,59 @@ class OMAAS(QWidget):
         
         if isinstance(current_selection, Image):
             
-            options = QFileDialog.Options()
-            # options |= QFileDialog.DontUseNativeDialog                        
-            fileName, extension_ = QFileDialog.getSaveFileName(self,
-                                                    "Save File",
-                                                        "",
-                                                        "OME-TIFF image format (*ome.tif);;All Files (*)",
-                                                        options=options)
-            if fileName:
-                if not len(fileName) == 0:
-                    file_basename = os.path.basename(fileName)
-                    file_dir = os.path.dirname(fileName)
-                    # remove extension if exists and preserve only first part
-                    splitted_file_basename = file_basename.split(".")
-                    fileName = os.path.join(file_dir, splitted_file_basename[0] + ".ome.tif" ) # here you can eventually to change 
+            try:
+                options = QFileDialog.Options()
+                # options |= QFileDialog.DontUseNativeDialog                        
+                fileName, extension_ = QFileDialog.getSaveFileName(self,
+                                                        "Save File",
+                                                            "",
+                                                            "TIFF image format (*.tif);;All Files (*)",
+                                                            options=options)
+                if fileName:
+                    if not len(fileName) == 0:
+                        file_basename = os.path.basename(fileName)
+                        file_dir = os.path.dirname(fileName)
+                        # remove extension if exists and preserve only first part
+                        splitted_file_basename = file_basename.split(".")
+                        fileName = os.path.join(file_dir, splitted_file_basename[0] + ".tif" ) # here you can eventually to change 
 
-                    metadata = current_selection.metadata
+                        metadata = convert_to_json_serializable(current_selection.metadata)
+                        self.metadata_recording_steps.save_to_tiff(
+                            current_selection.data, 
+                            metadata, 
+                            fileName
+                            )
 
-                    # NOTE: still not able to export the metadata correctly with this method
-                    with tifffile.TiffWriter(fileName) as tif:
+                        # NOTE: still not able to export the metadata correctly with this method
+                        # with tifffile.TiffWriter(fileName) as tif:
+                            
+                        #     metadata_tif = {
+                        #         'axes': 'TYX',
+                        #         'fps': 1/metadata['CycleTime'],
+                        #         'comment': metadata
+                        #         # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
+                        #     }
+                        #     options = dict(photometric='minisblack',
+                                           
+                        #                 #    tile=(128, 128),
+                        #                 #    compression='jpeg',
+                        #                 #    resolutionunit='CENTIMETER',
+                        #                    maxworkers=2
+                        #                 )
+                            
+                        #     tif.write(current_selection.data, 
+                        #             #   metadata =  current_selection.metadata,
+                        #             # shaped = False,
+                        #             metadata =  metadata_tif,
+                        #             # metadata =  metadata,
+                        #             **options)
+
                         
-                        metadata_tif = {
-                            'axes': 'TYX',
-                            'fps': 1/metadata['CycleTime']
-                            # 'comment': metadata
-                            # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
-                        }
-                        options = dict(photometric='minisblack',
-                                    #    tile=(128, 128),
-                                    #    compression='jpeg',
-                                    #    resolutionunit='CENTIMETER',
-                                    #    maxworkers=2
-                                    )
-                        
-                        tif.write(current_selection.data, 
-                                #   metadata =  current_selection.metadata,
-                                metadata =  metadata_tif,
-                                **options)
-
-                    
-                    print(f"Image '{current_selection.name}' exported")
-                else:
-                    return
+                        print(f"Image '{current_selection.name}' exported")
+                    else:
+                        return
+            except Exception as e:
+                raise CustomException(e, sys)
         else:
             return warn("Please select an image leyer.")
     
@@ -3591,7 +3855,7 @@ class OMAAS(QWidget):
             self.add_result_img(result_img=results, 
                                 img_custom_name = current_selection.name,
                                 single_label_sufix= f'MotStab_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefF{ref_frame_indx}', 
-                                add_to_metadata = f'Motion_correction_optimap_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefFram{ref_frame_indx}')
+                                operation_name = f'Motion_correction_optimap_ck{c_k}_PresmT{pre_smooth_t}_PresmS{pre_smooth_s}_RefFram{ref_frame_indx}')
             
             self.add_record_fun()
 
@@ -3607,56 +3871,46 @@ class OMAAS(QWidget):
 
         img_name = self.image_selection_crop.currentText()
         img_layer = self.viewer.layers[img_name]
+        metadata = img_layer.metadata
 
-        cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
-        
-        if self.rotate_l_crop.isChecked():
-            cropped_img = np.rot90(cropped_img, axes=(1, 2))
-            print(f"result image rotate 90° to the left")
+        try:
+            cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
+            a, b, c, d = shape_layer.data[0]
+            param = {
+                "from_shape": {"name": shape_name,
+                               "data": {"t_right" : a.tolist(),
+                                        "t_left" : b.tolist(),
+                                        "b_left" : c.tolist(),
+                                        "b_right" : d.tolist()}
+                                        },
+                "crop_indexes": {"y": {"ini_index":int(ini_index[0]),
+                                    "end_index": int(end_index[0])},
+                                "x": {"ini_index":int(ini_index[1]),
+                                            "end_index": int(end_index[1])}}
+                                        
+                }
 
-            self.add_result_img(cropped_img,
-                            img_custom_name=img_name,
-                            auto_metadata = False, 
-                            custom_metadata = img_layer.metadata, 
-                            single_label_sufix = "Crop",
-                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90L")
-            self.plot_last_generated_img()
-            self.rotate_l_crop.setChecked(False)
-            return
+            if self.rotate_l_crop.isChecked():
+                cropped_img = np.rot90(cropped_img, axes=(1, 2))
+                print(f"result image rotate 90° to the left")
+                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}                
 
-        if self.rotate_r_crop.isChecked():
-            cropped_img = np.rot90(cropped_img, axes=(2, 1))
-            print(f"result image rotate 90° to the right")
+            elif self.rotate_r_crop.isChecked():
+                cropped_img = np.rot90(cropped_img, axes=(2, 1))
+                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
+                print(f"result image rotate 90° to the right")
 
-            self.add_result_img(cropped_img,
-                            img_custom_name=img_name,
-                            auto_metadata = False, 
-                            custom_metadata = img_layer.metadata, 
-                            single_label_sufix = "Crop",
-                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]_rot90R")
-            self.plot_last_generated_img()
-            self.rotate_r_crop.setChecked(False)
-            return
-                            
-
-        
-        else:
-            self.add_result_img(cropped_img,
-                            img_custom_name=img_name,
-                            auto_metadata = False, 
-                            custom_metadata = img_layer.metadata, 
-                            single_label_sufix = "Crop",
-                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            add_to_metadata = f"cropped_indx[:, {ini_index[0]}:{end_index[0]}, {ini_index[1]}:{end_index[1]}]")
-
-
-
+            self.add_result_img(result_img=cropped_img, operation_name="Crop_image", custom_img_name=img_name, method_name="crop_from_shape", custom_metadata= metadata, sufix="Crop", parameters=param)
             self.add_record_fun()
+            print(f"image '{img_name}' cropped")
+            return
 
-        print(f"image '{img_name}' cropped")
-    
+
+        except Exception as e:
+            raise CustomException(e, sys)
+            # print(CustomException(e, sys))
+
+
     def _update_APD_value_for_MAP_func(self):
         new_value = self.slider_APD_percentage.value()
         self.slider_APD_map_percentage.setValue(new_value)

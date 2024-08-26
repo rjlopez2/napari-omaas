@@ -19,6 +19,10 @@ import warnings
 import tqdm.auto as tqdm
 from time import time
 import pandas as pd
+import yaml
+import toml
+import datetime
+from tifffile import imwrite
 
 ########## napari & friends ##########
 from napari.layers import Image
@@ -160,9 +164,12 @@ def global_normal_fun(
 
 
 @macro.record
-def slide_window_normalization_func(np_array, slide_window = 20):
+def slide_window_normalization_func(np_array, slide_window = 100):
     # NOTE: you have to check an error here.
-    return normalize_pixelwise_slidingwindow(np_array, window_size=  slide_window)
+    # Either any of the two approach bellow fix issue for dealing with float np.array
+    # np_array = np_array.copy() 
+    # y = np.ascontiguousarray(np_array)
+    return normalize_pixelwise_slidingwindow(np.ascontiguousarray(np_array), window_size=  slide_window)
 
 
 @macro.record
@@ -673,7 +680,7 @@ def apply_butterworth_filt_func(data: "napari.types.ImageData",
 
 
 @macro.record
-def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq
+def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq, acquisition_freq
         )-> "Image":
         
         """
@@ -704,11 +711,11 @@ def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq
 
         # Design the FIR filter
         # Define the number of taps (filter length) and the cutoff frequency
-        num_taps = 21  # Length of the filter
-        cutoff_frequency = 0.1  # Normalized cutoff frequency (0 to 1, where 1 is Nyquist frequency)
+        # num_taps = 21  # Length of the filter
+        # cutoff_frequency = 0.1  # Normalized cutoff frequency (0 to 1, where 1 is Nyquist frequency)
 
         # Use firwin to create a low-pass FIR filter
-        fir_coeff = signal.firwin(num_taps, cutoff_frequency, window='hamming')
+        fir_coeff = signal.firwin(n_taps, cf_freq, window='hamming', fs = acquisition_freq)
 
         # Apply the FIR filter along the temporal axis (axis=0)
         filt_image = np.apply_along_axis(lambda m: signal.lfilter(fir_coeff, 1.0, m), axis=0, arr=data)
@@ -1529,7 +1536,7 @@ def segment_image_GHT(image, threshold=None, return_threshold=False,
     
     if threshold is None:
         threshold = detect_background_threshold(image)
-        print(f"Creating mask with detected threshold {threshold}")
+        # print(f"Creating mask with detected threshold {threshold}")
 
     mask = image > threshold
     
@@ -1554,7 +1561,7 @@ def segement_region_based_func(array_2d, lo_t = 0.05, hi_t = 0.2, expand = None)
         mask = segmentation.expand_labels(mask, distance=expand)
     
     # return markers
-    print(type(mask))
+    # print(type(mask))
     return (mask)
 
 @macro.record
@@ -1604,6 +1611,30 @@ def gaussian_filter_nan(array, sigma=1, radius=3, axes=(0, 1), truncate = 4):
     return VV/WW
 
 
+def convert_to_json_serializable(obj):
+    if isinstance(obj, bytes):
+        return obj.decode('utf-8')  # Convert bytes to string
+    elif isinstance(obj, tuple):
+        return list(obj)  # Convert tuple to list
+    elif isinstance(obj, dict):
+        return {k: convert_to_json_serializable(v) for k, v in obj.items()}  # Recursively convert dict
+    elif isinstance(obj, list):
+        return [convert_to_json_serializable(i) for i in obj]  # Recursively convert list
+    return obj  # Return the object if it is already JSON serializable
+
+# def decodeDictionary(dictionary):
+#     # if type(dictionary) == dict:
+#     if isinstance(dictionary, dict):
+        
+#         for key in dictionary.keys():
+#             dictionary[key] = decodeDictionary(dictionary[key])
+    
+#     elif isinstance(**dictionary**, bytes):
+        
+#         dictionary = dictionary.decode('UTF-8') 
+    
+#     # elif type(**dictionary**) == bytes:
+#     return dictionary
 
 
 # this class helper allow to make gorup layouts easily"
@@ -1816,3 +1847,43 @@ class MultiComboBox(QComboBox):
             if check_box:
                 item.setCheckState(Qt.CheckState.Checked if check_box.isChecked() else Qt.CheckState.Unchecked)
         super().hidePopup()
+
+
+class TrackProcessingSteps:
+    def __init__(self):
+        self.steps = []
+    
+    def add_step(self, operation, method_name, inputs, outputs, parameters):
+        steps = {
+            'id': len(self.steps) + 1,
+            'operation': operation,
+            'method_name': method_name,
+            'inputs': inputs,
+            'outputs': outputs,
+            'parameters': parameters,
+            'timestamp': datetime.datetime.now().isoformat(),
+        }
+        self.steps.append(steps)
+
+    def save_to_yaml(self, file_path):
+        with open(file_path, "w") as f:
+            yaml.dump({"ProcessingSteps": {"steps": self.steps}}, f, sort_keys=False)
+
+    def save_to_toml(self, file_path):
+        with open(file_path, "w") as f:
+            toml.dump({"ProcessingSteps": {"steps": self.steps}}, f)
+
+    def save_to_tiff(self, image, metadata, file_path):
+        # metadata = {
+        #     "ProcessingSteps": {"steps": self.steps}
+        # }
+        imwrite(file_path, image, photometric='minisblack', metadata=metadata)
+        # imwrite(
+        #     # shape=(8, 800, 600),
+        #     file_path,
+        #     # dtype='uint16',
+        #     photometric='minisblack',
+        #     # tile=(128, 128),
+        #     metadata=metadata
+        # )
+
