@@ -1061,8 +1061,8 @@ class OMAAS(QWidget):
 
 
         # Adding mapping subtabs
-        self.mapping_tabs.addTab(self.average_trace_group.gbox, 'Preprocessing Maps')
-        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Postporecessing Maps')
+        self.mapping_tabs.addTab(self.average_trace_group.gbox, 'Pre-processing Maps')
+        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Post-proecessing Maps')
         self._mapping_processing_layout.addWidget(self.mapping_tabs)
 
 
@@ -3021,11 +3021,18 @@ class OMAAS(QWidget):
                                          cycle_time=cycl_t,
                                          map_type = map_type,
                                          percentage = percentage)
+                    params = {"Activation_map":{"cycle_time": cycl_t,
+                              "map_type": map_type,
+                              "percentage": percentage}}
+                    meth_name = return_maps.__name__
+                    sufix = "ActMap"
                     
-                    self.add_result_img(result_img=results, 
-                                    img_custom_name=current_img_selection.name, 
-                                    single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
-                                    operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                    # self.add_result_img(result_img=results, 
+                    #                 img_custom_name=current_img_selection.name, 
+                    #                 single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
+                    #                 operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                    
+                    
                 
                 elif map_type == 2:
                     image = current_img_selection.data.copy()
@@ -3033,13 +3040,13 @@ class OMAAS(QWidget):
                     rmp_method = self.APD_computing_method.currentText()
                     apd_percentage = self.slider_APD_percentage.value()
 
-                    APD = np.zeros((y_size, x_size))
+                    results = np.zeros((y_size, x_size))
                     mask = np.isnan(image[0, ...])
-                    APD[mask] = np.nan
+                    results[mask] = np.nan
 
                     for y_px  in progress(range(y_size)):
                         for x_px in progress(range(x_size)):
-                            if not np.isnan(APD[y_px, x_px]).any():
+                            if not np.isnan(results[y_px, x_px]).any():
                                 try:
                                     APs_props = compute_APD_props_func(image[:, y_px, x_px],
                                                                     curr_img_name = current_img_selection_name, 
@@ -3050,14 +3057,14 @@ class OMAAS(QWidget):
                                                                     promi=self.prominence, 
                                                                     interpolate = is_interpolated)
                                     if not APs_props["APD"]:
-                                        print(f"Could not detect APD at pixel coordinate: [..., {y_px}, {x_px}].")
-                                        APD[y_px, x_px] = np.nan
+                                        print(f"Could not detect APD at pixel coordinate: [{y_px}, {x_px}].")
+                                        results[y_px, x_px] = np.nan
                                     else:
                                         apd_value = APs_props["APD"]
-                                        APD[y_px, x_px] = apd_value
+                                        results[y_px, x_px] = apd_value
                                 
                                 except Exception as e:
-                                    APD[y_px, x_px] = np.nan
+                                    results[y_px, x_px] = np.nan
                                     print(f">>>>> this is your error @ method: '_on_click_make_maps_btn_func': {e}")
                                         
                             # else:
@@ -3066,14 +3073,23 @@ class OMAAS(QWidget):
                     # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
                     # self.average_AP_plot_widget.axes.legend()
                     # self.average_AP_plot_widget.canvas.draw()
-                    np.clip(APD, a_min=0, a_max=None, out=APD)
+                    np.clip(results, a_min=0, a_max=None, out=results)
+
+                    params = {"APD_maps": {"curr_img_name": current_img_selection_name,
+                            "cycle_length_ms": self.xscale,
+                            "rmp_method" : rmp_method, 
+                            "apd_perc" : apd_percentage,
+                            "promi":self.prominence,
+                            "interpolate" : is_interpolated}}
+                    meth_name = compute_APD_props_func.__name__
+                    sufix = f"APDMap{percentage}"
                     
-                    self.add_result_img(result_img=APD, 
-                                        auto_metadata=False, 
-                                        custom_metadata=current_img_selection.metadata,
-                                        img_custom_name=current_img_selection.name, 
-                                        single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                                        operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
+                    # self.add_result_img(result_img=APD, 
+                    #                     auto_metadata=False, 
+                    #                     custom_metadata=current_img_selection.metadata,
+                    #                     img_custom_name=current_img_selection.name, 
+                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
+                    #                     operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
 
                     print("finished")
 
@@ -3125,6 +3141,12 @@ class OMAAS(QWidget):
                     #                     img_custom_name=current_img_selection.name, 
                     #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
                     #                     add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                self.add_result_img(result_img=results, 
+                                    operation_name="Generate_maps", 
+                                    method_name=meth_name, 
+                                    custom_img_name=current_img_selection.name, 
+                                    custom_metadata=current_img_selection.metadata, 
+                                    sufix=sufix, parameters=params)
 
 
                 self.add_record_fun()
