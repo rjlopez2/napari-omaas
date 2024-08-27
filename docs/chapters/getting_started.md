@@ -46,6 +46,21 @@ conda activate omaas_base
 
 You should now be ready to use napari-omaas.
 
+## Update to the latest version:
+
+1. Uninstall the current version
+
+```sh
+pip uninstall napari-omaas
+```
+
+2. Install the latest developing version:
+
+```sh
+pip install git+https://github.com/rjlopez2/napari-omaas.git
+```
+
+
 # Usage
 
 This plugin can read images generated with Andor Technologies cameras. It has been currently tested on Zyla cameras. Just drag and drop an image (.sif format or spooling folder) to the napari GUI, and the image will display. Alternatively, you can programmatically load/read the image within a notebook.
