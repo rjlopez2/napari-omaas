@@ -23,6 +23,29 @@ To install the latest development version (recommended) :
 pip install git+https://github.com/rjlopez2/napari-omaas.git
 ```
 
+## Custom installation:
+```{admonition} Note
+:class: Note
+This is a recommended method we currently use to install napari-omaas and all additional dependencies in a custom environment:
+```
+1. Download manually or via comand line the `environment_OMAAS_CPU.yml` file from the [OMAAS](https://github.com/rjlopez2/napari-omaas) repository. This repo contain a number of configuration files for our experiments setup.
+
+```sh
+curl -O https://raw.githubusercontent.com/rjlopez2/OMAAS/master/setup_files/environments/environment_OMAAS_CPU.yml
+```
+2. Cretae the environment using the downlowded file:
+
+```sh
+conda create -f environment_OMAAS_CPU.yml
+```
+3. Activate the environment:
+
+```sh
+conda activate omaas_base
+```
+
+You should now be ready to use napari-omaas.
+
 # Usage
 
 This plugin can read images generated with Andor Technologies cameras. It has been currently tested on Zyla cameras. Just drag and drop an image (.sif format or spooling folder) to the napari GUI, and the image will display. Alternatively, you can programmatically load/read the image within a notebook.
