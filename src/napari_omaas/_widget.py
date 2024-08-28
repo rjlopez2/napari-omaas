@@ -1132,19 +1132,52 @@ class OMAAS(QWidget):
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
 
-        self.record_operations_label = QLabel("Record operations in metadata")
+        self.record_operations_label = QLabel("Record operations")
         self.record_operations_label.setToolTip('Set on if you want to keep track of the processing steps and operations to be recorded and added to the meatadata.')
         self.metadata_display_group.glayout.addWidget(self.record_operations_label, 1, 0, 1, 1)
         
         self.record_metadata_check = QCheckBox()
         self.record_metadata_check.setChecked(True) 
         self.metadata_display_group.glayout.addWidget(self.record_metadata_check,  1, 1, 1, 1)
+
+        self.name_image_to_export_label =  QLabel("Save Image as:")
+        self.metadata_display_group.glayout.addWidget(self.name_image_to_export_label,  2, 0, 1, 1)
+
+        self.name_image_to_export =  QLineEdit()
+        self.name_image_to_export.setToolTip('Define name to save current selected image + metadata in .tiff format.')
+        self.name_image_to_export.setPlaceholderText("my_image")
+        self.metadata_display_group.glayout.addWidget(self.name_image_to_export,  2, 1, 1, 1)
+
+        self.name_procsteps_to_export_label =  QLabel("Save Processing steps as:")
+        self.metadata_display_group.glayout.addWidget(self.name_procsteps_to_export_label,  2, 2, 1, 1)
+
+        self.procsteps_file_name =  QLineEdit()
+        self.procsteps_file_name.setToolTip('Define name to save processing steps of curremnt image in .yml format.')
+        self.procsteps_file_name.setPlaceholderText("ProcessingSteps")
+        self.metadata_display_group.glayout.addWidget(self.procsteps_file_name,  2, 3, 1, 1)
+
+
+
+
+        self._save_img_dir_box_text_label = QLabel("To Directory")
+        self._save_img_dir_box_text_label.setToolTip("Type the directory path or drag and drop folders here to change the current directory.")
+        self.metadata_display_group.glayout.addWidget(self._save_img_dir_box_text_label, 3, 0, 1, 1)
+
+        self.save_img_dir_box_text = QLineEdit()
+        self.save_img_dir_box_text.installEventFilter(self)
+        self.save_img_dir_box_text.setAcceptDrops(True)
+        self.save_img_dir_box_text.setDragEnabled(True)
+        self.save_img_dir_box_text.setPlaceholderText(os.getcwd())
+        self.metadata_display_group.glayout.addWidget(self.save_img_dir_box_text, 3, 1, 1, 2)
+
+        self.change_dir_to_save_img_btn = QPushButton("Change Directory")
+        self.metadata_display_group.glayout.addWidget(self.change_dir_to_save_img_btn,  3, 3, 1, 1)
         
-        self.export_image_btn = QPushButton("Export Image + meatadata")
-        self.metadata_display_group.glayout.addWidget(self.export_image_btn,  1, 2, 1, 1)
+        self.export_image_btn = QPushButton("Export Image + metadata")
+        self.metadata_display_group.glayout.addWidget(self.export_image_btn,  4, 2, 1, 1)
 
         self.export_processing_steps_btn = QPushButton("Export processing steps")
-        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
+        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn, 4, 3, 1, 1)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
@@ -1278,6 +1311,7 @@ class OMAAS(QWidget):
         self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
         self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
         self.export_image_btn.clicked.connect(self._export_image_btn_func)
+        self.change_dir_to_save_img_btn.clicked.connect(self.change_dir_to_save_img_btn_func)
         self.apply_optimap_mot_corr_btn.clicked.connect(self._apply_optimap_mot_corr_btn_func)
         self.crop_from_shape_btn.clicked.connect(self._on_click_crop_from_shape_btn_func)
         self.segment_manual_btn.clicked.connect(self._on_click_segment_manual_btn_func)
@@ -2075,6 +2109,9 @@ class OMAAS(QWidget):
         if event.type in ['active']:
             value = event.value
             if isinstance(value, Image):
+                # Update name of current image name to export
+                self.name_image_to_export.setText(self.viewer.layers.selection.active.name)
+
                 # handle metadata in images saved with tifffile
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
                 self.img_metadata_dict = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
@@ -2112,6 +2149,8 @@ class OMAAS(QWidget):
                     self.fps_val.setText("Unknown sampling frequency (fps)")
                 
             if not isinstance(value, Image):
+                # Update name of current image name to export
+                self.name_image_to_export.setText(None)
                 self.fps_val.setText("")
                 self.metadata_tree.clear()
                 # self.x_scale_box.clear()
@@ -2395,6 +2434,7 @@ class OMAAS(QWidget):
             dir_name = os.path.normpath(dir_name)  # find a way here to normalize path
             self.dir_box_text.setText(dir_name)
             self.APD_rslts_dir_box_text.setText(dir_name)
+            self.save_img_dir_box_text.setText(dir_name)
             # print ('Drop')
             return True
         else:
@@ -2527,6 +2567,11 @@ class OMAAS(QWidget):
                     n_imgs = len(all_images)
                     self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
                     self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
+                
+                # Update name of current image name to export
+                self.name_image_to_export.setText(all_images[0])
+               
+               
 
                 # Clear and update the main image list
                 self.listImagewidget.clear()
@@ -3065,8 +3110,8 @@ class OMAAS(QWidget):
                                 
                                 except Exception as e:
                                     results[y_px, x_px] = np.nan
-                                    print(f">>>>> this is your error @ method: '_on_click_make_maps_btn_func': {e}")
-                                        
+                                    # print(CustomException(e, sys))    
+                                    print(CustomException(e, sys, additional_info=f"error @ pixel [{y_px}, {x_px}]"))
                             # else:
                             #     APD[:, y_px, x_px] = 0
                     
@@ -3775,30 +3820,49 @@ class OMAAS(QWidget):
         current_selection = self.viewer.layers.selection.active
         
         if isinstance(current_selection, Image):
-            metadata = current_selection.metadata
-            key = "ProcessingSteps"
 
-            if key in metadata.keys():
+            try:
 
-                fileName, _ = QFileDialog.getSaveFileName(self,
-                                                    "Save File",
-                                                        "",
-                                                        "YAML file (yml);;TOML file;;Text Files (*.txt)")
-                if not len(fileName) == 0:
-                    fileName, _ = os.path.splitext(fileName)
+                metadata = current_selection.metadata
+                key = "ProcessingSteps"
+
+                if key in metadata.keys():
+
+                    dirname = self.save_img_dir_box_text.text()
+                    dirname = dirname if len(dirname) != 0 else self.save_img_dir_box_text.placeholderText()
+
+                    fileName = self.procsteps_file_name.text()
+                    fileName = fileName if len(fileName) != 0 else self.procsteps_file_name.placeholderText()
+
+                    fileName = os.path.join(dirname, fileName + ".yml") 
+
                     self.metadata_recording_steps.steps = metadata[key] if key in metadata else []
-                    self.metadata_recording_steps.save_to_yaml(fileName + ".yml")
-                
-                    # with h5py.File(fileName, "w") as hf:
-
-                    #     # NOTE: may be add more information: original image name, date, etc?
-                    #     hf.attrs.update({key:metadata[key]})
-                        
-                    print(f"{'*'*5} Exporting porcessing steps for image: '{current_selection.name}' {'*'*5}")
-            else:
-                return warn("No 'Preprocessing' steps detected.")
+                    self.metadata_recording_steps.save_to_yaml(fileName)
+                            
+                    print(f"{'*'*5} Exporting processing steps from image: '{current_selection.name}' as '{os.path.basename(fileName)}' to folder '{dirname}' {'*'*5}")
+                else:
+                    return warn("No 'Preprocessing' steps detected.")
+            except Exception as e:
+                raise CustomException(e, sys)
         else:
             return warn("Please select an image leyer.")
+    
+    def change_dir_to_save_img_btn_func(self):
+
+        current_selection = self.viewer.layers.selection.active
+        
+        if isinstance(current_selection, Image):
+            try:
+                options = QFileDialog.Options()
+                # options |= QFileDialog.DontUseNativeDialog                        
+                dir_name = QFileDialog.getExistingDirectory(self, "Select Directory")
+                dir_name = os.path.normpath(dir_name)
+                self.save_img_dir_box_text.setText(dir_name)
+                print(dir_name)
+            except Exception as e:
+                raise CustomException(e, sys)
+
+
     
 
     def _export_image_btn_func(self):
@@ -3808,56 +3872,22 @@ class OMAAS(QWidget):
         if isinstance(current_selection, Image):
             
             try:
-                options = QFileDialog.Options()
-                # options |= QFileDialog.DontUseNativeDialog                        
-                fileName, extension_ = QFileDialog.getSaveFileName(self,
-                                                        "Save File",
-                                                            "",
-                                                            "TIFF image format (*.tif);;All Files (*)",
-                                                            options=options)
-                if fileName:
-                    if not len(fileName) == 0:
-                        file_basename = os.path.basename(fileName)
-                        file_dir = os.path.dirname(fileName)
-                        # remove extension if exists and preserve only first part
-                        splitted_file_basename = file_basename.split(".")
-                        fileName = os.path.join(file_dir, splitted_file_basename[0] + ".tif" ) # here you can eventually to change 
+                dirname = self.save_img_dir_box_text.text()
+                dirname = dirname if len(dirname) != 0 else self.save_img_dir_box_text.placeholderText()
+                
+                fileName = self.name_image_to_export.text()
+                fileName = fileName if len(fileName) != 0 else self.name_image_to_export.placeholderText()
+                
+                fileName = os.path.join(dirname, fileName + ".tif") # here you can eventually to change 
 
-                        metadata = convert_to_json_serializable(current_selection.metadata)
-                        self.metadata_recording_steps.save_to_tiff(
-                            current_selection.data, 
-                            metadata, 
-                            fileName
-                            )
-
-                        # NOTE: still not able to export the metadata correctly with this method
-                        # with tifffile.TiffWriter(fileName) as tif:
-                            
-                        #     metadata_tif = {
-                        #         'axes': 'TYX',
-                        #         'fps': 1/metadata['CycleTime'],
-                        #         'comment': metadata
-                        #         # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
-                        #     }
-                        #     options = dict(photometric='minisblack',
-                                           
-                        #                 #    tile=(128, 128),
-                        #                 #    compression='jpeg',
-                        #                 #    resolutionunit='CENTIMETER',
-                        #                    maxworkers=2
-                        #                 )
-                            
-                        #     tif.write(current_selection.data, 
-                        #             #   metadata =  current_selection.metadata,
-                        #             # shaped = False,
-                        #             metadata =  metadata_tif,
-                        #             # metadata =  metadata,
-                        #             **options)
-
-                        
-                        print(f"Image '{current_selection.name}' exported")
-                    else:
-                        return
+                metadata = convert_to_json_serializable(current_selection.metadata)
+                self.metadata_recording_steps.save_to_tiff(
+                    current_selection.data, 
+                    metadata, 
+                    fileName
+                    )
+                
+                print(f"{'*'*5} Exporting image: '{os.path.basename(fileName)}' to folder '{dirname}' {'*'*5}")
             except Exception as e:
                 raise CustomException(e, sys)
         else:
