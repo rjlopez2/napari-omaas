@@ -3828,10 +3828,6 @@ class OMAAS(QWidget):
 
                 if key in metadata.keys():
 
-                    # fileName, _ = QFileDialog.getSaveFileName(self,
-                    #                                     "Save File",
-                    #                                         "",
-                    #                                         "YAML file (yml);;TOML file;;Text Files (*.txt)")
                     dirname = self.save_img_dir_box_text.text()
                     dirname = dirname if len(dirname) != 0 else self.save_img_dir_box_text.placeholderText()
 
@@ -3839,15 +3835,9 @@ class OMAAS(QWidget):
                     fileName = fileName if len(fileName) != 0 else self.procsteps_file_name.placeholderText()
 
                     fileName = os.path.join(dirname, fileName + ".yml") 
-                    # if not len(fileName) == 0:
-                    #     fileName, _ = os.path.splitext(fileName)
+
                     self.metadata_recording_steps.steps = metadata[key] if key in metadata else []
                     self.metadata_recording_steps.save_to_yaml(fileName)
-                    
-                        # with h5py.File(fileName, "w") as hf:
-
-                        #     # NOTE: may be add more information: original image name, date, etc?
-                        #     hf.attrs.update({key:metadata[key]})
                             
                     print(f"{'*'*5} Exporting processing steps from image: '{current_selection.name}' as '{os.path.basename(fileName)}' to folder '{dirname}' {'*'*5}")
                 else:
@@ -3888,22 +3878,6 @@ class OMAAS(QWidget):
                 fileName = self.name_image_to_export.text()
                 fileName = fileName if len(fileName) != 0 else self.name_image_to_export.placeholderText()
                 
-                # if len(fileName) == 0:
-                #     fileName = self.name_image_to_export.placeholderText()
-                # options = QFileDialog.Options()
-                # # options |= QFileDialog.DontUseNativeDialog                        
-                # fileName, extension_ = QFileDialog.getExistingDirectory(self, "Select Directory")
-                # fileName, extension_ = QFileDialog.getSaveFileName(self,
-                #                                         "Save File",
-                #                                             "",
-                #                                             "TIFF image format (*.tif);;All Files (*)",
-                #                                             options=options)
-                # if fileName:
-                #     if not len(fileName) == 0:
-                        # file_basename = os.path.basename(fileName)
-                        # file_dir = os.path.dirname(fileName)
-                        # remove extension if exists and preserve only first part
-                        # splitted_file_basename = file_basename.split(".")
                 fileName = os.path.join(dirname, fileName + ".tif") # here you can eventually to change 
 
                 metadata = convert_to_json_serializable(current_selection.metadata)
@@ -3912,35 +3886,7 @@ class OMAAS(QWidget):
                     metadata, 
                     fileName
                     )
-
-                        # NOTE: still not able to export the metadata correctly with this method
-                        # with tifffile.TiffWriter(fileName) as tif:
-                            
-                        #     metadata_tif = {
-                        #         'axes': 'TYX',
-                        #         'fps': 1/metadata['CycleTime'],
-                        #         'comment': metadata
-                        #         # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
-                        #     }
-                        #     options = dict(photometric='minisblack',
-                                           
-                        #                 #    tile=(128, 128),
-                        #                 #    compression='jpeg',
-                        #                 #    resolutionunit='CENTIMETER',
-                        #                    maxworkers=2
-                        #                 )
-                            
-                        #     tif.write(current_selection.data, 
-                        #             #   metadata =  current_selection.metadata,
-                        #             # shaped = False,
-                        #             metadata =  metadata_tif,
-                        #             # metadata =  metadata,
-                        #             **options)
-
-                        
-                    #     print(f"Image '{current_selection.name}' exported")
-                    # else:
-                    #     return
+                
                 print(f"{'*'*5} Exporting image: '{os.path.basename(fileName)}' to folder '{dirname}' {'*'*5}")
             except Exception as e:
                 raise CustomException(e, sys)
