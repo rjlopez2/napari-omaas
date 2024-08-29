@@ -45,4 +45,7 @@ contributions:
   readers:
     - command: napari-omaas.get_reader
       accepts_directories: true
-      filename_patterns: ['*.sif']
+      filename_patterns: 
+      - '*.sif'
+      - '*.tif'
+      - '*.tiff'
