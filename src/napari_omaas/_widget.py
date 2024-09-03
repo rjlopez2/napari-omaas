@@ -29,7 +29,7 @@ from napari.layers import Shapes, Image, Labels
 from napari.components.layerlist import LayerList
 from napari.utils import progress
 
-from skimage.morphology import disk, binary_closing, remove_small_objects, closing, erosion
+from skimage.morphology import disk, binary_closing, remove_small_objects, closing, erosion, reconstruction
 
 import copy
 import pandas as pd
@@ -37,6 +37,7 @@ import pandas as pd
 import numpy as np
 from .custom_exceptions import CustomException
 import sys
+import re
 from .utils import (
     VHGroup,
     ToggleButton,
@@ -379,8 +380,8 @@ class OMAAS(QWidget):
         self.is_Expand_mask.setChecked(False)
         self.auto_segmentation_group.glayout.addWidget(self.is_inverted_mask,  1, 3, 1, 1)
 
-        self.apply_segmentation_btn = QPushButton("segment stack (Auto)")
-        self.auto_segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 1, 4, 1, 2)
+        self.apply_auto_segmentation_btn = QPushButton("segment stack (Auto)")
+        self.auto_segmentation_group.glayout.addWidget(self.apply_auto_segmentation_btn, 1, 4, 1, 2)
 
         self.manual_segmentation_group = VHGroup('Manual segmentation', orientation='G')
         self.segmentation_group.glayout.addWidget(self.manual_segmentation_group.gbox,  1, 0, 1, 1)
@@ -395,8 +396,8 @@ class OMAAS(QWidget):
         self.manual_segmentation_group.glayout.addWidget(self.mask_list_manual_segment_label, 0, 2, 1, 1)
         self.manual_segmentation_group.glayout.addWidget(self.mask_list_manual_segment, 0, 3, 1, 1)
 
-        self.segment_manual_btn = QPushButton("segment stack (Manual)")
-        self.manual_segmentation_group.glayout.addWidget(self.segment_manual_btn, 0, 4, 1, 1)
+        self.apply_manual_segmentation_btn = QPushButton("segment stack (Manual)")
+        self.manual_segmentation_group.glayout.addWidget(self.apply_manual_segmentation_btn, 0, 4, 1, 1)
 
 
 
@@ -1005,7 +1006,12 @@ class OMAAS(QWidget):
         self.maps_selector_label.setToolTip("Image Selector for diplaying and post-processing maps.")
         self.postprocessing_group.glayout.addWidget(self.maps_selector_label, 1, 0, 1, 1)
 
-        self.map_imgs_selector = MultiComboBox()
+        # self.map_imgs_selector = MultiComboBox()
+        self.map_imgs_selector = QListWidget()
+        # allow for multiple selection
+        self.map_imgs_selector.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
         # self.map_imgs_selector.addItems(["Option 1", "Option 2", "Option 3", "Option 4"])
         self.postprocessing_group.glayout.addWidget(self.map_imgs_selector, 1, 1, 1, 4)
 
@@ -1062,7 +1068,7 @@ class OMAAS(QWidget):
 
         # Adding mapping subtabs
         self.mapping_tabs.addTab(self.average_trace_group.gbox, 'Pre-processing Maps')
-        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Post-proecessing Maps')
+        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Post-processing Maps')
         self._mapping_processing_layout.addWidget(self.mapping_tabs)
 
 
@@ -1302,7 +1308,7 @@ class OMAAS(QWidget):
         self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
         self.make_maps_btn.clicked.connect(self._on_click_make_maps_btn_func)
         self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_bt_func)
-        self.apply_segmentation_btn.clicked.connect(self._on_click_apply_segmentation_btn_fun)
+        self.apply_auto_segmentation_btn.clicked.connect(self._on_click_apply_segmentation_btn_fun)
         self.average_roi_on_map_btn.clicked.connect(self._on_click_average_roi_on_map_btn_fun)
         self.plot_histogram_btn.clicked.connect(self._on_click_plot_histogram_btn_func)
         self.clear_histogram_btn.clicked.connect(self._on_click_clear_histogram_btn_func)
@@ -1314,7 +1320,7 @@ class OMAAS(QWidget):
         self.change_dir_to_save_img_btn.clicked.connect(self.change_dir_to_save_img_btn_func)
         self.apply_optimap_mot_corr_btn.clicked.connect(self._apply_optimap_mot_corr_btn_func)
         self.crop_from_shape_btn.clicked.connect(self._on_click_crop_from_shape_btn_func)
-        self.segment_manual_btn.clicked.connect(self._on_click_segment_manual_btn_func)
+        self.apply_manual_segmentation_btn.clicked.connect(self._on_click_segment_manual_btn_func)
         self.plot_APD_boundaries_btn.clicked.connect(self._plot_APD_boundaries_btn_func)
         self.compute_ratio_btn.clicked.connect(self._compute_ratio_btn_func)
         self.slider_APD_percentage.valueChanged.connect(self._update_APD_value_for_MAP_func)
@@ -1353,7 +1359,6 @@ class OMAAS(QWidget):
 
         try:
             if isinstance(current_selection, Image):
-                print(f'computing "invert_signal" to image {current_selection}')
                 results =invert_signal(current_selection.data)
 
                 self.add_result_img(
@@ -1363,6 +1368,8 @@ class OMAAS(QWidget):
                     sufix="Inv", 
                     parameters=None, 
                     )
+                print(f"{'*'*5} Applying '{invert_signal.__name__}' to image: '{current_selection}' {'*'*5} ")
+                
                 self.add_record_fun()
             else:
                 return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -1383,21 +1390,18 @@ class OMAAS(QWidget):
                 
                 add_metadata = self.record_metadata_check.isChecked()
 
-                if type_of_normalization == normalization_methods[0]:
-                    print(f'computing "{type_of_normalization}" to image {current_selection}')
+                if type_of_normalization == normalization_methods[0]:                    
                     suffix = "Loc"
                     method_name = "local_normal_fun"
                     results = local_normal_fun(current_selection.data)
 
                 elif type_of_normalization == normalization_methods[1]:
-                    print(f'computing "{type_of_normalization}" to image {current_selection}')
                     wind_size = self.slide_wind_n.value()
                     suffix = f"SliWind{wind_size}"
                     method_name = "slide_window_normalization_func"
                     results = slide_window_normalization_func(current_selection.data, slide_window=wind_size)
 
                 elif type_of_normalization == normalization_methods[2]:
-                    print(f'computing "{type_of_normalization}" to image {current_selection}')
                     suffix = "Glob"
                     method_name = "global_normal_fun"
                     results = global_normal_fun(current_selection.data)
@@ -1416,6 +1420,7 @@ class OMAAS(QWidget):
                     track_metadata=add_metadata,
                     )
                 self.add_record_fun()
+                print(f"{'*'*5} Applying normalization:'{type_of_normalization}' to image: '{current_selection}' {'*'*5} ")
             except Exception as e:
                 raise CustomException(e, sys)
         else:
@@ -1587,7 +1592,6 @@ class OMAAS(QWidget):
             try:
                             
                 if filter_type == all_my_filters[0]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_gaussian_func(current_selection.data, 
                                                 sigma= sigma, 
                                                 kernel_size=kernel_size)
@@ -1600,7 +1604,6 @@ class OMAAS(QWidget):
                         }
                 
                 elif filter_type == all_my_filters[3]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_median_filt_func(current_selection.data, kernel_size)
                     met_name = "apply_median_filt_func"
                     params = {
@@ -1609,7 +1612,6 @@ class OMAAS(QWidget):
                         }
 
                 elif filter_type == all_my_filters[1]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_box_filter(current_selection.data, kernel_size)
                     met_name = "apply_box_filter"
                     params = {
@@ -1618,7 +1620,6 @@ class OMAAS(QWidget):
                         }
                 
                 elif filter_type == all_my_filters[2]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
                     met_name = "apply_laplace_filter"
                     params = {
@@ -1628,7 +1629,6 @@ class OMAAS(QWidget):
                         }
                                     
                 elif filter_type == all_my_filters[4]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
                     met_name = "apply_bilateral_filter"
                     params = {
@@ -1640,6 +1640,7 @@ class OMAAS(QWidget):
                 
                 self.add_record_fun()
                 self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"SpatFilt{filter_type[:4]}", parameters=params)
+                print(f"{'*'*5} Applying '{filter_type}' filter to image: '{current_selection}' {'*'*5} ")
                 
             except Exception as e:
                 raise CustomException(e, sys)
@@ -1998,8 +1999,6 @@ class OMAAS(QWidget):
             try:
 
                 if filter_type == all_my_filters[0]:
-
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
                     
                     results = apply_butterworth_filt_func(current_selection.data, 
                                                         ac_freq=fps_val, 
@@ -2014,9 +2013,7 @@ class OMAAS(QWidget):
                     "order_size": order_value
                     }
             
-                elif filter_type == all_my_filters[1]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
-                    
+                elif filter_type == all_my_filters[1]:                   
 
                     n_taps = 21 #NOTE: this is hard coded, need to test it if make an impact
                     
@@ -2030,6 +2027,7 @@ class OMAAS(QWidget):
                     }
                 
                 self.add_record_fun()
+                print(f"{'*'*5} Applying '{filter_type}' filter to image: '{current_selection}' {'*'*5} ")
                 self.add_result_img(result_img=results, operation_name="Temporal_filter", method_name=met_name, sufix= f"TempFilt{filter_type[:4]}", parameters=params)
                 
             
@@ -2380,6 +2378,19 @@ class OMAAS(QWidget):
 
         return img_items, shapes_items
     
+    def _get_imgs2d_from_map_selector(self, return_img = False):
+        """
+        Helper function that retunr the names of imags and shapes picked in the selector
+        """
+        if not return_img:
+            img_items = [item.text() for item in self.map_imgs_selector.selectedItems()]
+            
+        elif return_img:
+            img_items = [self.viewer.layers[item.text()] for item in self.map_imgs_selector.selectedItems()]
+            
+
+        return img_items
+    
 
 
     
@@ -2518,7 +2529,7 @@ class OMAAS(QWidget):
 
             # Capture the current selected items
             curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
-            
+            curr_img_items_2d = self._get_imgs2d_from_map_selector(return_img=False)
             if isinstance(value, Shapes) or isinstance(value, LayerList):
                 # selected_items = [item.text() for item in self.listShapeswidget.selectedItems()]
 
@@ -2553,10 +2564,18 @@ class OMAAS(QWidget):
                 self.image_selection_crop.addItems(all_images)
                 self.image_selection_crop.setCurrentIndex(0)
                 
-                all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
+                # Update image selector for maps
                 self.map_imgs_selector.clear()
-                self.map_imgs_selector.addItems(all_images_2d)
-                self.map_imgs_selector.setCurrentIndex(-1)
+                all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
+                for image in all_images_2d:
+                    item = QtWidgets.QListWidgetItem(image)
+                    self.map_imgs_selector.addItem(item)
+                    # Restore the selection if the item was selected before
+                    if item.text() in curr_img_items_2d:
+                        item.setSelected(True)
+                
+                # self.map_imgs_selector.addItems(all_images_2d)
+                # self.map_imgs_selector.setCurrentIndex(-1)
 
                 self.Ch0_ratio.clear()
                 self.Ch0_ratio.addItems(all_images)
@@ -2745,8 +2764,8 @@ class OMAAS(QWidget):
                     return print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'splitted_stack' : --->> {e} <----")
                 
 
-                print("Preview trace created")
                 warn(f"Only one AP detected")
+                print(f"{'*'*5} Preview from image: '{self.viewer.layers.selection.active.name}' created {'*'*5}")
 
             elif self.ini_i_spl_traces.size > 1:
 
@@ -2794,27 +2813,9 @@ class OMAAS(QWidget):
                 if self.remove_mean_check.isChecked():
 
                     self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
-                
-            
-            
-
-                # first create remove the attributes if they already exist
-                # self._remove_attribute_widget()
-                # self.slider_N_APs_label = QLabel("Slide to select your current AP")
-                # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
-
-                # self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
-                
-                # self.slider_N_APs.setValue(0)
-                # self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
-
-                # self.remove_mean_label = QLabel("remove mean")
-                # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 2, 1, 1)
-
-                # self.remove_mean_check = QCheckBox()
-                # self.average_trace_group.glayout.addWidget(self.slider_N_APremove_mean_checks_label, 5, 3, 1, 1)
-                
-                print("Preview trace created")
+             
+               
+                print(f"{'*'*5} Preview from image: '{self.viewer.layers.selection.active.name}' created {'*'*5}")
 
             else:
                 self._on_click_clear_AP_splitted_btn_fun()
@@ -2898,7 +2899,7 @@ class OMAAS(QWidget):
                                     operation_name="Average_from_mutiples_APs", 
                                     method_name=split_AP_traces_and_ave_func.__name__,
                                     sufix="AveAP", parameters=params)
-                print("Average trace created")
+                print(f"{'*'*5} Average from image: '{current_img_selected.name,}' created {'*'*5}")
                 self.add_record_fun()
 
             elif ini_i.size == 1:
@@ -3364,36 +3365,45 @@ class OMAAS(QWidget):
         
         _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
         current_img_selected = self.viewer.layers.selection.active
-
-        if isinstance(current_img_selected, Image) and current_img_selected.ndim == 2 and len(shapes_items) > 0:
-            ndim = current_img_selected.ndim
-            dshape = current_img_selected.data.shape
-            masks = shapes_items[0].to_masks(dshape)
+        
+        try:
             
-            if masks.ndim == 3:
-                for indx_roi, roi in enumerate(masks):
-                    
-                    results = np.nanmean(current_img_selected.data[roi])
-                    # self.average_roi_value_container.
-                    print(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
-                    self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
-                return            
-            
-            elif masks.ndim == 2:
+            if isinstance(current_img_selected, Image):
+                if current_img_selected.ndim == 2:
+                    if len(shapes_items) > 0:
+                        ndim = current_img_selected.ndim
+                        dshape = current_img_selected.data.shape
+                        masks = shapes_items[0].to_masks(dshape)
+                        
+                        if masks.ndim == 3:
+                            for indx_roi, roi in enumerate(masks):
+                                
+                                results = np.nanmean(current_img_selected.data[roi])
+                                # self.average_roi_value_container.
+                                print(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
+                                self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
+                            return            
+                        
+                        elif masks.ndim == 2:
+                            
+                            results = np.nanmean(current_img_selected.data[masks])
+                            self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
+                            return print(f"mean of roi in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
+                        else:
+                            self.average_roi_value_container.setText("")
+                            # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
+                            warn(f"You seem to have an issue with your shapes")
+                    else:
+                        return warn(f"Select a shape from the shape selector")
+                else:
+                    return warn(f"Select an 2d image from a map. Current image: '{current_img_selected.name}' has ndim = {ndim}.")
                 
-                results = np.nanmean(current_img_selected.data[masks])
-                self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
-                return print(f"mean of roi in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
             else:
                 self.average_roi_value_container.setText("")
                 # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
-                warn(f" you seem to have an issue with your shapes")
-        
-        else:
-            
-            self.average_roi_value_container.setText("")
-            # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
-            return warn(f"No an image or shape selected or image: '{current_img_selected.name}' has ndim = {current_img_selected.ndim }. Select an 2d image retunred from a map.")
+                return warn("No Image layer selected. Select an 2d image retunred from a map.")
+        except Exception as e:
+            raise CustomException(e, sys)
 
 
 
@@ -3585,9 +3595,8 @@ class OMAAS(QWidget):
 
 
                     # 9. subtract bacground from original image 
-                    background = np.nanmean(masked_image)
-                    
-                    masked_image = masked_image - background
+                    # background = np.nanmean(masked_image)                    
+                    # masked_image = masked_image - background
 
                     self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
                                         sufix=f"{params['Segmentation_mode'][:3]}Segm{segmentation_method_selected[:3].capitalize()}", 
@@ -3600,8 +3609,8 @@ class OMAAS(QWidget):
                 self.add_record_fun()
             
             except Exception as e:
-                # raise CustomException(e, sys)
-                print(CustomException(e, sys))
+                raise CustomException(e, sys)
+                # print(CustomException(e, sys))
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
@@ -3709,7 +3718,7 @@ class OMAAS(QWidget):
                                                         label=layer.name)
 
                 self.histogram_plot_widget.axes.legend()
-                print(f"Histogram of frame: '{time_point}' created ")
+                print(f"{'*'*5} Histogram of image: '{layer.name}' at frame: '{time_point}'.")
 
             else:
                 data = layer.data
@@ -3721,7 +3730,7 @@ class OMAAS(QWidget):
                                                         #  linewidth=1.2,
                                                         label=layer.name)
                 
-                print(f"Histogram of full stack ({data.shape[0]} frames) created ")
+                print(f"{'*'*5} Histogram of image: '{layer.name}'. Full stack ({data.shape[0]} frames) created {'*'*5} ")
         else:
             return warn(f"Select an Image layer to display histogrma. \nThe selected layer: '{layer}' is of type: '{layer._type_string}'")
 
@@ -3765,7 +3774,8 @@ class OMAAS(QWidget):
                     # self.plot_profile_btn.setChecked(False)
                     self.is_range_clicked_checkbox.setChecked(False)
                     self.plot_last_generated_img()
-                    print(f"image '{image.name}' clipped from time/index: {round(start_indx * self.xscale, 2)}/[{start_indx}] to {round(end_indx * self.xscale, 2)}/[{end_indx}]")
+                    
+                    print(f"{'*'*5} Clipping from time index: [{start_indx}:{end_indx}] to image: '{image.name}'. {'*'*5}")
             else:
                 return warn("Preview the clipping range firts by ticking the 'Show range'.")
         else:
@@ -4008,63 +4018,71 @@ class OMAAS(QWidget):
     def _plot_curr_map_btn_fun(self):
 
         # selectedItems = self.map_imgs_selector.lineEdit().text().split(", ")
-        selectedItems = [x.strip() for x in self.map_imgs_selector.lineEdit().text().split(',')]
-        # selectedItems = [selectedItems] if isinstance(selectedItems, str) else selectedItems
-        # current_selection = self.viewer.layers.selection.active
-        self.maps_plot_widget.figure.clear()
-        self.maps_plot_widget.add_single_axes()
+        try:
+            # selectedItems = [x.strip() for x in self.map_imgs_selector.lineEdit().text().split(',')]
+            selectedItems = self._get_imgs2d_from_map_selector(return_img=False)
+            # selectedItems = [selectedItems] if isinstance(selectedItems, str) else selectedItems
+            # current_selection = self.viewer.layers.selection.active
+            self.maps_plot_widget.figure.clear()
+            self.maps_plot_widget.add_single_axes()
 
-        if len(selectedItems) == 1 and len(selectedItems[0]) > 0:
-            current_selection = self.viewer.layers[selectedItems[0]]
-            self.map_data = current_selection.data
+            if len(selectedItems) == 1 and len(selectedItems[0]) > 0:
+                current_selection = self.viewer.layers[selectedItems[0]]
+                self.map_data = current_selection.data
 
-        elif len(selectedItems) > 1:
-            current_selection = [self.viewer.layers[item].data for item in selectedItems]
-            self.map_data = np.concatenate(current_selection, axis = 1)
-        
-        else:
-            return warn(f"No image selected. Please select an Image from the selector")
-                
-            # print("Selected items:", selectedItems)
-
-        if self.apply_cip_limits_map.isChecked():
-            lower_limit = float(self.map_lower_clip_limit.text())
-            upper_limit = float(self.map_upper_clip_limit.text())
-            self.map_data = np.clip(self.map_data, lower_limit, upper_limit)
-
-        else:
-            lower_limit = None
-            upper_limit = None
-            self.map_data = self.map_data
+            elif len(selectedItems) > 1:
+                current_selection = [self.viewer.layers[item].data for item in selectedItems]
+                self.map_data = np.concatenate(current_selection, axis = 1)
             
-        
-        self.maps_plot_widget.axes.contour(self.map_data, 
-                                        levels= self.colormap_n_levels.value(), 
-                                        colors='k', origin="image", linewidths=1)
-        CSF = self.maps_plot_widget.axes.contourf(self.map_data, 
-                                                levels= self.colormap_n_levels.value(), 
-                                                cmap = "turbo", origin="image", 
-                                                #   vmin = lower_limit, 
-                                                #   vmax = upper_limit, 
-                                                extend = "neither")
+            else:
+                return warn(f"No image selected. Please select an Image from the selector")
+                    
+                # print("Selected items:", selectedItems)
 
-        self.maps_plot_widget.figure.colorbar(CSF)
-        self.maps_plot_widget.axes.axis('off')
+            if self.apply_cip_limits_map.isChecked():
+                lower_limit = float(self.map_lower_clip_limit.text())
+                upper_limit = float(self.map_upper_clip_limit.text())
+                self.map_data = np.clip(self.map_data, lower_limit, upper_limit)
 
-        def extract_and_combine(s):
-            prefix = s[:19]  # Extract the first 19 characters
-            # Find the substring that contains "Map" surrounded by underscores
-            map_part = [part for part in s.split('_') if 'Map' in part][0]
-            return f"{prefix}_{map_part}"
-        
-        img_title = [extract_and_combine(item) for item in selectedItems]
-        
-        self.maps_plot_widget.axes.set_title(f"{' '.join(str(i) for i in img_title)}", color = "k")
+            else:
+                lower_limit = None
+                upper_limit = None
+                self.map_data = self.map_data
+                
+            
+            self.maps_plot_widget.axes.contour(self.map_data, 
+                                            levels= self.colormap_n_levels.value(), 
+                                            colors='k', origin="image", linewidths=1)
+            CSF = self.maps_plot_widget.axes.contourf(self.map_data, 
+                                                    levels= self.colormap_n_levels.value(), 
+                                                    cmap = "turbo", origin="image", 
+                                                    #   vmin = lower_limit, 
+                                                    #   vmax = upper_limit, 
+                                                    extend = "neither")
 
-        print(f"{'*'*5} plotting maps succesfully {'*'*5}")
-        # self.maps_plot_widget.axes.set_facecolor("white")
-        self.maps_plot_widget.figure.set_facecolor("white")
-        self.maps_plot_widget.canvas.draw()
+            self.maps_plot_widget.figure.colorbar(CSF)
+            self.maps_plot_widget.axes.axis('off')
+
+            # def extract_and_combine(s):
+
+                # prefix = s[:19]  # Extract the first 19 characters
+                # # Find the substring that contains "Map" surrounded by underscores
+                # map_part = [part for part in s.split('_') if 'Map' in part][0]
+                # return f"{prefix}_{map_part}"
+            # img_title = [extract_and_combine(item) for item in selectedItems]
+            
+            pattern = re.compile(r'APDMap\d{2}')
+            self.img_title = [pattern.search(s).group() for s in selectedItems if pattern.search(s)]
+            
+            self.maps_plot_widget.axes.set_title(f"{'    '.join(str(i) for i in img_title)}", color = "k")
+
+            print(f"{'*'*5} plotting maps succesfully {'*'*5}")
+            # self.maps_plot_widget.axes.set_facecolor("white")
+            self.maps_plot_widget.figure.set_facecolor("white")
+            self.maps_plot_widget.canvas.draw()
+        
+        except Exception as e:
+            print(CustomException(e, sys))
 
             
     
@@ -4188,39 +4206,57 @@ class InterctiveWindowMapErode(QWidget):
         #                                         #   vmin = lower_limit, 
         #                                         #   vmax = upper_limit, 
         #                                         extend = "neither")
-        self.preview_map_erode_group.glayout.addWidget(self.preview_plotter_widget, 0, 0, 1, 6)
+        self.preview_map_erode_group.glayout.addWidget(self.preview_plotter_widget, 0, 0, 1, 5)
 
         self.n_pixels_erode_label = QLabel("Number of Px:")
-        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_label, 1, 0, 1, 1)
+        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_label, 2, 0, 1, 1)
         
-        self.n_pixels_erode = QLabeledSlider()
-        self.n_pixels_erode.setRange(0, 100)
-        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode, 1, 1, 1, 1)
+        self.n_pixels_erode_slider = QLabeledSlider()
+        self.n_pixels_erode_slider.setRange(0, 100)
+        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_slider, 2, 1, 1, 2)
 
-        self.apply_erosion_btn = QPushButton( "Apply changes")
-        self.preview_map_erode_group.glayout.addWidget(self.apply_erosion_btn, 1, 2, 1, 4)
+        # self.apply_erosion_btn = QPushButton( "Apply changes")
+        # self.preview_map_erode_group.glayout.addWidget(self.apply_erosion_btn, 2, 0, 1, 3)
 
-        self.gaussian_filter_label = QLabel("Gaussian Filter")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_filter_label, 2, 0, 1, 1)
+        self.small_holes_size_label = QLabel("Small holes size")
+        self.preview_map_erode_group.glayout.addWidget(self.small_holes_size_label, 2, 3, 1, 1)
+
+        self.small_holes_size_map_spinbox = QSpinBox()
+        self.small_holes_size_map_spinbox.setSingleStep(1)
+        self.small_holes_size_map_spinbox.setValue(0)
+        self.preview_map_erode_group.glayout.addWidget(self.small_holes_size_map_spinbox, 2, 4, 1, 1)
+        
+
+        # self.reset_erosion_btn = QPushButton("reset")
+        # self.preview_map_erode_group.glayout.addWidget(self.reset_erosion_btn, 1, 5, 1, 1)
+
+        self.gaussian_filter_label = QLabel("Gaussian Filter:")
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_filter_label, 1, 0, 1, 1)
         
         self.gaussian_sigam_label = QLabel("Sigma")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigam_label, 2, 1, 1, 1)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigam_label, 1, 1, 1, 1)
 
         self.gaussian_sigma = QDoubleSpinBox()
         self.gaussian_sigma.setSingleStep(0.1)
-        self.gaussian_sigma.setValue(1)
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigma, 2, 2, 1, 1)
+        self.gaussian_sigma.setValue(0)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigma, 1, 2, 1, 1)
                   
         self.gaussian_radius_label = QLabel("Radius")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius_label, 2, 3, 1, 1)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius_label, 1, 3, 1, 1)
 
         self.gaussian_radius = QSpinBox()
         self.gaussian_radius.setSingleStep(1)
-        self.gaussian_radius.setValue(4)
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius, 2, 4, 1, 1)
+        self.gaussian_radius.setValue(0)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius, 1, 4, 1, 1)
 
-        self.apply_gaussian_filt_btn = QPushButton( "Apply changes")
-        self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 2, 5, 1, 1)
+        # self.apply_gaussian_filt_btn = QPushButton( "View changes")
+        # self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 4, 0, 1, 3)
+
+        self.accept_post_processing_changes_btn = QPushButton("Acept changes")
+        self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 3)
+
+        self.reset_all_postprocessing_map_btn = QPushButton("reset")
+        self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 3, 1, 2)
 
                   
         
@@ -4229,41 +4265,80 @@ class InterctiveWindowMapErode(QWidget):
         ##############
         # Callbacks ##
         ##############
-        self.apply_erosion_btn.clicked.connect(self._apply_erosion_btn_func)
-        self.n_pixels_erode.valueChanged.connect(self.n_pixels_erode_func)
-        self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
+        self.accept_post_processing_changes_btn.clicked.connect(self._apply_erosion_btn_func)
+        self.n_pixels_erode_slider.valueChanged.connect(self.n_pixels_erode_slider_func)
+        self.small_holes_size_map_spinbox.valueChanged.connect(self.n_pixels_erode_slider_func)
+        # self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
+        self.gaussian_sigma.valueChanged.connect(self._apply_gaussian_filt_on_map_func)
+        self.gaussian_radius.valueChanged.connect(self._apply_gaussian_filt_on_map_func)
+        # self.reset_erosion_btn.clicked.connect(self._reset_all_btn_func)
+        self.reset_all_postprocessing_map_btn.clicked.connect(self._reset_all_btn_func)
 
 
     def _apply_erosion_btn_func(self):
 
-        self.n_pixels_erode_func()
-        current_image = self.viewer.layers.selection.active
-        
-        self.o.add_result_img(self.result_map_image,
-                            img_custom_name=f"{current_image.name}_postprocessed",
-                            auto_metadata = False, 
-                            custom_metadata = self.viewer.layers.selection.active.metadata, 
-                            single_label_sufix = "Crop",
-                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            add_to_metadata = "Post-precessed_Map[test]")
-        print("Image exported")
+        try:
+            self.n_pixels_erode_slider_func()
+            # current_image = self.viewer.layers.selection.active
+            # self.o.img_title
+            # Step 1: Split the strings into parts
+            split_strings = [s.split('_') for s in self.o._get_imgs2d_from_map_selector()]
+
+            # Step 2: Identify the common part and collect APDMapXX parts
+            common_parts = split_strings[0][:-1]  # Assume common parts are all parts except the last one
+            apdmap_parts = []
+
+            for split_str in split_strings:
+                for part in split_str:
+                    if "APDMap" in part:
+                        apdmap_parts.append(part.replace("APDMap", ""))
+
+            # Step 3: Reconstruct the string
+            final_string = "_".join(common_parts) + "_APDMap" + "_".join(apdmap_parts)
+            input_imgs = self.o._get_imgs2d_from_map_selector()
+
+            eros_value = self.n_pixels_erode_slider.value()
+            small_holes_s = self.small_holes_size_map_spinbox.value()
+            sigma = self.gaussian_sigma.value()
+            radius = self.gaussian_radius.value()
+            
+            params = {gaussian_filter_nan.__name__: {"paramters": {"radius": radius,
+                      "sigma" : sigma}},
+                      "Erosion_image" :{"parameters": {"small_holes_s" : small_holes_s,
+                      "eros_value" : eros_value}}
+                      }
+            
+            self.o.add_result_img(result_img=self.result_map_image, 
+                                operation_name="Postprocessing_maps[test]", 
+                                custom_img_name=f"{final_string}_PostProMap", 
+                                method_name="crop_from_shape",
+                                custom_inputs = input_imgs,
+                                custom_metadata= self.viewer.layers.selection.active.metadata,
+                                sufix="PostProMap", 
+                                parameters=params)
+            print("Image exported")
+        except Exception as e:
+            print(CustomException(e, sys))
     
-    def n_pixels_erode_func(self):
+    def n_pixels_erode_slider_func(self):
         try:
 
             # mask = segment_image_triangle(self.map_data)
-            self.result_map_image = self.map_data.copy()
+            self.result_map_image = self.result_map_image if hasattr(self, "result_map_image") else self.map_data.copy()
             mask = np.invert(np.isnan(self.result_map_image))
 
             
             # mask = binary_closing(mask, 10)
-            eros_value = self.n_pixels_erode.value()
-            small_holes_s = 4
-            print(f"clossing small object of size = {small_holes_s}")
-            mask = remove_small_objects(mask, small_holes_s)
-            footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
-            mask = binary_closing(mask, footprint=footprint)
-            self.result_map_image = closing(self.result_map_image, footprint=footprint)
+            eros_value = self.n_pixels_erode_slider.value()
+            small_holes_s = self.small_holes_size_map_spinbox.value()           
+
+            if small_holes_s > 0:
+
+                print(f"clossing small object of size = {small_holes_s}")
+                mask = remove_small_objects(mask, small_holes_s)
+                footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
+                mask = binary_closing(mask, footprint=footprint)
+                self.result_map_image = closing(self.result_map_image, footprint=footprint)
 
 
             mask = erosion(mask, footprint=disk(eros_value))
@@ -4274,16 +4349,16 @@ class InterctiveWindowMapErode(QWidget):
             self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
             self.preview_plotter_widget.canvas.draw()
 
-            print("lalala")
+            # print("lalala")
         except Exception as e:
             raise CustomException(e, sys)
         
 
-    def _apply_gaussian_filt_btn_func(self):
+    def _apply_gaussian_filt_on_map_func(self):
 
         try:
 
-            self.n_pixels_erode_func()
+            # self.n_pixels_erode_func()
 
             # self.result_map_image = self.result_map_image.copy()
             # NOTE: may be use intepolation method to refill holes in mask
@@ -4291,16 +4366,42 @@ class InterctiveWindowMapErode(QWidget):
             # need to try out.
             sigma = self.gaussian_sigma.value()
             radius = self.gaussian_radius.value()
+            # self.result_map_image = self.result_map_image if hasattr(self, "result_map_image") else self.map_data.copy()
+            self.result_map_image = self.map_data.copy()
             self.result_map_image = gaussian_filter_nan(self.result_map_image, sigma=sigma, radius=radius)
 
             self.preview_plotter_widget.figure.clear()
             self.preview_plotter_widget.add_single_axes()
             self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
             self.preview_plotter_widget.canvas.draw()
-            print("applying Gaussian filter")
+            # print("applying Gaussian filter")
         
         except Exception as e:
             raise CustomException(e, sys)
+    
+    def _reset_all_btn_func(self):
+        try:
+            self.result_map_image = self.map_data.copy()
+
+            self.preview_plotter_widget.figure.clear()
+            self.preview_plotter_widget.add_single_axes()
+            self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
+            self.preview_plotter_widget.canvas.draw()
+        except Exception as e:
+            raise CustomException(e, sys)
+
+        
+    
+    # def _reset_gauss_filt_btn_func(self):
+    #     try:
+    #         # self.result_map_image = self.map_data.copy()
+
+    #         self.preview_plotter_widget.figure.clear()
+    #         self.preview_plotter_widget.add_single_axes()
+    #         self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
+    #         self.preview_plotter_widget.canvas.draw()
+    #     except Exception as e:
+    #         raise CustomException(e, sys)
 
         
         

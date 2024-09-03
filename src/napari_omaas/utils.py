@@ -958,42 +958,6 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
     img_name = [curr_img_name for i in range(peaks_times.shape[-1])]
     file_id = [curr_file_id for i in range(peaks_times.shape[-1])]
 
-
-    # rslt_df = [img_name, 
-    #             ROI_ids, 
-    #             AP_ids, 
-    #             apd_perc, 
-    #             APD, 
-    #             dVdtmax, 
-    #             amp_Vmax, 
-    #             bcl_list, 
-    #             resting_V,
-    #             time[AP_ini], 
-    #             time[AP_peak], 
-    #             time[AP_end], 
-    #             AP_ini, 
-    #             AP_peak, 
-    #             AP_end,
-    #             file_id]
-    # rslt_dict = dict(
-    #     img_name = img_name,
-    #     ROI_ids = ROI_ids,
-    #     AP_ids = AP_ids,
-    #     apd_perc = apd_perc,
-    #     APD = APD,
-    #     dVdtmax = dVdtmax,
-    #     amp_Vmax = amp_Vmax,
-    #     bcl_list = bcl_list,
-    #     resting_V = resting_V,
-    #     time_AP_ini = time[AP_ini],
-    #     time_AP_peak = time[AP_peak], 
-    #     time_AP_end = time[AP_end], 
-    #     AP_ini = AP_ini, 
-    #     AP_peak = AP_peak, 
-    #     AP_end = AP_end,
-    #     file_id = file_id
-    # )
-
     rslt_dict = {
         "image_name": img_name,
         "ROI_id": ROI_ids,
