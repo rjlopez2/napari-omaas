@@ -29,7 +29,7 @@ from napari.layers import Shapes, Image, Labels
 from napari.components.layerlist import LayerList
 from napari.utils import progress
 
-from skimage.morphology import disk, binary_closing, remove_small_objects, closing, erosion
+from skimage.morphology import disk, binary_closing, remove_small_objects, closing, erosion, reconstruction
 
 import copy
 import pandas as pd
@@ -4072,7 +4072,7 @@ class OMAAS(QWidget):
             # img_title = [extract_and_combine(item) for item in selectedItems]
             
             pattern = re.compile(r'APDMap\d{2}')
-            img_title = [pattern.search(s).group() for s in selectedItems if pattern.search(s)]
+            self.img_title = [pattern.search(s).group() for s in selectedItems if pattern.search(s)]
             
             self.maps_plot_widget.axes.set_title(f"{'    '.join(str(i) for i in img_title)}", color = "k")
 
@@ -4206,39 +4206,57 @@ class InterctiveWindowMapErode(QWidget):
         #                                         #   vmin = lower_limit, 
         #                                         #   vmax = upper_limit, 
         #                                         extend = "neither")
-        self.preview_map_erode_group.glayout.addWidget(self.preview_plotter_widget, 0, 0, 1, 6)
+        self.preview_map_erode_group.glayout.addWidget(self.preview_plotter_widget, 0, 0, 1, 5)
 
         self.n_pixels_erode_label = QLabel("Number of Px:")
-        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_label, 1, 0, 1, 1)
+        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_label, 2, 0, 1, 1)
         
-        self.n_pixels_erode = QLabeledSlider()
-        self.n_pixels_erode.setRange(0, 100)
-        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode, 1, 1, 1, 1)
+        self.n_pixels_erode_slider = QLabeledSlider()
+        self.n_pixels_erode_slider.setRange(0, 100)
+        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_slider, 2, 1, 1, 2)
 
-        self.apply_erosion_btn = QPushButton( "Apply changes")
-        self.preview_map_erode_group.glayout.addWidget(self.apply_erosion_btn, 1, 2, 1, 4)
+        # self.apply_erosion_btn = QPushButton( "Apply changes")
+        # self.preview_map_erode_group.glayout.addWidget(self.apply_erosion_btn, 2, 0, 1, 3)
 
-        self.gaussian_filter_label = QLabel("Gaussian Filter")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_filter_label, 2, 0, 1, 1)
+        self.small_holes_size_label = QLabel("Small holes size")
+        self.preview_map_erode_group.glayout.addWidget(self.small_holes_size_label, 2, 3, 1, 1)
+
+        self.small_holes_size_map_spinbox = QSpinBox()
+        self.small_holes_size_map_spinbox.setSingleStep(1)
+        self.small_holes_size_map_spinbox.setValue(0)
+        self.preview_map_erode_group.glayout.addWidget(self.small_holes_size_map_spinbox, 2, 4, 1, 1)
+        
+
+        # self.reset_erosion_btn = QPushButton("reset")
+        # self.preview_map_erode_group.glayout.addWidget(self.reset_erosion_btn, 1, 5, 1, 1)
+
+        self.gaussian_filter_label = QLabel("Gaussian Filter:")
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_filter_label, 1, 0, 1, 1)
         
         self.gaussian_sigam_label = QLabel("Sigma")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigam_label, 2, 1, 1, 1)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigam_label, 1, 1, 1, 1)
 
         self.gaussian_sigma = QDoubleSpinBox()
         self.gaussian_sigma.setSingleStep(0.1)
-        self.gaussian_sigma.setValue(1)
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigma, 2, 2, 1, 1)
+        self.gaussian_sigma.setValue(0)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigma, 1, 2, 1, 1)
                   
         self.gaussian_radius_label = QLabel("Radius")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius_label, 2, 3, 1, 1)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius_label, 1, 3, 1, 1)
 
         self.gaussian_radius = QSpinBox()
         self.gaussian_radius.setSingleStep(1)
-        self.gaussian_radius.setValue(4)
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius, 2, 4, 1, 1)
+        self.gaussian_radius.setValue(0)
+        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius, 1, 4, 1, 1)
 
-        self.apply_gaussian_filt_btn = QPushButton( "Apply changes")
-        self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 2, 5, 1, 1)
+        # self.apply_gaussian_filt_btn = QPushButton( "View changes")
+        # self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 4, 0, 1, 3)
+
+        self.accept_post_processing_changes_btn = QPushButton("Acept changes")
+        self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 3)
+
+        self.reset_all_postprocessing_map_btn = QPushButton("reset")
+        self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 3, 1, 2)
 
                   
         
@@ -4247,52 +4265,80 @@ class InterctiveWindowMapErode(QWidget):
         ##############
         # Callbacks ##
         ##############
-        self.apply_erosion_btn.clicked.connect(self._apply_erosion_btn_func)
-        self.n_pixels_erode.valueChanged.connect(self.n_pixels_erode_func)
-        self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
+        self.accept_post_processing_changes_btn.clicked.connect(self._apply_erosion_btn_func)
+        self.n_pixels_erode_slider.valueChanged.connect(self.n_pixels_erode_slider_func)
+        self.small_holes_size_map_spinbox.valueChanged.connect(self.n_pixels_erode_slider_func)
+        # self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
+        self.gaussian_sigma.valueChanged.connect(self._apply_gaussian_filt_on_map_func)
+        self.gaussian_radius.valueChanged.connect(self._apply_gaussian_filt_on_map_func)
+        # self.reset_erosion_btn.clicked.connect(self._reset_all_btn_func)
+        self.reset_all_postprocessing_map_btn.clicked.connect(self._reset_all_btn_func)
 
 
     def _apply_erosion_btn_func(self):
 
         try:
-            self.n_pixels_erode_func()
-            current_image = self.viewer.layers.selection.active
+            self.n_pixels_erode_slider_func()
+            # current_image = self.viewer.layers.selection.active
+            # self.o.img_title
+            # Step 1: Split the strings into parts
+            split_strings = [s.split('_') for s in self.o._get_imgs2d_from_map_selector()]
+
+            # Step 2: Identify the common part and collect APDMapXX parts
+            common_parts = split_strings[0][:-1]  # Assume common parts are all parts except the last one
+            apdmap_parts = []
+
+            for split_str in split_strings:
+                for part in split_str:
+                    if "APDMap" in part:
+                        apdmap_parts.append(part.replace("APDMap", ""))
+
+            # Step 3: Reconstruct the string
+            final_string = "_".join(common_parts) + "_APDMap" + "_".join(apdmap_parts)
+            input_imgs = self.o._get_imgs2d_from_map_selector()
+
+            eros_value = self.n_pixels_erode_slider.value()
+            small_holes_s = self.small_holes_size_map_spinbox.value()
+            sigma = self.gaussian_sigma.value()
+            radius = self.gaussian_radius.value()
             
-            # self.o.add_result_img(self.result_map_image,
-            #                     img_custom_name=f"{current_image.name}_postprocessed",
-            #                     auto_metadata = False, 
-            #                     custom_metadata = self.viewer.layers.selection.active.metadata, 
-            #                     single_label_sufix = "Crop",
-            #                     # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-            #                     add_to_metadata = "Post-precessed_Map[test]")
+            params = {gaussian_filter_nan.__name__: {"paramters": {"radius": radius,
+                      "sigma" : sigma}},
+                      "Erosion_image" :{"parameters": {"small_holes_s" : small_holes_s,
+                      "eros_value" : eros_value}}
+                      }
             
             self.o.add_result_img(result_img=self.result_map_image, 
                                 operation_name="Postprocessing_maps[test]", 
-                                custom_img_name=f"{current_image.name}_postprocessed", 
-                                method_name="crop_from_shape", 
+                                custom_img_name=f"{final_string}_PostProMap", 
+                                method_name="crop_from_shape",
+                                custom_inputs = input_imgs,
                                 custom_metadata= self.viewer.layers.selection.active.metadata,
                                 sufix="PostProMap", 
-                                parameters=None)
+                                parameters=params)
             print("Image exported")
         except Exception as e:
             print(CustomException(e, sys))
     
-    def n_pixels_erode_func(self):
+    def n_pixels_erode_slider_func(self):
         try:
 
             # mask = segment_image_triangle(self.map_data)
-            self.result_map_image = self.map_data.copy()
+            self.result_map_image = self.result_map_image if hasattr(self, "result_map_image") else self.map_data.copy()
             mask = np.invert(np.isnan(self.result_map_image))
 
             
             # mask = binary_closing(mask, 10)
-            eros_value = self.n_pixels_erode.value()
-            small_holes_s = 4
-            print(f"clossing small object of size = {small_holes_s}")
-            mask = remove_small_objects(mask, small_holes_s)
-            footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
-            mask = binary_closing(mask, footprint=footprint)
-            self.result_map_image = closing(self.result_map_image, footprint=footprint)
+            eros_value = self.n_pixels_erode_slider.value()
+            small_holes_s = self.small_holes_size_map_spinbox.value()           
+
+            if small_holes_s > 0:
+
+                print(f"clossing small object of size = {small_holes_s}")
+                mask = remove_small_objects(mask, small_holes_s)
+                footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
+                mask = binary_closing(mask, footprint=footprint)
+                self.result_map_image = closing(self.result_map_image, footprint=footprint)
 
 
             mask = erosion(mask, footprint=disk(eros_value))
@@ -4303,16 +4349,16 @@ class InterctiveWindowMapErode(QWidget):
             self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
             self.preview_plotter_widget.canvas.draw()
 
-            print("lalala")
+            # print("lalala")
         except Exception as e:
             raise CustomException(e, sys)
         
 
-    def _apply_gaussian_filt_btn_func(self):
+    def _apply_gaussian_filt_on_map_func(self):
 
         try:
 
-            self.n_pixels_erode_func()
+            # self.n_pixels_erode_func()
 
             # self.result_map_image = self.result_map_image.copy()
             # NOTE: may be use intepolation method to refill holes in mask
@@ -4320,16 +4366,42 @@ class InterctiveWindowMapErode(QWidget):
             # need to try out.
             sigma = self.gaussian_sigma.value()
             radius = self.gaussian_radius.value()
+            # self.result_map_image = self.result_map_image if hasattr(self, "result_map_image") else self.map_data.copy()
+            self.result_map_image = self.map_data.copy()
             self.result_map_image = gaussian_filter_nan(self.result_map_image, sigma=sigma, radius=radius)
 
             self.preview_plotter_widget.figure.clear()
             self.preview_plotter_widget.add_single_axes()
             self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
             self.preview_plotter_widget.canvas.draw()
-            print("applying Gaussian filter")
+            # print("applying Gaussian filter")
         
         except Exception as e:
             raise CustomException(e, sys)
+    
+    def _reset_all_btn_func(self):
+        try:
+            self.result_map_image = self.map_data.copy()
+
+            self.preview_plotter_widget.figure.clear()
+            self.preview_plotter_widget.add_single_axes()
+            self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
+            self.preview_plotter_widget.canvas.draw()
+        except Exception as e:
+            raise CustomException(e, sys)
+
+        
+    
+    # def _reset_gauss_filt_btn_func(self):
+    #     try:
+    #         # self.result_map_image = self.map_data.copy()
+
+    #         self.preview_plotter_widget.figure.clear()
+    #         self.preview_plotter_widget.add_single_axes()
+    #         self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
+    #         self.preview_plotter_widget.canvas.draw()
+    #     except Exception as e:
+    #         raise CustomException(e, sys)
 
         
         
