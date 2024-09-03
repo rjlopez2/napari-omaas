@@ -1006,7 +1006,12 @@ class OMAAS(QWidget):
         self.maps_selector_label.setToolTip("Image Selector for diplaying and post-processing maps.")
         self.postprocessing_group.glayout.addWidget(self.maps_selector_label, 1, 0, 1, 1)
 
-        self.map_imgs_selector = MultiComboBox()
+        # self.map_imgs_selector = MultiComboBox()
+        self.map_imgs_selector = QListWidget()
+        # allow for multiple selection
+        self.map_imgs_selector.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
         # self.map_imgs_selector.addItems(["Option 1", "Option 2", "Option 3", "Option 4"])
         self.postprocessing_group.glayout.addWidget(self.map_imgs_selector, 1, 1, 1, 4)
 
@@ -1063,7 +1068,7 @@ class OMAAS(QWidget):
 
         # Adding mapping subtabs
         self.mapping_tabs.addTab(self.average_trace_group.gbox, 'Pre-processing Maps')
-        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Post-proecessing Maps')
+        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Post-processing Maps')
         self._mapping_processing_layout.addWidget(self.mapping_tabs)
 
 
@@ -2373,6 +2378,19 @@ class OMAAS(QWidget):
 
         return img_items, shapes_items
     
+    def _get_imgs2d_from_map_selector(self, return_img = False):
+        """
+        Helper function that retunr the names of imags and shapes picked in the selector
+        """
+        if not return_img:
+            img_items = [item.text() for item in self.map_imgs_selector.selectedItems()]
+            
+        elif return_img:
+            img_items = [self.viewer.layers[item.text()] for item in self.map_imgs_selector.selectedItems()]
+            
+
+        return img_items
+    
 
 
     
@@ -2511,7 +2529,7 @@ class OMAAS(QWidget):
 
             # Capture the current selected items
             curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
-            
+            curr_img_items_2d = self._get_imgs2d_from_map_selector(return_img=False)
             if isinstance(value, Shapes) or isinstance(value, LayerList):
                 # selected_items = [item.text() for item in self.listShapeswidget.selectedItems()]
 
@@ -2546,10 +2564,18 @@ class OMAAS(QWidget):
                 self.image_selection_crop.addItems(all_images)
                 self.image_selection_crop.setCurrentIndex(0)
                 
-                all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
+                # Update image selector for maps
                 self.map_imgs_selector.clear()
-                self.map_imgs_selector.addItems(all_images_2d)
-                self.map_imgs_selector.setCurrentIndex(-1)
+                all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
+                for image in all_images_2d:
+                    item = QtWidgets.QListWidgetItem(image)
+                    self.map_imgs_selector.addItem(item)
+                    # Restore the selection if the item was selected before
+                    if item.text() in curr_img_items_2d:
+                        item.setSelected(True)
+                
+                # self.map_imgs_selector.addItems(all_images_2d)
+                # self.map_imgs_selector.setCurrentIndex(-1)
 
                 self.Ch0_ratio.clear()
                 self.Ch0_ratio.addItems(all_images)
@@ -3993,7 +4019,8 @@ class OMAAS(QWidget):
 
         # selectedItems = self.map_imgs_selector.lineEdit().text().split(", ")
         try:
-            selectedItems = [x.strip() for x in self.map_imgs_selector.lineEdit().text().split(',')]
+            # selectedItems = [x.strip() for x in self.map_imgs_selector.lineEdit().text().split(',')]
+            selectedItems = self._get_imgs2d_from_map_selector(return_img=False)
             # selectedItems = [selectedItems] if isinstance(selectedItems, str) else selectedItems
             # current_selection = self.viewer.layers.selection.active
             self.maps_plot_widget.figure.clear()
@@ -4047,7 +4074,7 @@ class OMAAS(QWidget):
             pattern = re.compile(r'APDMap\d{2}')
             img_title = [pattern.search(s).group() for s in selectedItems if pattern.search(s)]
             
-            self.maps_plot_widget.axes.set_title(f"{' '.join(str(i) for i in img_title)}", color = "k")
+            self.maps_plot_widget.axes.set_title(f"{'    '.join(str(i) for i in img_title)}", color = "k")
 
             print(f"{'*'*5} plotting maps succesfully {'*'*5}")
             # self.maps_plot_widget.axes.set_facecolor("white")
