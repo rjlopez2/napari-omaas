@@ -4074,7 +4074,7 @@ class OMAAS(QWidget):
             pattern = re.compile(r'APDMap\d{2}')
             self.img_title = [pattern.search(s).group() for s in selectedItems if pattern.search(s)]
             
-            self.maps_plot_widget.axes.set_title(f"{'    '.join(str(i) for i in img_title)}", color = "k")
+            self.maps_plot_widget.axes.set_title(f"{'    '.join(str(i) for i in self.img_title)}", color = "k")
 
             print(f"{'*'*5} plotting maps succesfully {'*'*5}")
             # self.maps_plot_widget.axes.set_facecolor("white")
