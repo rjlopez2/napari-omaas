@@ -2146,8 +2146,12 @@ class OMAAS(QWidget):
                     # self.main_plot_widget.axes.set_xlabel("Frames")
                     self.fps_val.setText("Unknown sampling frequency (fps)")
                 
-            if not isinstance(value, Image):
+            elif isinstance(value, Shapes):
+                self.table_rstl_name.setPlaceholderText(f"{value.name}")
+                
+            else:
                 # Update name of current image name to export
+                self.table_rstl_name.setPlaceholderText("APD_results")
                 self.name_image_to_export.setText(None)
                 self.fps_val.setText("")
                 self.metadata_tree.clear()
