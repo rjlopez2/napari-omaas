@@ -2117,8 +2117,7 @@ class OMAAS(QWidget):
 
             if etype in ['active']:
                 if isinstance(layer, Image):
-                    # Update name of current image name to export
-                    self.name_image_to_export.setText(self.viewer.layers.selection.active.name)
+                    self.name_image_to_export.setPlaceholderText(self.viewer.layers.selection.active.name)
 
                     # handle metadata in images saved with tifffile
                     self.img_metadata_dict = self.viewer.layers.selection.active.metadata
@@ -2162,6 +2161,7 @@ class OMAAS(QWidget):
                 else:
                     # Update name of current image name to export
                     self.table_rstl_name.setPlaceholderText("APD_results")
+                    self.name_image_to_export.setPlaceholderText("my_image")
                     self.name_image_to_export.setText(None)
                     self.fps_val.setText("")
                     self.metadata_tree.clear()
@@ -2396,6 +2396,19 @@ class OMAAS(QWidget):
 
         return img_items, shapes_items
     
+    def _get_imgs_and_shapes_items_from_main_layer_list(self, return_layer = False):
+        """
+        Helper function that return the names of imags and shapes from the main layer list
+        """
+        if not return_layer:
+            img_items = [item.name for item in self.viewer.layers if isinstance(item, Image) ]
+            shapes_items = [item.name for item in self.viewer.layers if isinstance(item, Shapes)]
+        elif return_layer:
+            img_items = [item.name for item in self.viewer.layers if isinstance(item, Image)]
+            shapes_items = [item.name for item in self.viewer.layers if isinstance(item, Shapes)]
+
+        return img_items, shapes_items
+    
     def _get_imgs2d_from_map_selector(self, return_img = False):
         """
         Helper function that retunr the names of imags and shapes picked in the selector
@@ -2590,7 +2603,11 @@ class OMAAS(QWidget):
                     self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
                 
                 # Update name of current image name to export
-                self.name_image_to_export.setText(image_layers[0])
+                # trick for case when is a removing image event
+                if etype == 'removed':
+                    self.name_image_to_export.setPlaceholderText("my_image")
+                else:
+                    self.name_image_to_export.setPlaceholderText(value.name)
                
 
             if isinstance(value, Labels) or isinstance(value, LayerList):
@@ -3973,14 +3990,23 @@ class OMAAS(QWidget):
     
     def _on_click_crop_from_shape_btn_func(self):
 
-        shape_name = self.ROI_selection_crop.currentText()
-        shape_layer = self.viewer.layers[shape_name]
-
-        img_name = self.image_selection_crop.currentText()
-        img_layer = self.viewer.layers[img_name]
-        metadata = img_layer.metadata
-
         try:
+            shape_name = self.ROI_selection_crop.currentText()
+            images_layers, shapes_layers = self._get_imgs_and_shapes_items_from_main_layer_list(return_layer=False)
+            if shape_name not in shapes_layers:
+                self.rotate_l_crop.setChecked(False)
+                self.rotate_r_crop.setChecked(False)
+                return warn("No source Shape layer found for cropping operation")
+            shape_layer = self.viewer.layers[shape_name]
+
+            img_name = self.image_selection_crop.currentText()
+            if img_name not in images_layers:
+                self.rotate_l_crop.setChecked(False)
+                self.rotate_r_crop.setChecked(False)
+                return warn("No source Shape layer found for cropping operation")
+            img_layer = self.viewer.layers[img_name]
+            metadata = img_layer.metadata
+
             cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
             a, b, c, d = shape_layer.data[0]
             param = {
@@ -4000,12 +4026,13 @@ class OMAAS(QWidget):
             if self.rotate_l_crop.isChecked():
                 cropped_img = np.rot90(cropped_img, axes=(1, 2))
                 print(f"result image rotate 90° to the left")
-                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}                
-
+                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}
+                self.rotate_l_crop.setChecked(False)
             elif self.rotate_r_crop.isChecked():
                 cropped_img = np.rot90(cropped_img, axes=(2, 1))
                 param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
                 print(f"result image rotate 90° to the right")
+                self.rotate_r_crop.setChecked(False)
 
             self.add_result_img(result_img=cropped_img, 
                                 operation_name="Crop_image", 
@@ -4015,12 +4042,14 @@ class OMAAS(QWidget):
                                 sufix="Crop", parameters=param)
             self.add_record_fun()
             print(f"image '{img_name}' cropped")
-            return
+            # return
 
 
         except Exception as e:
-            raise CustomException(e, sys)
-            # print(CustomException(e, sys))
+            # raise CustomException(e, sys)
+            self.rotate_l_crop.setChecked(False)
+            self.rotate_r_crop.setChecked(False)
+            print(CustomException(e, sys))
 
 
     def _update_APD_value_for_MAP_func(self):
