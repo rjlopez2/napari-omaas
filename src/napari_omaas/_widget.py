@@ -4003,9 +4003,12 @@ class OMAAS(QWidget):
             if img_name not in images_layers:
                 self.rotate_l_crop.setChecked(False)
                 self.rotate_r_crop.setChecked(False)
-                return warn("No source Shape layer found for cropping operation")
+                return warn("No source Image layer found for cropping operation")
             img_layer = self.viewer.layers[img_name]
             metadata = img_layer.metadata
+
+            if len(shape_layer.data) == 0:
+                return warn("Selected shape for cropping is empty. Please draw a square ROI to use for cropping operation.")
 
             cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
             a, b, c, d = shape_layer.data[0]
