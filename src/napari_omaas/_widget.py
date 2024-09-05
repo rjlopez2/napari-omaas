@@ -2104,60 +2104,71 @@ class OMAAS(QWidget):
     
     def _retrieve_metadata_call_back(self, event):
 
-        if event.type in ['active']:
-            value = event.value
-            if isinstance(value, Image):
-                # Update name of current image name to export
-                self.name_image_to_export.setText(self.viewer.layers.selection.active.name)
+        try:
+            layer = event.value
+            etype = event.type
+            # handle name change by bypasing the event to the _layer_list_changed_callback
+            if layer is not None:
+                @layer.events.name.connect
+                def _on_rename(name_event):
+                    print(f'Layer {id(layer)} changed name to {layer.name}')
+                    self._layer_list_changed_callback(event)
 
-                # handle metadata in images saved with tifffile
-                self.img_metadata_dict = self.viewer.layers.selection.active.metadata
-                self.img_metadata_dict = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
+            if etype in ['active']:
+                if isinstance(layer, Image):
+                    # Update name of current image name to export
+                    self.name_image_to_export.setText(self.viewer.layers.selection.active.name)
 
-                # self.viewer.layers.selection.active.metadata = self.img_metadata_dict
-                # self.viewer.layers.selection.active.metadata = self.viewer.layers.selection.active.metadata["shaped_metadata"][0] if "shaped_metadata" in self.viewer.layers.selection.active.metadata else self.img_metadata_dict
-                # self.viewer.layers.selection.active.metadata = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
-                if "CycleTime" in self.img_metadata_dict:
-                    # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
-                    self.metadata_tree.clear()
-                    # metadata = self.img_metadata_dict
-                    items = []
-                    for key, values in self.img_metadata_dict.items():
-                        item = QTreeWidgetItem([key, str(values)])
-                        items.append(item)
-                
-                    self.metadata_tree.insertTopLevelItems(0, items)  
-                    # Set the scale base on the metadata 
-                    # if metadata["CycleTime"]:
-                    # self.xscale = self.img_metadata_dict["CycleTime"]
-                        # self.plot_widget.axes.set_xlabel("Time (ms)")
-                    cycl_time = self.img_metadata_dict["CycleTime"]
-                    self.fps_val.setText(f"{round(1/cycl_time, 2)}")
+                    # handle metadata in images saved with tifffile
+                    self.img_metadata_dict = self.viewer.layers.selection.active.metadata
+                    self.img_metadata_dict = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
 
-                    # set the current x scale
-                    self.x_scale_box.clear()
-                    self.x_scale_box.setText(f"{round(cycl_time * 1000, 2)}")
-                    self.xscale = cycl_time * 1000
-                    # self.main_plot_widget.axes.set_xlabel("Time (ms)")
+                    # self.viewer.layers.selection.active.metadata = self.img_metadata_dict
+                    # self.viewer.layers.selection.active.metadata = self.viewer.layers.selection.active.metadata["shaped_metadata"][0] if "shaped_metadata" in self.viewer.layers.selection.active.metadata else self.img_metadata_dict
+                    # self.viewer.layers.selection.active.metadata = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
+                    if "CycleTime" in self.img_metadata_dict:
+                        # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
+                        self.metadata_tree.clear()
+                        # metadata = self.img_metadata_dict
+                        items = []
+                        for key, values in self.img_metadata_dict.items():
+                            item = QTreeWidgetItem([key, str(values)])
+                            items.append(item)
+                    
+                        self.metadata_tree.insertTopLevelItems(0, items)  
+                        # Set the scale base on the metadata 
+                        # if metadata["CycleTime"]:
+                        # self.xscale = self.img_metadata_dict["CycleTime"]
+                            # self.plot_widget.axes.set_xlabel("Time (ms)")
+                        cycl_time = self.img_metadata_dict["CycleTime"]
+                        self.fps_val.setText(f"{round(1/cycl_time, 2)}")
+
+                        # set the current x scale
+                        self.x_scale_box.clear()
+                        self.x_scale_box.setText(f"{round(cycl_time * 1000, 2)}")
+                        self.xscale = cycl_time * 1000
+                        # self.main_plot_widget.axes.set_xlabel("Time (ms)")
+                    else:
+                        self.x_scale_box.clear()
+                        self.x_scale_box.setText(f"{1}")
+                        self.xscale = 1
+                        # self.main_plot_widget.axes.set_xlabel("Frames")
+                        self.fps_val.setText("Unknown sampling frequency (fps)")
+                    
+                elif isinstance(layer, Shapes):
+                    self.table_rstl_name.setPlaceholderText(f"{layer.name}")                                   
+                    
                 else:
-                    self.x_scale_box.clear()
-                    self.x_scale_box.setText(f"{1}")
-                    self.xscale = 1
-                    # self.main_plot_widget.axes.set_xlabel("Frames")
-                    self.fps_val.setText("Unknown sampling frequency (fps)")
-                
-            elif isinstance(value, Shapes):
-                self.table_rstl_name.setPlaceholderText(f"{value.name}")
-                
-            else:
-                # Update name of current image name to export
-                self.table_rstl_name.setPlaceholderText("APD_results")
-                self.name_image_to_export.setText(None)
-                self.fps_val.setText("")
-                self.metadata_tree.clear()
-                # self.x_scale_box.clear()
-                # self.x_scale_box.setText(f"{1}")
-                # self.xscale = 1
+                    # Update name of current image name to export
+                    self.table_rstl_name.setPlaceholderText("APD_results")
+                    self.name_image_to_export.setText(None)
+                    self.fps_val.setText("")
+                    self.metadata_tree.clear()
+                    # self.x_scale_box.clear()
+                    # self.x_scale_box.setText(f"{1}")
+                    # self.xscale = 1
+        except Exception as e:
+            print(CustomException(e, sys))
 
     def _update_x_scale_box_func(self, event):
         new_x_scale = self.x_scale_box.text()
@@ -2181,7 +2192,7 @@ class OMAAS(QWidget):
             
             APD_props = []
             # get selection of images iand shape from the selector
-            selected_img_list, selected_shps_list = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+            selected_img_list, selected_shps_list = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
 
             for img_indx, img in enumerate(selected_img_list):
 
@@ -2327,7 +2338,7 @@ class OMAAS(QWidget):
         try:
             if len(self.main_plot_widget.figure.axes) > 0 :
                 traces = self.data_main_canvas["y"]
-                selected_img_list, shapes = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                selected_img_list, shapes = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
                 for img_indx, img_name in enumerate(selected_img_list):
                     for shpae_indx, shape in enumerate(shapes[0].data):
 
@@ -2370,15 +2381,15 @@ class OMAAS(QWidget):
         else:
             print("the selected entry does not seem to be a valid directory")
     
-    def _get_imgs_and_shapes_items_from_selector(self, return_img = False):
+    def _get_imgs_and_shapes_items_from_selector(self, return_layer = False):
         """
-        Helper function that retunr the names of imags and shapes picked in the selector
+        Helper function that return the names of imags and shapes picked in the selector
         """
-        if not return_img:
+        if not return_layer:
 
             img_items = [item.text() for item in self.listImagewidget.selectedItems()]
             shapes_items = [item.text() for item in self.listShapeswidget.selectedItems()]
-        elif return_img:
+        elif return_layer:
             img_items = [self.viewer.layers[item.text()] for item in self.listImagewidget.selectedItems()]
             shapes_items = [self.viewer.layers[item.text()] for item in self.listShapeswidget.selectedItems()]
 
@@ -2530,25 +2541,15 @@ class OMAAS(QWidget):
         
         value = event.value
         etype = event.type
-        
-        if etype in ['inserted', 'removed', 'reordered']:
+        # handle name change by bypasing the event to the _layer_list_changed_callback
+        if etype in ['inserted', 'removed', 'reordered', 'active']:
+
+            image_layers, shape_layers = self._populate_main_ImgShap_selector()
 
             # Capture the current selected items
-            curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
+            # curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=False)
             curr_img_items_2d = self._get_imgs2d_from_map_selector(return_img=False)
             if isinstance(value, Shapes) or isinstance(value, LayerList):
-                # selected_items = [item.text() for item in self.listShapeswidget.selectedItems()]
-
-                # Clear and update the list
-                self.listShapeswidget.clear()
-                shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes)]
-                
-                items = [QtWidgets.QListWidgetItem(shape) for shape in shape_layers]
-                for item in items:
-                    self.listShapeswidget.addItem(item)
-                    # Restore the selection if the item was selected before
-                    if item.text() in curr_shapes_items:
-                        item.setSelected(True)
 
                 # Update other selectors
                 self.ROI_selection_1.clear()
@@ -2560,14 +2561,10 @@ class OMAAS(QWidget):
                 self.ROI_selection_crop.setCurrentIndex(0)
 
             if isinstance(value, Image) or isinstance(value, LayerList):
-                # Capture the current selected items
-                # selected_items = [item.text() for item in self.listImagewidget.selectedItems()]
-
-                all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
                 
                 # Update image selector for cropping
                 self.image_selection_crop.clear()
-                self.image_selection_crop.addItems(all_images)
+                self.image_selection_crop.addItems(image_layers)
                 self.image_selection_crop.setCurrentIndex(0)
                 
                 # Update image selector for maps
@@ -2580,40 +2577,64 @@ class OMAAS(QWidget):
                     if item.text() in curr_img_items_2d:
                         item.setSelected(True)
                 
-                # self.map_imgs_selector.addItems(all_images_2d)
-                # self.map_imgs_selector.setCurrentIndex(-1)
-
+                # Update image selector for Ratio
                 self.Ch0_ratio.clear()
-                self.Ch0_ratio.addItems(all_images)
+                self.Ch0_ratio.addItems(image_layers)
                 self.Ch1_ratio.clear()
-                self.Ch1_ratio.addItems(all_images)
+                self.Ch1_ratio.addItems(image_layers)
 
-                if len(all_images) >= 3:
-                    n_imgs = len(all_images)
+                if len(image_layers) >= 3:
+                    n_imgs = len(image_layers)
                     self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
                     self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
                 
                 # Update name of current image name to export
-                self.name_image_to_export.setText(all_images[0])
+                self.name_image_to_export.setText(image_layers[0])
                
-               
-
-                # Clear and update the main image list
-                self.listImagewidget.clear()
-                image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
-
-                for image in image_layers:
-                    item = QtWidgets.QListWidgetItem(image)
-                    self.listImagewidget.addItem(item)
-                    # Restore the selection if the item was selected before
-                    if item.text() in curr_img_items:
-                        item.setSelected(True)
 
             if isinstance(value, Labels) or isinstance(value, LayerList):
                 all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
                 # Update mask selector for manual segmentation
                 self.mask_list_manual_segment.clear()
                 self.mask_list_manual_segment.addItems(all_labels)
+    
+    def _populate_main_ImgShap_selector(self)-> dict[list[str], list[str]]:
+        """
+        Populate the main Image and Shapes selector
+
+        Helper function to update and populate the current images and shapes to the main selector.
+
+        Returns
+        -------
+        dict[list[str], list[str]]
+            Retunrs two list containing the names of image layers and shapes layers respectively.
+        """
+
+        curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=False)
+        self.listImagewidget.clear()
+        
+        # Clear and update the list
+        image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
+        for image in image_layers:
+            item = QtWidgets.QListWidgetItem(image)
+            self.listImagewidget.addItem(item)
+            # Restore the selection if the item was selected before
+            if item.text() in curr_img_items:
+                item.setSelected(True)
+        
+        # Clear and update the list
+        self.listShapeswidget.clear()
+        shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes)]
+        
+        items = [QtWidgets.QListWidgetItem(shape) for shape in shape_layers]
+        for item in items:
+            self.listShapeswidget.addItem(item)
+            # Restore the selection if the item was selected before
+            if item.text() in curr_shapes_items:
+                item.setSelected(True)
+        
+        return (image_layers, shape_layers)
+
 
     
 
@@ -2626,7 +2647,7 @@ class OMAAS(QWidget):
         
         if state == True:
             # print('Checked')
-            img_items, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
+            img_items, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=False)
             
             if not shapes_items and img_items:
                 return warn("Please create and Select a SHAPE from the Shape selector to plot profile")
@@ -2892,7 +2913,7 @@ class OMAAS(QWidget):
 
             if ini_i.size > 1:
 
-                img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
                 if len(img_items) > 1:
                     return warn("Please select only one image in the image selector")
                 current_img_selected = img_items[0]
@@ -3217,7 +3238,7 @@ class OMAAS(QWidget):
 
     def _plot_APD_boundaries_btn_func(self):
 
-        img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+        img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
         if len(img_items)  < 1 :
             return warn("Select an Image layer from the selector to apply this function.")
 
@@ -3252,7 +3273,7 @@ class OMAAS(QWidget):
                 #                       percentage = percentage)
             elif map_type == 2:                               
                 
-                _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
                 # cropped_img, _, _  = crop_from_shape(shapes_items[0], current_img_selection)
 
                 # results,  mask_repol_indx_out, t_index_out = return_index_for_map(cropped_img, 
@@ -3373,7 +3394,7 @@ class OMAAS(QWidget):
 
     def _on_click_average_roi_on_map_btn_fun(self):
         
-        _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+        _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
         current_img_selected = self.viewer.layers.selection.active
         
         try:
@@ -3771,7 +3792,7 @@ class OMAAS(QWidget):
             if self.is_range_clicked_checkbox.isChecked():
                 
                 time = self.data_main_canvas["x"]
-                selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
                 for image in selected_img_list:
                     results = image.data[start_indx:end_indx]
                     self.add_result_img(result_img=results, 
@@ -3799,7 +3820,7 @@ class OMAAS(QWidget):
             # assert that there is a trace in the main plotting canvas
             if len(self.main_plot_widget.figure.axes) > 0 :
                 time = self.data_main_canvas["x"]
-                selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
                 self.main_plot_widget.axes.axvline(start_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
                 self.main_plot_widget.axes.axvline(end_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
                 self.main_plot_widget.canvas.draw()
