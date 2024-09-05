@@ -2093,14 +2093,15 @@ class OMAAS(QWidget):
     #     # self.viewer.layers.save(filename, plugin='napari_jroiwriter')
     #     self.viewer.layers.save(filename, plugin='napari')
 
-    def _get_current_selected_TSP_layer_callback(self, event):
-        # this object is a list of image(s) selected from the Time_series_plotter pluggin layer selector
-                try:
-                    self.current_seleceted_layer_from_TSP = self.main_plot_widget.plotter.selector.model().get_checked()[0].name
-                except:
-                    self.current_seleceted_layer_from_TSP = "ImageID"
+    # NOTE: deprecating this method on 05.09.2024
+    # def _get_current_selected_TSP_layer_callback(self, event):
+    #     # this object is a list of image(s) selected from the Time_series_plotter pluggin layer selector
+    #             try:
+    #                 self.current_seleceted_layer_from_TSP = self.main_plot_widget.plotter.selector.model().get_checked()[0].name
+    #             except:
+    #                 self.current_seleceted_layer_from_TSP = "ImageID"
                 
-                self.table_rstl_name.setPlaceholderText(f"{self.current_seleceted_layer_from_TSP}_APD_rslts")
+    #             self.table_rstl_name.setPlaceholderText(f"{self.current_seleceted_layer_from_TSP}_APD_rslts")
     
     def _retrieve_metadata_call_back(self, event):
 
@@ -2111,7 +2112,7 @@ class OMAAS(QWidget):
             if layer is not None:
                 @layer.events.name.connect
                 def _on_rename(name_event):
-                    print(f'Layer {id(layer)} changed name to {layer.name}')
+                    # print(f'Layer {id(layer)} changed name to {layer.name}')
                     self._layer_list_changed_callback(event)
 
             if etype in ['active']:
