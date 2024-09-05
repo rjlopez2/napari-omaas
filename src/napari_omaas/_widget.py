@@ -2324,23 +2324,25 @@ class OMAAS(QWidget):
         self.slider_label_current_value_2.setText(self.slider_label_current_value.text())
         
         # check that you have content in the graphics panel
-        if len(self.main_plot_widget.figure.axes) > 0 :
-            traces = self.data_main_canvas["y"]
-            selected_img_list, shapes = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-            for img_indx, img_name in enumerate(selected_img_list):
-                for shpae_indx, shape in enumerate(shapes[0].data):
+        try:
+            if len(self.main_plot_widget.figure.axes) > 0 :
+                traces = self.data_main_canvas["y"]
+                selected_img_list, shapes = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                for img_indx, img_name in enumerate(selected_img_list):
+                    for shpae_indx, shape in enumerate(shapes[0].data):
 
-                    try:
 
-                        traces[img_indx + shpae_indx]
-                        n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
-                        self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
-                        self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
+                            traces[img_indx + shpae_indx]
+                            n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
+                            self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                            self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
-                    except Exception as e:
-                        print(f">>>>> this is a known error when computing peaks found while creating shapes interactively: '{e}'")
+                    break
+        except Exception as e:
+            # raise CustomException(e, sys)
+            print(CustomException(e, sys))
+            # print(f">>>>> this is a known error when computing peaks found while creating shapes interactively: '{e}'")
 
-                break
 
 
 
@@ -2716,16 +2718,20 @@ class OMAAS(QWidget):
     
     def _data_changed_callback(self, event):
 
-        # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
-        self._get_APD_thre_slider_vlaue_func(value=self.prominence * self.slider_APD_thres_max_range)
-        self._retrieve_metadata_call_back(event)
-        state = self.plot_profile_btn.isChecked()
-        if state:
-            self._on_click_plot_profile_btn_func()
-            self.main_plot_widget.canvas.draw()
-        else:
-            # warn("Please Check on 'Plot profile' to creaate the plot")
-            return
+        try:
+            # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+            self._get_APD_thre_slider_vlaue_func(value=self.prominence * self.slider_APD_thres_max_range)
+            self._retrieve_metadata_call_back(event)
+            state = self.plot_profile_btn.isChecked()
+            if state:
+                self._on_click_plot_profile_btn_func()
+                self.main_plot_widget.canvas.draw()
+            else:
+                # warn("Please Check on 'Plot profile' to creaate the plot")
+                return
+        except Exception as e:
+            # raise CustomException(e, sys)
+            print(CustomException(e, sys))
         
     def _preview_multiples_traces_func(self):
 
