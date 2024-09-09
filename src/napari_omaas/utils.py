@@ -1374,6 +1374,141 @@ def crop_from_shape(shape_layer, img_layer):
     return cropped_img, ini_index, end_index
 
 
+def bounding_box_vertices(my_labels_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
+    """
+    Create bounding box vertices with optional padding for each region in my_labels_data.
+    
+    Parameters:
+    - my_labels_data: The labeled image data.
+    - area_threshold: Minimum area to include a region.
+    - vertical_padding: Pixels to increase bounding box height (top and bottom).
+    - horizontal_padding: Pixels to increase bounding box width (left and right).
+    
+    Returns:
+    - A list of bounding box vertices suitable for drawing shapes in Napari.
+    """
+    # Retrieve bounding boxes from regionprops
+    bounding_boxes = [region.bbox for region in regionprops(my_labels_data) if region.area > area_threshold]
+
+    # Convert bounding boxes to vertex arrays for Napari
+    napari_boxes = []
+    for bbox in bounding_boxes:
+        # (min_row, min_col, max_row, max_col)
+        min_row, min_col, max_row, max_col = bbox
+
+        # Apply padding to bounding box
+        min_row = max(min_row - vertical_padding, 0)  # Ensure not negative
+        max_row += vertical_padding
+        min_col = max(min_col - horizontal_padding, 0)  # Ensure not negative
+        max_col += horizontal_padding
+
+        # Create a numpy array of vertices in the required format
+        box_vertices = np.array([
+            [min_row, min_col],  # top-left corner
+            [min_row, max_col],  # top-right corner
+            [max_row, max_col],  # bottom-right corner
+            [max_row, min_col],  # bottom-left corner
+        ])
+
+        napari_boxes.append(box_vertices)
+
+    return napari_boxes
+
+
+def crop_from_bounding_boxes(img_layer, my_labels_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
+    """
+    Crop regions from an image based on bounding boxes from labels.
+
+    Parameters:
+    - img_layer: The image layer from which to crop.
+    - my_labels_data: Labeled data to generate bounding boxes.
+    - area_threshold: Minimum area to include a region.
+    - vertical_padding: Pixels to increase bounding box height (top and bottom).
+    - horizontal_padding: Pixels to increase bounding box width (left and right).
+
+    Returns:
+    - A list of cropped images corresponding to each bounding box.
+    """
+    dshape = img_layer.data.shape
+    bounding_boxes = bounding_box_vertices(my_labels_data, area_threshold, vertical_padding, horizontal_padding)
+    
+    cropped_images = []
+    
+    for indx, box in enumerate(bounding_boxes):
+        # Get top-left (tl) and bottom-right (br) corners
+        tl, _, br, _ = box
+
+        # Convert to integer values
+        tl = tl.astype(int)
+        br = br.astype(int)
+
+        # Crop coordinates
+        y_ini, x_ini = tl
+        y_end, x_end = br
+
+        # Ensure the coordinates are within valid ranges
+        if y_ini < 0: y_ini = 0
+        if x_ini < 0: x_ini = 0
+        if y_end > dshape[-2]: y_end = dshape[-2]
+        if x_end > dshape[-1]: x_end = dshape[-1]
+
+        # Crop the image
+        cropped_img = img_layer.data[:, y_ini:y_end, x_ini:x_end]
+        if indx in [0, 1, 2]:
+            cropped_img = np.rot90(cropped_img, axes=(1, 2))
+        if indx == 3:
+            cropped_img = np.rot90(cropped_img, axes=(2, 1))
+            
+
+        cropped_images.append((cropped_img, [y_ini, x_ini], [y_end, x_end]))
+
+    return cropped_images
+
+
+def arrange_cropped_images(cropped_images, arrangement='horizontal', padding_value=0):
+    """
+    Arrange cropped images horizontally or vertically into a new array, padding smaller images as needed.
+
+    Parameters:
+    - cropped_images: List of tuples containing (cropped_image, ini_index, end_index).
+                      Each cropped_image is a numpy array of the form (channels, height, width).
+    - arrangement: 'horizontal' or 'vertical' arrangement of the images.
+    - padding_value: The value to use for padding (default: 0, but could be NaN or any other value).
+    
+    Returns:
+    - A new numpy array with the images arranged horizontally or vertically with padding.
+    """
+    # Get the maximum height and width among all cropped images
+    max_height = max([img.shape[-2] for img, _, _ in cropped_images])
+    max_width = max([img.shape[-1] for img, _, _ in cropped_images])
+
+    # Initialize a list to hold the padded images
+    padded_images = []
+
+    for img, _, _ in cropped_images:
+        # Get current image dimensions
+        img_height, img_width = img.shape[-2], img.shape[-1]
+
+        # Create a new array filled with padding_value and of the max size
+        padded_img = np.full((img.shape[0], max_height, max_width), fill_value=padding_value, dtype=img.dtype)
+
+        # Place the original image in the top-left corner of the padded array
+        padded_img[:, :img_height, :img_width] = img
+
+        padded_images.append(padded_img)
+
+    # Stack the padded images horizontally or vertically
+    if arrangement == 'horizontal':
+        # Concatenate along the width axis
+        new_image = np.concatenate(padded_images, axis=-1)
+    elif arrangement == 'vertical':
+        # Concatenate along the height axis
+        new_image = np.concatenate(padded_images, axis=-2)
+    else:
+        raise ValueError("Arrangement must be either 'horizontal' or 'vertical'")
+
+    return new_image
+
 @macro.record
 def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df = False, percentage = 75):
     
