@@ -1665,14 +1665,24 @@ def segement_region_based_func(array_2d, lo_t = 0.05, hi_t = 0.2, expand = None)
     return (mask)
 
 @macro.record
-def polish_mask(mask, small_obj_s = 500, small_holes_s = 5):
+def polish_mask(mask, small_obj_s = 1000, small_holes_s = 5):
+    
+    # Number of pixels you want to reduce from the edges
+    erosion_size = 3 
 
-    cleared = remove_small_objects(mask, small_obj_s)
+    # Pad the mask using numpy.pad
+    padded_mask = np.pad(mask, pad_width=erosion_size, mode='constant', constant_values=0)
+    # Apply erosion with a square or custom structuring element
+    eroded_mask = morphology.binary_erosion(padded_mask, disk(erosion_size))
+    # Remove the padding to get the mask back to its original size
+    cleared = eroded_mask[erosion_size:-erosion_size, erosion_size:-erosion_size]
+    
+    cleared = remove_small_objects(cleared, small_obj_s)
     
     # 6. fill smaall holes ininside regions objects
     footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
     cleared = binary_closing(cleared, footprint=footprint)
-    # cleared = clear_border(bw)
+    cleared = segmentation.clear_border(cleared)
 
     # 7.  label image regions
     label_image = label(cleared)
