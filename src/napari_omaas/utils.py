@@ -13,6 +13,7 @@ from skimage.morphology import disk, binary_closing, remove_small_objects, closi
 from skimage.registration import optical_flow_ilk
 from skimage import transform, exposure, morphology, registration, segmentation
 from skimage.restoration import denoise_bilateral
+from skimage.measure import regionprops
 
 ########## utils ##########
 import warnings
