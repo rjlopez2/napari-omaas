@@ -76,7 +76,10 @@ from .utils import (
     apply_FIR_filt_func,
     gaussian_filter_nan,
     # decodeDictionary,
-    convert_to_json_serializable
+    convert_to_json_serializable,
+    bounding_box_vertices,
+    crop_from_bounding_boxes, 
+    arrange_cropped_images
 
 )
 
@@ -587,7 +590,7 @@ class OMAAS(QWidget):
         
         ######## Rois handeling group ########
         self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
-        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox, 0, 0, 0, 1)
+        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox, 0, 0, 1, 1)
         
         self.ROI_selection_1 = QComboBox()
         self.ROI_1_label = QLabel("From layer")
@@ -607,8 +610,9 @@ class OMAAS(QWidget):
         self.copy_ROIs_btn.setToolTip(("Transfer ROIs from one 'Shape' layer to another 'Shape' layer"))
         self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 3, 0, 1, 2)
 
+
         self.crop_from_shape_group = VHGroup('Crop from shape', orientation='G')
-        self._layers_processing_layout.addWidget(self.crop_from_shape_group.gbox, 0, 1, 0, 1)
+        self._layers_processing_layout.addWidget(self.crop_from_shape_group.gbox, 0, 1, 1, 1)
         
         self.shape_crop_label = QLabel("Shape")
         self.crop_from_shape_group.glayout.addWidget(self.shape_crop_label, 1, 0, 1, 1)
@@ -630,6 +634,42 @@ class OMAAS(QWidget):
 
         self.crop_from_shape_btn = QPushButton("Crop")
         self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 3)
+
+        self.crop_all_views_and_rotate_group = VHGroup('Crop all views and Align', orientation='G')
+        self._layers_processing_layout.addWidget(self.crop_all_views_and_rotate_group.gbox, 1, 0, 1, 2)
+
+        self.pad_h_pixels_label = QLabel("Pad horizontal")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_h_pixels_label, 0, 0, 1, 1)
+        # self.c_kernels_label.setToolTip((""))
+        self.pad_h_pixels = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.pad_h_pixels.setRange(0, 100)
+        self.pad_h_pixels.setValue(10)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_h_pixels, 0, 1, 1, 1)
+
+        self.pad_v_pixels_label = QLabel("Pad Vertical")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_v_pixels_label, 0, 2, 1, 1)
+        # self.c_kernels_label.setToolTip((""))
+        self.pad_v_pixels = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.pad_v_pixels.setRange(0, 100)
+        self.pad_v_pixels.setValue(10)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_v_pixels, 0, 3, 1, 1)
+
+        self.pad_value_label = QLabel("Pad with value:")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value_label, 1, 0, 1, 1)
+        
+        self.pad_value = QComboBox()
+        self.pad_value.addItems(["0", "NaN"])
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value, 1, 1, 1, 1)
+        
+        self.crop_view_orientation_label = QLabel("Orientation:")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_view_orientation_label, 1, 2, 1, 1)
+        
+        self.crop_view_orientation = QComboBox()
+        self.crop_view_orientation.addItems(["horizontal", "vertical"])
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_view_orientation, 1, 3, 1, 1)
+        
+        self.crop_all_views_and_rotate_btn = QPushButton("Crop Views and rotate")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 4)
 
 
 
@@ -1308,7 +1348,7 @@ class OMAAS(QWidget):
         self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
         self.make_maps_btn.clicked.connect(self._on_click_make_maps_btn_func)
         self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_bt_func)
-        self.apply_auto_segmentation_btn.clicked.connect(self._on_click_apply_segmentation_btn_fun)
+        self.apply_auto_segmentation_btn.clicked.connect(lambda: self._on_click_apply_segmentation_btn_fun(return_result_as_layer=True, return_mask=False)) # This trick allow to pass just the param as expected
         self.average_roi_on_map_btn.clicked.connect(self._on_click_average_roi_on_map_btn_fun)
         self.plot_histogram_btn.clicked.connect(self._on_click_plot_histogram_btn_func)
         self.clear_histogram_btn.clicked.connect(self._on_click_clear_histogram_btn_func)
@@ -1329,7 +1369,7 @@ class OMAAS(QWidget):
         self.plot_curr_map_btn.clicked.connect(self._plot_curr_map_btn_fun)
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
         self.preview_erode_btn.clicked.connect(self._preview_erode_btn_func)
-        
+        self.crop_all_views_and_rotate_btn.clicked.connect(self._crop_all_views_and_rotate_btn_func)
         
         
         
@@ -3518,7 +3558,7 @@ class OMAAS(QWidget):
 
         
 
-    def _on_click_apply_segmentation_btn_fun(self):
+    def _on_click_apply_segmentation_btn_fun(self, return_result_as_layer = True, return_mask = False):
         current_selection = self.viewer.layers.selection.active
         if isinstance(current_selection, Image):
 
@@ -3607,10 +3647,14 @@ class OMAAS(QWidget):
                     mask = np.invert(mask.astype(bool))
                 params["inverted_mask"]= is_mask_inverted
 
-                self.add_result_label(mask, 
-                                        img_custom_name="Heart_labels", 
-                                        single_label_sufix = f"NullBckgrnd", 
-                                        add_to_metadata = f"Background image masked")
+                if return_mask:
+                    return mask
+                
+                if return_result_as_layer:
+                    self.add_result_label(mask, 
+                                            img_custom_name="Heart_labels", 
+                                            single_label_sufix = f"NullBckgrnd", 
+                                            add_to_metadata = f"Background image masked")
                 
                 if is_return_image:
                     params["return_image"] = is_return_image
@@ -3662,7 +3706,7 @@ class OMAAS(QWidget):
                 # print(CustomException(e, sys))
 
         else:
-            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+            warn(f"Select an Image layer to apply this function.")
     
 
 
@@ -4167,6 +4211,51 @@ class OMAAS(QWidget):
     
     def _close_preview_erode_window_btn(self):
         self.InterctiveWindowMapErode.close()
+
+    def _crop_all_views_and_rotate_btn_func(self):
+        try:
+        # 1. get mask from current Image using auto segemntation
+            current_selection = self.viewer.layers.selection.active
+            h_padding = self.pad_h_pixels.value()
+            v_padding = self.pad_v_pixels.value()
+            pad_value = 0 if self.pad_value.currentText() == "0" else np.nan 
+
+            arrangement = self.crop_view_orientation.currentText()
+
+            if isinstance(current_selection, Image):
+                mask = self._on_click_apply_segmentation_btn_fun(return_result_as_layer=False, 
+                                                                 return_mask=True)
+        
+                # 2. from mask create bounding box
+                # boxes = bounding_box_vertices(my_labels_data=mask, 
+                #                               area_threshold=1000, 
+                #                                 vertical_padding=0, 
+                #                                 horizontal_padding=0)
+                
+
+                # 3.create and crop boxes from labels
+                cropped_images = crop_from_bounding_boxes(img_layer=current_selection,
+                                                          my_labels_data=mask,
+                                                          area_threshold=1000,
+                                                          vertical_padding=v_padding,
+                                                          horizontal_padding=h_padding)
+
+                # 3. arrange and combine boxes
+                results = arrange_cropped_images(cropped_images=cropped_images, 
+                                                arrangement=arrangement, 
+                                                padding_value=pad_value)
+                
+                self.add_result_img(result_img=results, 
+                                operation_name="crop_and_rearrange_views", 
+                                custom_img_name=current_selection.name, 
+                                method_name="crop_from_shape", 
+                                custom_metadata= current_selection.metadata, 
+                                sufix="Crop", parameters=None)
+                
+        # arrange_cropped_images
+            print("cropping")
+        except Exception as e:
+            print(CustomException(e, sys))
 
 
 
