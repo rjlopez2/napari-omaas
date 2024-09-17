@@ -1375,21 +1375,26 @@ def crop_from_shape(shape_layer, img_layer):
     return cropped_img, ini_index, end_index
 
 
-def bounding_box_vertices(my_labels_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
+def bounding_box_vertices(my_labels_data, img_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
     """
     Create bounding box vertices with optional padding for each region in my_labels_data.
+    The resulting bounding boxes are sorted from left to right based on their position.
     
     Parameters:
     - my_labels_data: The labeled image data.
+    - img_data: 2d intensity image data used for regioprops.
     - area_threshold: Minimum area to include a region.
     - vertical_padding: Pixels to increase bounding box height (top and bottom).
     - horizontal_padding: Pixels to increase bounding box width (left and right).
     
     Returns:
-    - A list of bounding box vertices suitable for drawing shapes in Napari.
+    - A sorted list of bounding box vertices suitable for drawing shapes in Napari.
     """
     # Retrieve bounding boxes from regionprops
-    bounding_boxes = [region.bbox for region in regionprops(my_labels_data) if region.area > area_threshold]
+    bounding_boxes = [region.bbox for region in regionprops(label_image=my_labels_data, intensity_image=img_data) if region.area > area_threshold]
+
+    # Sort bounding boxes from left to right based on min_col (second value in bbox)
+    bounding_boxes.sort(key=lambda bbox: bbox[1])  # Sort by the second value (min_col)
 
     # Convert bounding boxes to vertex arrays for Napari
     napari_boxes = []
@@ -1431,7 +1436,7 @@ def crop_from_bounding_boxes(img_layer, my_labels_data, area_threshold=1000, ver
     - A list of cropped images corresponding to each bounding box.
     """
     dshape = img_layer.data.shape
-    bounding_boxes = bounding_box_vertices(my_labels_data, area_threshold, vertical_padding, horizontal_padding)
+    bounding_boxes = bounding_box_vertices(my_labels_data, img_layer.data[0], area_threshold, vertical_padding, horizontal_padding)
     
     cropped_images = []
     
