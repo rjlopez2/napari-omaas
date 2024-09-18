@@ -658,7 +658,7 @@ class OMAAS(QWidget):
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value_label, 1, 0, 1, 1)
         
         self.pad_value = QComboBox()
-        self.pad_value.addItems(["0", "NaN"])
+        self.pad_value.addItems(["background", "0", "NaN"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value, 1, 1, 1, 1)
         
         self.crop_view_orientation_label = QLabel("Orientation:")
@@ -4215,14 +4215,17 @@ class OMAAS(QWidget):
     def _crop_all_views_and_rotate_btn_func(self):
         try:
         # 1. get mask from current Image using auto segemntation
-            current_selection = self.viewer.layers.selection.active
-            h_padding = self.pad_h_pixels.value()
-            v_padding = self.pad_v_pixels.value()
-            pad_value = 0 if self.pad_value.currentText() == "0" else np.nan 
 
-            arrangement = self.crop_view_orientation.currentText()
+            # pad_value = 0 if self.pad_value.currentText() == "0" else np.nan 
+            current_selection = self.viewer.layers.selection.active
 
             if isinstance(current_selection, Image):
+
+                h_padding = self.pad_h_pixels.value()
+                v_padding = self.pad_v_pixels.value()
+                arrangement = self.crop_view_orientation.currentText()
+                
+                    
                 mask = self._on_click_apply_segmentation_btn_fun(return_result_as_layer=False, 
                                                                  return_mask=True)
         
@@ -4234,16 +4237,34 @@ class OMAAS(QWidget):
                 
 
                 # 3.create and crop boxes from labels
-                cropped_images = crop_from_bounding_boxes(img_layer=current_selection,
+                cropped_images, cropped_labels = crop_from_bounding_boxes(img_layer=current_selection,
                                                           my_labels_data=mask,
                                                           area_threshold=1000,
                                                           vertical_padding=v_padding,
                                                           horizontal_padding=h_padding)
 
                 # 3. arrange and combine boxes
+                if self.pad_value.currentText() == "0":
+                    pad_value = 0
+                elif self.pad_value.currentText() == "NaN":
+                    pad_value = np.nan 
+                elif self.pad_value.currentText() == "background":
+                    # takes the mean of the backgorund
+                    pad_value = np.mean(current_selection.data[0][~mask.astype(bool)])
+
                 results = arrange_cropped_images(cropped_images=cropped_images, 
                                                 arrangement=arrangement, 
                                                 padding_value=pad_value)
+                
+                cropped_labels_3d = [label[np.newaxis, :, :] for label in cropped_labels]
+                arranged_labels = arrange_cropped_images([(label, None, None) for label in cropped_labels_3d], 
+                                                         arrangement='horizontal', 
+                                                         padding_value=0)
+                
+                self.add_result_label(arranged_labels[0], 
+                                            img_custom_name="Heart_labels", 
+                                            single_label_sufix = f"NullBckgrnd", 
+                                            add_to_metadata = f"Background image masked")
                 
                 self.add_result_img(result_img=results, 
                                 operation_name="crop_and_rearrange_views", 
