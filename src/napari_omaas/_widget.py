@@ -1596,27 +1596,44 @@ class OMAAS(QWidget):
         #     return warn(f"The shape of your images does not seems to be the same. Please check the images. dim of '{img0_name}' = {img0.data.shape} and dim of '{img1_name}' = {img1.data.shape}")
         # else :
         img0_name = self.Ch0_ratio.currentText()
-        img0 = self.viewer.layers[img0_name]
+        img0 = self.viewer.layers[img0_name].data
         img1_name = self.Ch1_ratio.currentText()
-        img1 = self.viewer.layers[img1_name]
+        img1 = self.viewer.layers[img1_name].data
 
         # metadata = img0.metadata
         params = {"is_ratio_inverted": self.is_ratio_inverted.isChecked()}
 
-        if self.is_ratio_inverted.isChecked():
-            results = img1.data/img0.data
-            
-            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh1Ch0", custom_inputs=[img1_name, img0_name], )                                    
-            
-            print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
+        try:
 
-        else:
-            results = img0.data/img1.data
-            
-            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
+            # check that the dimensions are compatible for broadcasting division
+            # Get the shapes of the arrays
+            shape1 = img0.shape
+            shape2 = img1.shape
 
-            print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
+            # Determine the minimum shape along each dimension
+            min_shape = tuple(min(s1, s2) for s1, s2 in zip(shape1, shape2))
 
+            # Slice the larger array to match the smaller one
+            img0 = img0[:min_shape[0], :min_shape[1], :min_shape[2]]
+            img1 = img1[:min_shape[0], :min_shape[1], :min_shape[2]]
+
+
+            if self.is_ratio_inverted.isChecked():
+                results = img1/img0
+                
+                self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh1Ch0", custom_inputs=[img1_name, img0_name], )                                    
+                
+                print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
+
+            else:
+                results = img0/img1
+                
+                self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
+
+                print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
+
+        except Exception as e:
+            print(CustomException(e, sys))
 
     def _on_click_apply_spat_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
