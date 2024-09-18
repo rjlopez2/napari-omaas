@@ -2595,66 +2595,74 @@ class OMAAS(QWidget):
         
         value = event.value
         etype = event.type
-        # handle name change by bypasing the event to the _layer_list_changed_callback
-        if etype in ['inserted', 'removed', 'reordered', 'active']:
+        try:
 
-            image_layers, shape_layers = self._populate_main_ImgShap_selector()
+            # handle name change by bypasing the event to the _layer_list_changed_callback
+            if etype in ['inserted', 'removed', 'reordered', 'active']:
 
-            # Capture the current selected items
-            # curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=False)
-            curr_img_items_2d = self._get_imgs2d_from_map_selector(return_img=False)
-            if isinstance(value, Shapes) or isinstance(value, LayerList):
+                image_layers, shape_layers = self._populate_main_ImgShap_selector()
 
-                # Update other selectors
-                self.ROI_selection_1.clear()
-                self.ROI_selection_1.addItems(shape_layers) 
-                self.ROI_selection_2.clear()
-                self.ROI_selection_2.addItems(shape_layers)
-                self.ROI_selection_crop.clear()
-                self.ROI_selection_crop.addItems(shape_layers) 
-                self.ROI_selection_crop.setCurrentIndex(0)
+                # Capture the current selected items
+                # curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=False)
+                curr_img_items_2d = self._get_imgs2d_from_map_selector(return_img=False)
+                if isinstance(value, Shapes) or isinstance(value, LayerList):
 
-            if isinstance(value, Image) or isinstance(value, LayerList):
+                    # Update other selectors
+                    self.ROI_selection_1.clear()
+                    self.ROI_selection_1.addItems(shape_layers) 
+                    self.ROI_selection_2.clear()
+                    self.ROI_selection_2.addItems(shape_layers)
+                    self.ROI_selection_crop.clear()
+                    self.ROI_selection_crop.addItems(shape_layers) 
+                    self.ROI_selection_crop.setCurrentIndex(0)
+
+                if isinstance(value, Image) or isinstance(value, LayerList):
+                    
+                    # Update image selector for cropping
+                    self.image_selection_crop.clear()
+                    self.image_selection_crop.addItems(image_layers)
+                    self.image_selection_crop.setCurrentIndex(0)
+                    
+                    # Update image selector for maps
+                    self.map_imgs_selector.clear()
+                    all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
+                    for image in all_images_2d:
+                        item = QtWidgets.QListWidgetItem(image)
+                        self.map_imgs_selector.addItem(item)
+                        # Restore the selection if the item was selected before
+                        if item.text() in curr_img_items_2d:
+                            item.setSelected(True)
+                    
+                    # Update image selector for Ratio
+                    self.Ch0_ratio.clear()
+                    self.Ch0_ratio.addItems(image_layers)
+                    self.Ch1_ratio.clear()
+                    self.Ch1_ratio.addItems(image_layers)
+
+                    if len(image_layers) >= 3:
+                        n_imgs = len(image_layers)
+                        self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
+                        self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
+                    
+                    # Update name of current image name to export
+                    # trick for case when is a removing image event
+                    if etype == 'removed':
+                        self.name_image_to_export.setPlaceholderText("my_image")
+                    else:
+                        if not isinstance(value, LayerList):
+                            self.name_image_to_export.setPlaceholderText(value.name)
+                        else:
+                            self.name_image_to_export.setPlaceholderText(value[0].name) 
                 
-                # Update image selector for cropping
-                self.image_selection_crop.clear()
-                self.image_selection_crop.addItems(image_layers)
-                self.image_selection_crop.setCurrentIndex(0)
-                
-                # Update image selector for maps
-                self.map_imgs_selector.clear()
-                all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
-                for image in all_images_2d:
-                    item = QtWidgets.QListWidgetItem(image)
-                    self.map_imgs_selector.addItem(item)
-                    # Restore the selection if the item was selected before
-                    if item.text() in curr_img_items_2d:
-                        item.setSelected(True)
-                
-                # Update image selector for Ratio
-                self.Ch0_ratio.clear()
-                self.Ch0_ratio.addItems(image_layers)
-                self.Ch1_ratio.clear()
-                self.Ch1_ratio.addItems(image_layers)
 
-                if len(image_layers) >= 3:
-                    n_imgs = len(image_layers)
-                    self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
-                    self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
-                
-                # Update name of current image name to export
-                # trick for case when is a removing image event
-                if etype == 'removed':
-                    self.name_image_to_export.setPlaceholderText("my_image")
-                else:
-                    self.name_image_to_export.setPlaceholderText(value.name)
-               
+                if isinstance(value, Labels) or isinstance(value, LayerList):
+                    all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
+                    # Update mask selector for manual segmentation
+                    self.mask_list_manual_segment.clear()
+                    self.mask_list_manual_segment.addItems(all_labels)
 
-            if isinstance(value, Labels) or isinstance(value, LayerList):
-                all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
-                # Update mask selector for manual segmentation
-                self.mask_list_manual_segment.clear()
-                self.mask_list_manual_segment.addItems(all_labels)
+        except Exception as e:
+            raise CustomException(e, sys)
     
     def _populate_main_ImgShap_selector(self)-> dict[list[str], list[str]]:
         """
