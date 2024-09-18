@@ -2149,7 +2149,7 @@ class OMAAS(QWidget):
             layer = event.value
             etype = event.type
             # handle name change by bypasing the event to the _layer_list_changed_callback
-            if layer is not None:
+            if layer is not None and not isinstance(layer, list):
                 @layer.events.name.connect
                 def _on_rename(name_event):
                     # print(f'Layer {id(layer)} changed name to {layer.name}')
@@ -2808,7 +2808,7 @@ class OMAAS(QWidget):
         try:
             # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             self._get_APD_thre_slider_vlaue_func(value=self.prominence * self.slider_APD_thres_max_range)
-            self._retrieve_metadata_call_back(event)
+            # self._retrieve_metadata_call_back(event)
             state = self.plot_profile_btn.isChecked()
             if state:
                 self._on_click_plot_profile_btn_func()
