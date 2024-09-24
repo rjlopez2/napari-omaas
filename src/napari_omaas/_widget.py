@@ -4284,7 +4284,7 @@ class OMAAS(QWidget):
 
                 h_padding = self.pad_h_pixels.value()
                 v_padding = self.pad_v_pixels.value()
-                arrangement = self.crop_view_orientation.currentText()
+                orientation = self.crop_view_orientation.currentText()
                 list_of_rotate_directions = [combo.currentText() for combo in self.view_rotates]
                 
                     
@@ -4316,12 +4316,12 @@ class OMAAS(QWidget):
                     pad_value = np.mean(current_selection.data[0][~mask.astype(bool)])
 
                 results = arrange_cropped_images(cropped_images=cropped_images, 
-                                                arrangement=arrangement, 
+                                                arrangement=orientation, 
                                                 padding_value=pad_value)
                 
                 cropped_labels_3d = [label[np.newaxis, :, :] for label in cropped_labels]
                 arranged_labels = arrange_cropped_images([(label, None, None) for label in cropped_labels_3d], 
-                                                         arrangement='horizontal', 
+                                                         arrangement=orientation, 
                                                          padding_value=0)
                 
                 self.add_result_label(arranged_labels[0], 
