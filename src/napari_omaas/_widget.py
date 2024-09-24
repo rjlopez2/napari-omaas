@@ -673,6 +673,7 @@ class OMAAS(QWidget):
         
         self.view0_rotate = QComboBox()
         self.view0_rotate.addItems(["R", "L"])
+        self.view0_rotate.setCurrentText("L")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.view0_rotate, 0, 5, 1, 1)
         
         self.view1_rotate_label = QLabel("View 1")
@@ -680,6 +681,7 @@ class OMAAS(QWidget):
         
         self.view1_rotate = QComboBox()
         self.view1_rotate.addItems(["R", "L"])
+        self.view1_rotate.setCurrentText("L")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.view1_rotate, 0, 7, 1, 1)
         
         self.view2_rotate_label = QLabel("View 2")
@@ -687,6 +689,7 @@ class OMAAS(QWidget):
         
         self.view2_rotate = QComboBox()
         self.view2_rotate.addItems(["R", "L"])
+        self.view2_rotate.setCurrentText("L")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.view2_rotate, 1, 5, 1, 1)
         
         self.view3_rotate_label = QLabel("View 3")
@@ -695,8 +698,13 @@ class OMAAS(QWidget):
         self.view3_rotate = QComboBox()
         self.view3_rotate.addItems(["R", "L"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.view3_rotate, 1, 7, 1, 1)
+        self.view_rotates = [self.view0_rotate, 
+                            self.view1_rotate, 
+                            self.view2_rotate, 
+                            self.view3_rotate
+                            ]
         
-        self.crop_all_views_and_rotate_btn = QPushButton("Crop views and rotate")
+        self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 8)
 
 
@@ -4277,6 +4285,7 @@ class OMAAS(QWidget):
                 h_padding = self.pad_h_pixels.value()
                 v_padding = self.pad_v_pixels.value()
                 arrangement = self.crop_view_orientation.currentText()
+                list_of_rotate_directions = [combo.currentText() for combo in self.view_rotates]
                 
                     
                 mask = self._on_click_apply_segmentation_btn_fun(return_result_as_layer=False, 
@@ -4294,7 +4303,8 @@ class OMAAS(QWidget):
                                                           my_labels_data=mask,
                                                           area_threshold=1000,
                                                           vertical_padding=v_padding,
-                                                          horizontal_padding=h_padding)
+                                                          horizontal_padding=h_padding, 
+                                                          rotate_directions = list_of_rotate_directions)
 
                 # 3. arrange and combine boxes
                 if self.pad_value.currentText() == "0":

@@ -1428,13 +1428,14 @@ def bounding_box_vertices(my_labels_data, area_threshold=1000, vertical_padding=
     return napari_boxes, cropped_labels
 
 
-def crop_from_bounding_boxes(img_layer, my_labels_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
+def crop_from_bounding_boxes(img_layer, my_labels_data, rotate_directions, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
     """
     Crop regions from an image based on bounding boxes from labels.
 
     Parameters:
     - img_layer: The image layer from which to crop.
     - my_labels_data: Labeled data to generate bounding boxes.
+    - rotate_directions: list of 4 elements (strings) showing the direction to rotate the image R (right) or L (left).
     - area_threshold: Minimum area to include a region.
     - vertical_padding: Pixels to increase bounding box height (top and bottom).
     - horizontal_padding: Pixels to increase bounding box width (left and right).
@@ -1447,7 +1448,7 @@ def crop_from_bounding_boxes(img_layer, my_labels_data, area_threshold=1000, ver
     
     cropped_images = []
     
-    for indx, (box, label )in enumerate(zip(bounding_boxes, cropped_labels)):
+    for indx, (box, label, direction)in enumerate(zip(bounding_boxes, cropped_labels, rotate_directions)):
         # Get top-left (tl) and bottom-right (br) corners
         tl, _, br, _ = box
 
@@ -1467,10 +1468,10 @@ def crop_from_bounding_boxes(img_layer, my_labels_data, area_threshold=1000, ver
 
         # Crop the image
         cropped_img = img_layer.data[:, y_ini:y_end, x_ini:x_end]
-        if indx in [0, 1, 2]:
+        if direction  == "L":
             cropped_img = np.rot90(cropped_img, axes=(1, 2))
             cropped_labels[indx] = np.rot90(label, axes=(0, 1))
-        if indx == 3:
+        if direction == "R":
             cropped_img = np.rot90(cropped_img, axes=(2, 1))
             cropped_labels[indx] = np.rot90(label, axes=(1, 0))
             
