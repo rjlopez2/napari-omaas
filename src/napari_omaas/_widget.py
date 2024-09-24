@@ -705,7 +705,8 @@ class OMAAS(QWidget):
                             ]
         
         self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 8)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 7)
+
 
 
 
@@ -4115,39 +4116,42 @@ class OMAAS(QWidget):
             if len(shape_layer.data) == 0:
                 return warn("Selected shape for cropping is empty. Please draw a square ROI to use for cropping operation.")
 
-            cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
-            a, b, c, d = shape_layer.data[0]
-            param = {
-                "from_shape": {"name": shape_name,
-                               "data": {"t_right" : a.tolist(),
-                                        "t_left" : b.tolist(),
-                                        "b_left" : c.tolist(),
-                                        "b_right" : d.tolist()}
-                                        },
-                "crop_indexes": {"y": {"ini_index":int(ini_index[0]),
-                                    "end_index": int(end_index[0])},
-                                "x": {"ini_index":int(ini_index[1]),
-                                            "end_index": int(end_index[1])}}
-                                        
-                }
+            for shape in shape_layer.data:
+                cropped_img, ini_index, end_index = crop_from_shape(shape, img_layer)
 
-            if self.rotate_l_crop.isChecked():
-                cropped_img = np.rot90(cropped_img, axes=(1, 2))
-                print(f"result image rotate 90° to the left")
-                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}
-                self.rotate_l_crop.setChecked(False)
-            elif self.rotate_r_crop.isChecked():
-                cropped_img = np.rot90(cropped_img, axes=(2, 1))
-                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
-                print(f"result image rotate 90° to the right")
-                self.rotate_r_crop.setChecked(False)
+                a, b, c, d = shape
+                param = {
+                    "from_shape": {"name": shape_name,
+                                "data": {"t_right" : a.tolist(),
+                                            "t_left" : b.tolist(),
+                                            "b_left" : c.tolist(),
+                                            "b_right" : d.tolist()}
+                                            },
+                    "crop_indexes": {"y": {"ini_index":int(ini_index[0]),
+                                        "end_index": int(end_index[0])},
+                                    "x": {"ini_index":int(ini_index[1]),
+                                                "end_index": int(end_index[1])}}
+                                            
+                    }
 
-            self.add_result_img(result_img=cropped_img, 
-                                operation_name="Crop_image", 
-                                custom_img_name=img_name, 
-                                method_name="crop_from_shape", 
-                                custom_metadata= metadata, 
-                                sufix="Crop", parameters=param)
+                if self.rotate_l_crop.isChecked():
+                    cropped_img = np.rot90(cropped_img, axes=(1, 2))
+                    print(f"result image rotate 90° to the left")
+                    param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}
+                elif self.rotate_r_crop.isChecked():
+                    cropped_img = np.rot90(cropped_img, axes=(2, 1))
+                    param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
+                    print(f"result image rotate 90° to the right")
+
+                self.add_result_img(result_img=cropped_img, 
+                                    operation_name="Crop_image", 
+                                    custom_img_name=img_name, 
+                                    method_name="crop_from_shape", 
+                                    custom_metadata= metadata, 
+                                    sufix="Crop", parameters=param)
+            
+            self.rotate_l_crop.setChecked(False)
+            self.rotate_r_crop.setChecked(False)
             self.add_record_fun()
             print(f"image '{img_name}' cropped")
             # return
