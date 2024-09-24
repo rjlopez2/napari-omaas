@@ -1337,7 +1337,7 @@ def return_index_for_map(image: "napari.types.ImageData", cycle_time, percentage
                         raise e
 
 @macro.record
-def crop_from_shape(shape_layer, img_layer):
+def crop_from_shape(shape_layer_data, img_layer):
     dshape = img_layer.data.shape
 
     # NOTE: you need to handel case for 2d images alike 3d images
@@ -1346,7 +1346,7 @@ def crop_from_shape(shape_layer, img_layer):
     
     # label = shape_layer.to_labels(dshape[-2:])
     # get vertices from shape: top-right, top-left, botton-left, botton-right
-    tl, tr, bl, br = shape_layer.data[0].astype(int)
+    tl, tr, bl, br = shape_layer_data.astype(int)
     y_ini, y_end = sorted([tr[-2], br[-2]])
     x_ini, x_end = sorted([tl[-1], tr[-1]])
     ini_index = [y_ini, x_ini ]
@@ -1468,18 +1468,17 @@ def crop_from_bounding_boxes(img_layer, my_labels_data, rotate_directions, area_
 
         # Crop the image
         cropped_img = img_layer.data[:, y_ini:y_end, x_ini:x_end]
-        if direction  == "L":
+        if indx in [0, 1, 2]:
             cropped_img = np.rot90(cropped_img, axes=(1, 2))
             cropped_labels[indx] = np.rot90(label, axes=(0, 1))
-        if direction == "R":
+        if indx == 3:
             cropped_img = np.rot90(cropped_img, axes=(2, 1))
             cropped_labels[indx] = np.rot90(label, axes=(1, 0))
             
 
         cropped_images.append((cropped_img, [y_ini, x_ini], [y_end, x_end]))
 
-    return cropped_images, cropped_labels
-
+    return cropped_images, cropped_labels, bounding_boxes
 
 def arrange_cropped_images(cropped_images, arrangement='horizontal', padding_value=0):
     """

@@ -635,7 +635,7 @@ class OMAAS(QWidget):
         self.crop_from_shape_btn = QPushButton("Crop")
         self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 3)
 
-        self.crop_all_views_and_rotate_group = VHGroup('Crop all views and Align', orientation='G')
+        self.crop_all_views_and_rotate_group = VHGroup('Crop views and rearrange', orientation='G')
         self._layers_processing_layout.addWidget(self.crop_all_views_and_rotate_group.gbox, 1, 0, 1, 2)
 
         self.pad_h_pixels_label = QLabel("Pad Hor")
@@ -707,6 +707,8 @@ class OMAAS(QWidget):
         self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 7)
 
+        self.return_bounding_boxes_only_btn = QCheckBox("Return only bounding boxes")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 7, 1, 1)
 
 
 
@@ -4303,12 +4305,14 @@ class OMAAS(QWidget):
                 
 
                 # 3.create and crop boxes from labels
-                cropped_images, cropped_labels = crop_from_bounding_boxes(img_layer=current_selection,
-                                                          my_labels_data=mask,
-                                                          area_threshold=1000,
-                                                          vertical_padding=v_padding,
-                                                          horizontal_padding=h_padding, 
-                                                          rotate_directions = list_of_rotate_directions)
+                cropped_images, cropped_labels, bounding_boxes = crop_from_bounding_boxes(img_layer=current_selection,
+                                                                                          rotate_directions=list_of_rotate_directions,
+                                                                                            my_labels_data=mask,
+                                                                                            area_threshold=1000,
+                                                                                            vertical_padding=v_padding,
+                                                                                            horizontal_padding=h_padding)
+                if self.return_bounding_boxes_only_btn.isChecked():
+                    return self.viewer.add_shapes(bounding_boxes)
 
                 # 3. arrange and combine boxes
                 if self.pad_value.currentText() == "0":
