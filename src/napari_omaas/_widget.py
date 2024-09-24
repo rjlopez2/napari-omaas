@@ -638,7 +638,7 @@ class OMAAS(QWidget):
         self.crop_all_views_and_rotate_group = VHGroup('Crop all views and Align', orientation='G')
         self._layers_processing_layout.addWidget(self.crop_all_views_and_rotate_group.gbox, 1, 0, 1, 2)
 
-        self.pad_h_pixels_label = QLabel("Pad horizontal")
+        self.pad_h_pixels_label = QLabel("Pad Hor")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_h_pixels_label, 0, 0, 1, 1)
         # self.c_kernels_label.setToolTip((""))
         self.pad_h_pixels = QLabeledSlider(Qt.Orientation.Horizontal)
@@ -646,7 +646,7 @@ class OMAAS(QWidget):
         self.pad_h_pixels.setValue(10)
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_h_pixels, 0, 1, 1, 1)
 
-        self.pad_v_pixels_label = QLabel("Pad Vertical")
+        self.pad_v_pixels_label = QLabel("Pad Ver")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_v_pixels_label, 0, 2, 1, 1)
         # self.c_kernels_label.setToolTip((""))
         self.pad_v_pixels = QLabeledSlider(Qt.Orientation.Horizontal)
@@ -654,7 +654,7 @@ class OMAAS(QWidget):
         self.pad_v_pixels.setValue(10)
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_v_pixels, 0, 3, 1, 1)
 
-        self.pad_value_label = QLabel("Pad with value:")
+        self.pad_value_label = QLabel("Pad with:")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value_label, 1, 0, 1, 1)
         
         self.pad_value = QComboBox()
@@ -667,9 +667,37 @@ class OMAAS(QWidget):
         self.crop_view_orientation = QComboBox()
         self.crop_view_orientation.addItems(["horizontal", "vertical"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_view_orientation, 1, 3, 1, 1)
+
+        self.view0_rotate_label = QLabel("View 0")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view0_rotate_label, 0, 4, 1, 1)
         
-        self.crop_all_views_and_rotate_btn = QPushButton("Crop Views and rotate")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 4)
+        self.view0_rotate = QComboBox()
+        self.view0_rotate.addItems(["R", "L"])
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view0_rotate, 0, 5, 1, 1)
+        
+        self.view1_rotate_label = QLabel("View 1")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view1_rotate_label, 0, 6, 1, 1)
+        
+        self.view1_rotate = QComboBox()
+        self.view1_rotate.addItems(["R", "L"])
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view1_rotate, 0, 7, 1, 1)
+        
+        self.view2_rotate_label = QLabel("View 2")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view2_rotate_label, 1, 4, 1, 1)
+        
+        self.view2_rotate = QComboBox()
+        self.view2_rotate.addItems(["R", "L"])
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view2_rotate, 1, 5, 1, 1)
+        
+        self.view3_rotate_label = QLabel("View 3")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view3_rotate_label, 1, 6, 1, 1)
+        
+        self.view3_rotate = QComboBox()
+        self.view3_rotate.addItems(["R", "L"])
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view3_rotate, 1, 7, 1, 1)
+        
+        self.crop_all_views_and_rotate_btn = QPushButton("Crop views and rotate")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 8)
 
 
 
