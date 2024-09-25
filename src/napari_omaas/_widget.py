@@ -611,6 +611,7 @@ class OMAAS(QWidget):
         self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 3, 0, 1, 2)
 
 
+
         self.crop_from_shape_group = VHGroup('Crop from shape', orientation='G')
         self._layers_processing_layout.addWidget(self.crop_from_shape_group.gbox, 0, 1, 1, 1)
         
@@ -634,6 +635,8 @@ class OMAAS(QWidget):
 
         self.crop_from_shape_btn = QPushButton("Crop")
         self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 3)
+
+
 
         self.crop_all_views_and_rotate_group = VHGroup('Crop views and rearrange', orientation='G')
         self._layers_processing_layout.addWidget(self.crop_all_views_and_rotate_group.gbox, 1, 0, 1, 2)
@@ -704,11 +707,27 @@ class OMAAS(QWidget):
                             self.view3_rotate
                             ]
         
-        self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 7)
-
         self.return_bounding_boxes_only_btn = QCheckBox("Return only bounding boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 7, 1, 1)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 0, 1, 1)
+
+        self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 4, 1, 4)
+
+        self.crop_all_views_and_rotate_form_box_btn = QPushButton("Rearrange from boxes")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 3, 4, 1, 4)
+
+
+        self.join_all_views_and_rotate_group = VHGroup('Join cropped/individual views', orientation='G')
+        self._layers_processing_layout.addWidget(self.join_all_views_and_rotate_group.gbox, 2, 0, 1, 2)
+
+        self.join_imgs_selector = QListWidget()
+        self.join_imgs_selector.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
+        self.join_all_views_and_rotate_group.glayout.addWidget(self.join_imgs_selector, 0, 0, 1, 1)
+
+        self.join_all_views_and_rotate_btn = QPushButton("Join images")
+        self.join_all_views_and_rotate_group.glayout.addWidget(self.join_all_views_and_rotate_btn, 1, 0, 1, 1)
 
 
 
@@ -1409,6 +1428,7 @@ class OMAAS(QWidget):
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
         self.preview_erode_btn.clicked.connect(self._preview_erode_btn_func)
         self.crop_all_views_and_rotate_btn.clicked.connect(self._crop_all_views_and_rotate_btn_func)
+        self.join_all_views_and_rotate_btn.clicked.connect(self._join_all_views_and_rotate_btn_func)
         
         
         
@@ -2665,11 +2685,13 @@ class OMAAS(QWidget):
 
                     # Update other selectors
                     self.ROI_selection_1.clear()
-                    self.ROI_selection_1.addItems(shape_layers) 
+                    self.ROI_selection_1.addItems(shape_layers)
+
                     self.ROI_selection_2.clear()
                     self.ROI_selection_2.addItems(shape_layers)
+
                     self.ROI_selection_crop.clear()
-                    self.ROI_selection_crop.addItems(shape_layers) 
+                    self.ROI_selection_crop.addItems(shape_layers)
                     self.ROI_selection_crop.setCurrentIndex(0)
 
                 if isinstance(value, Image) or isinstance(value, LayerList):
@@ -2694,6 +2716,12 @@ class OMAAS(QWidget):
                     self.Ch0_ratio.addItems(image_layers)
                     self.Ch1_ratio.clear()
                     self.Ch1_ratio.addItems(image_layers)
+
+                    # Update image selector for cropping/joining views
+                    self.join_imgs_selector.clear()
+                    cropped_imgs_list = [imag_name for imag_name in image_layers if "Crop" in imag_name]
+                    if len(cropped_imgs_list) > 0:
+                        self.join_imgs_selector.addItems(cropped_imgs_list)
 
                     if len(image_layers) >= 3:
                         n_imgs = len(image_layers)
@@ -4348,6 +4376,38 @@ class OMAAS(QWidget):
             print("cropping")
         except Exception as e:
             print(CustomException(e, sys))
+    
+    def _join_all_views_and_rotate_btn_func(self):
+        current_selection = self.viewer.layers.selection.active
+        mask = self._on_click_apply_segmentation_btn_fun(return_result_as_layer=False, 
+                                                                 return_mask=True)
+        orientation = self.crop_view_orientation.currentText()
+        # 3. arrange and combine boxes
+        if self.pad_value.currentText() == "0":
+            pad_value = 0
+        elif self.pad_value.currentText() == "NaN":
+            pad_value = np.nan 
+        elif self.pad_value.currentText() == "background":
+            # takes the mean of the backgorund
+            pad_value = np.mean(current_selection.data[0][~mask.astype(bool)])
+        cropped_images_names = [item.text() for item in self.join_imgs_selector.selectedItems()]
+        cropped_images = [self.viewer.layers[item].data for item in cropped_images_names]
+
+                
+        results = arrange_cropped_images(cropped_images=[(img, None, None) for img in cropped_images], 
+                                                arrangement=orientation, 
+                                                padding_value=pad_value)
+
+                                                
+        self.add_result_img(result_img=results, 
+                            operation_name="join_and_rearrange_views", 
+                            custom_inputs= cropped_images_names,
+                            custom_img_name=cropped_images_names[0],
+                            method_name=arrange_cropped_images.__name__, 
+                            custom_metadata= current_selection.metadata, 
+                            sufix="Join",
+                            parameters=None)
+        print("lalala")
 
 
 
