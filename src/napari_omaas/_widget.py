@@ -611,6 +611,7 @@ class OMAAS(QWidget):
         self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 3, 0, 1, 2)
 
 
+
         self.crop_from_shape_group = VHGroup('Crop from shape', orientation='G')
         self._layers_processing_layout.addWidget(self.crop_from_shape_group.gbox, 0, 1, 1, 1)
         
@@ -635,10 +636,12 @@ class OMAAS(QWidget):
         self.crop_from_shape_btn = QPushButton("Crop")
         self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 3)
 
-        self.crop_all_views_and_rotate_group = VHGroup('Crop all views and Align', orientation='G')
+
+
+        self.crop_all_views_and_rotate_group = VHGroup('Crop views and rearrange', orientation='G')
         self._layers_processing_layout.addWidget(self.crop_all_views_and_rotate_group.gbox, 1, 0, 1, 2)
 
-        self.pad_h_pixels_label = QLabel("Pad horizontal")
+        self.pad_h_pixels_label = QLabel("Pad Hor")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_h_pixels_label, 0, 0, 1, 1)
         # self.c_kernels_label.setToolTip((""))
         self.pad_h_pixels = QLabeledSlider(Qt.Orientation.Horizontal)
@@ -646,7 +649,7 @@ class OMAAS(QWidget):
         self.pad_h_pixels.setValue(10)
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_h_pixels, 0, 1, 1, 1)
 
-        self.pad_v_pixels_label = QLabel("Pad Vertical")
+        self.pad_v_pixels_label = QLabel("Pad Ver")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_v_pixels_label, 0, 2, 1, 1)
         # self.c_kernels_label.setToolTip((""))
         self.pad_v_pixels = QLabeledSlider(Qt.Orientation.Horizontal)
@@ -654,11 +657,11 @@ class OMAAS(QWidget):
         self.pad_v_pixels.setValue(10)
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_v_pixels, 0, 3, 1, 1)
 
-        self.pad_value_label = QLabel("Pad with value:")
+        self.pad_value_label = QLabel("Pad with:")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value_label, 1, 0, 1, 1)
         
         self.pad_value = QComboBox()
-        self.pad_value.addItems(["0", "NaN"])
+        self.pad_value.addItems(["background", "0", "NaN"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value, 1, 1, 1, 1)
         
         self.crop_view_orientation_label = QLabel("Orientation:")
@@ -667,9 +670,64 @@ class OMAAS(QWidget):
         self.crop_view_orientation = QComboBox()
         self.crop_view_orientation.addItems(["horizontal", "vertical"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_view_orientation, 1, 3, 1, 1)
+
+        self.view0_rotate_label = QLabel("View 0")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view0_rotate_label, 0, 4, 1, 1)
         
-        self.crop_all_views_and_rotate_btn = QPushButton("Crop Views and rotate")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 0, 1, 4)
+        self.view0_rotate = QComboBox()
+        self.view0_rotate.addItems(["R", "L"])
+        self.view0_rotate.setCurrentText("L")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view0_rotate, 0, 5, 1, 1)
+        
+        self.view1_rotate_label = QLabel("View 1")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view1_rotate_label, 0, 6, 1, 1)
+        
+        self.view1_rotate = QComboBox()
+        self.view1_rotate.addItems(["R", "L"])
+        self.view1_rotate.setCurrentText("L")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view1_rotate, 0, 7, 1, 1)
+        
+        self.view2_rotate_label = QLabel("View 2")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view2_rotate_label, 1, 4, 1, 1)
+        
+        self.view2_rotate = QComboBox()
+        self.view2_rotate.addItems(["R", "L"])
+        self.view2_rotate.setCurrentText("L")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view2_rotate, 1, 5, 1, 1)
+        
+        self.view3_rotate_label = QLabel("View 3")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view3_rotate_label, 1, 6, 1, 1)
+        
+        self.view3_rotate = QComboBox()
+        self.view3_rotate.addItems(["R", "L"])
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.view3_rotate, 1, 7, 1, 1)
+        self.view_rotates = [self.view0_rotate, 
+                            self.view1_rotate, 
+                            self.view2_rotate, 
+                            self.view3_rotate
+                            ]
+        
+        self.return_bounding_boxes_only_btn = QCheckBox("Return only bounding boxes")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 0, 1, 1)
+
+        self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 4, 1, 4)
+
+        self.crop_all_views_and_rotate_form_box_btn = QPushButton("Rearrange from boxes")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 3, 4, 1, 4)
+
+
+        self.join_all_views_and_rotate_group = VHGroup('Join cropped/individual views', orientation='G')
+        self._layers_processing_layout.addWidget(self.join_all_views_and_rotate_group.gbox, 2, 0, 1, 2)
+
+        self.join_imgs_selector = QListWidget()
+        self.join_imgs_selector.setSelectionMode(
+            QtWidgets.QAbstractItemView.ExtendedSelection
+        )
+        self.join_all_views_and_rotate_group.glayout.addWidget(self.join_imgs_selector, 0, 0, 1, 1)
+
+        self.join_all_views_and_rotate_btn = QPushButton("Join images")
+        self.join_all_views_and_rotate_group.glayout.addWidget(self.join_all_views_and_rotate_btn, 1, 0, 1, 1)
 
 
 
@@ -1370,6 +1428,7 @@ class OMAAS(QWidget):
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
         self.preview_erode_btn.clicked.connect(self._preview_erode_btn_func)
         self.crop_all_views_and_rotate_btn.clicked.connect(self._crop_all_views_and_rotate_btn_func)
+        self.join_all_views_and_rotate_btn.clicked.connect(self._join_all_views_and_rotate_btn_func)
         
         
         
@@ -1596,27 +1655,44 @@ class OMAAS(QWidget):
         #     return warn(f"The shape of your images does not seems to be the same. Please check the images. dim of '{img0_name}' = {img0.data.shape} and dim of '{img1_name}' = {img1.data.shape}")
         # else :
         img0_name = self.Ch0_ratio.currentText()
-        img0 = self.viewer.layers[img0_name]
+        img0 = self.viewer.layers[img0_name].data
         img1_name = self.Ch1_ratio.currentText()
-        img1 = self.viewer.layers[img1_name]
+        img1 = self.viewer.layers[img1_name].data
 
         # metadata = img0.metadata
         params = {"is_ratio_inverted": self.is_ratio_inverted.isChecked()}
 
-        if self.is_ratio_inverted.isChecked():
-            results = img1.data/img0.data
-            
-            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh1Ch0", custom_inputs=[img1_name, img0_name], )                                    
-            
-            print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
+        try:
 
-        else:
-            results = img0.data/img1.data
-            
-            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
+            # check that the dimensions are compatible for broadcasting division
+            # Get the shapes of the arrays
+            shape1 = img0.shape
+            shape2 = img1.shape
 
-            print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
+            # Determine the minimum shape along each dimension
+            min_shape = tuple(min(s1, s2) for s1, s2 in zip(shape1, shape2))
 
+            # Slice the larger array to match the smaller one
+            img0 = img0[:min_shape[0], :min_shape[1], :min_shape[2]]
+            img1 = img1[:min_shape[0], :min_shape[1], :min_shape[2]]
+
+
+            if self.is_ratio_inverted.isChecked():
+                results = img1/img0
+                
+                self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh1Ch0", custom_inputs=[img1_name, img0_name], )                                    
+                
+                print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
+
+            else:
+                results = img0/img1
+                
+                self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
+
+                print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
+
+        except Exception as e:
+            print(CustomException(e, sys))
 
     def _on_click_apply_spat_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
@@ -2149,7 +2225,7 @@ class OMAAS(QWidget):
             layer = event.value
             etype = event.type
             # handle name change by bypasing the event to the _layer_list_changed_callback
-            if layer is not None:
+            if layer is not None and not isinstance(layer, list):
                 @layer.events.name.connect
                 def _on_rename(name_event):
                     # print(f'Layer {id(layer)} changed name to {layer.name}')
@@ -2595,66 +2671,82 @@ class OMAAS(QWidget):
         
         value = event.value
         etype = event.type
-        # handle name change by bypasing the event to the _layer_list_changed_callback
-        if etype in ['inserted', 'removed', 'reordered', 'active']:
+        try:
 
-            image_layers, shape_layers = self._populate_main_ImgShap_selector()
+            # handle name change by bypasing the event to the _layer_list_changed_callback
+            if etype in ['inserted', 'removed', 'reordered', 'active']:
 
-            # Capture the current selected items
-            # curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=False)
-            curr_img_items_2d = self._get_imgs2d_from_map_selector(return_img=False)
-            if isinstance(value, Shapes) or isinstance(value, LayerList):
+                image_layers, shape_layers = self._populate_main_ImgShap_selector()
 
-                # Update other selectors
-                self.ROI_selection_1.clear()
-                self.ROI_selection_1.addItems(shape_layers) 
-                self.ROI_selection_2.clear()
-                self.ROI_selection_2.addItems(shape_layers)
-                self.ROI_selection_crop.clear()
-                self.ROI_selection_crop.addItems(shape_layers) 
-                self.ROI_selection_crop.setCurrentIndex(0)
+                # Capture the current selected items
+                # curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_layer=False)
+                curr_img_items_2d = self._get_imgs2d_from_map_selector(return_img=False)
+                if isinstance(value, Shapes) or isinstance(value, LayerList):
 
-            if isinstance(value, Image) or isinstance(value, LayerList):
+                    # Update other selectors
+                    self.ROI_selection_1.clear()
+                    self.ROI_selection_1.addItems(shape_layers)
+
+                    self.ROI_selection_2.clear()
+                    self.ROI_selection_2.addItems(shape_layers)
+
+                    self.ROI_selection_crop.clear()
+                    self.ROI_selection_crop.addItems(shape_layers)
+                    self.ROI_selection_crop.setCurrentIndex(0)
+
+                if isinstance(value, Image) or isinstance(value, LayerList):
+                    
+                    # Update image selector for cropping
+                    self.image_selection_crop.clear()
+                    self.image_selection_crop.addItems(image_layers)
+                    self.image_selection_crop.setCurrentIndex(0)
+                    
+                    # Update image selector for maps
+                    self.map_imgs_selector.clear()
+                    all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
+                    for image in all_images_2d:
+                        item = QtWidgets.QListWidgetItem(image)
+                        self.map_imgs_selector.addItem(item)
+                        # Restore the selection if the item was selected before
+                        if item.text() in curr_img_items_2d:
+                            item.setSelected(True)
+                    
+                    # Update image selector for Ratio
+                    self.Ch0_ratio.clear()
+                    self.Ch0_ratio.addItems(image_layers)
+                    self.Ch1_ratio.clear()
+                    self.Ch1_ratio.addItems(image_layers)
+
+                    # Update image selector for cropping/joining views
+                    self.join_imgs_selector.clear()
+                    cropped_imgs_list = [imag_name for imag_name in image_layers if "Crop" in imag_name]
+                    if len(cropped_imgs_list) > 0:
+                        self.join_imgs_selector.addItems(cropped_imgs_list)
+
+                    if len(image_layers) >= 3:
+                        n_imgs = len(image_layers)
+                        self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
+                        self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
+                    
+                    # Update name of current image name to export
+                    # trick for case when is a removing image event
+                    if etype == 'removed':
+                        self.name_image_to_export.setPlaceholderText("my_image")
+                    else:
+                        if not isinstance(value, LayerList):
+                            self.name_image_to_export.setPlaceholderText(value.name)
+                        else:
+                            self.name_image_to_export.setPlaceholderText(value[0].name) 
                 
-                # Update image selector for cropping
-                self.image_selection_crop.clear()
-                self.image_selection_crop.addItems(image_layers)
-                self.image_selection_crop.setCurrentIndex(0)
-                
-                # Update image selector for maps
-                self.map_imgs_selector.clear()
-                all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
-                for image in all_images_2d:
-                    item = QtWidgets.QListWidgetItem(image)
-                    self.map_imgs_selector.addItem(item)
-                    # Restore the selection if the item was selected before
-                    if item.text() in curr_img_items_2d:
-                        item.setSelected(True)
-                
-                # Update image selector for Ratio
-                self.Ch0_ratio.clear()
-                self.Ch0_ratio.addItems(image_layers)
-                self.Ch1_ratio.clear()
-                self.Ch1_ratio.addItems(image_layers)
 
-                if len(image_layers) >= 3:
-                    n_imgs = len(image_layers)
-                    self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
-                    self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
-                
-                # Update name of current image name to export
-                # trick for case when is a removing image event
-                if etype == 'removed':
-                    self.name_image_to_export.setPlaceholderText("my_image")
-                else:
-                    self.name_image_to_export.setPlaceholderText(value.name)
-               
+                if isinstance(value, Labels) or isinstance(value, LayerList):
+                    all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
+                    # Update mask selector for manual segmentation
+                    self.mask_list_manual_segment.clear()
+                    self.mask_list_manual_segment.addItems(all_labels)
 
-            if isinstance(value, Labels) or isinstance(value, LayerList):
-                all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
-                # Update mask selector for manual segmentation
-                self.mask_list_manual_segment.clear()
-                self.mask_list_manual_segment.addItems(all_labels)
+        except Exception as e:
+            raise CustomException(e, sys)
     
     def _populate_main_ImgShap_selector(self)-> dict[list[str], list[str]]:
         """
@@ -2800,7 +2892,7 @@ class OMAAS(QWidget):
         try:
             # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             self._get_APD_thre_slider_vlaue_func(value=self.prominence * self.slider_APD_thres_max_range)
-            self._retrieve_metadata_call_back(event)
+            # self._retrieve_metadata_call_back(event)
             state = self.plot_profile_btn.isChecked()
             if state:
                 self._on_click_plot_profile_btn_func()
@@ -4054,39 +4146,42 @@ class OMAAS(QWidget):
             if len(shape_layer.data) == 0:
                 return warn("Selected shape for cropping is empty. Please draw a square ROI to use for cropping operation.")
 
-            cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
-            a, b, c, d = shape_layer.data[0]
-            param = {
-                "from_shape": {"name": shape_name,
-                               "data": {"t_right" : a.tolist(),
-                                        "t_left" : b.tolist(),
-                                        "b_left" : c.tolist(),
-                                        "b_right" : d.tolist()}
-                                        },
-                "crop_indexes": {"y": {"ini_index":int(ini_index[0]),
-                                    "end_index": int(end_index[0])},
-                                "x": {"ini_index":int(ini_index[1]),
-                                            "end_index": int(end_index[1])}}
-                                        
-                }
+            for shape in shape_layer.data:
+                cropped_img, ini_index, end_index = crop_from_shape(shape, img_layer)
 
-            if self.rotate_l_crop.isChecked():
-                cropped_img = np.rot90(cropped_img, axes=(1, 2))
-                print(f"result image rotate 90° to the left")
-                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}
-                self.rotate_l_crop.setChecked(False)
-            elif self.rotate_r_crop.isChecked():
-                cropped_img = np.rot90(cropped_img, axes=(2, 1))
-                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
-                print(f"result image rotate 90° to the right")
-                self.rotate_r_crop.setChecked(False)
+                a, b, c, d = shape
+                param = {
+                    "from_shape": {"name": shape_name,
+                                "data": {"t_right" : a.tolist(),
+                                            "t_left" : b.tolist(),
+                                            "b_left" : c.tolist(),
+                                            "b_right" : d.tolist()}
+                                            },
+                    "crop_indexes": {"y": {"ini_index":int(ini_index[0]),
+                                        "end_index": int(end_index[0])},
+                                    "x": {"ini_index":int(ini_index[1]),
+                                                "end_index": int(end_index[1])}}
+                                            
+                    }
 
-            self.add_result_img(result_img=cropped_img, 
-                                operation_name="Crop_image", 
-                                custom_img_name=img_name, 
-                                method_name="crop_from_shape", 
-                                custom_metadata= metadata, 
-                                sufix="Crop", parameters=param)
+                if self.rotate_l_crop.isChecked():
+                    cropped_img = np.rot90(cropped_img, axes=(1, 2))
+                    print(f"result image rotate 90° to the left")
+                    param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}
+                elif self.rotate_r_crop.isChecked():
+                    cropped_img = np.rot90(cropped_img, axes=(2, 1))
+                    param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
+                    print(f"result image rotate 90° to the right")
+
+                self.add_result_img(result_img=cropped_img, 
+                                    operation_name="Crop_image", 
+                                    custom_img_name=img_name, 
+                                    method_name="crop_from_shape", 
+                                    custom_metadata= metadata, 
+                                    sufix="Crop", parameters=param)
+            
+            self.rotate_l_crop.setChecked(False)
+            self.rotate_r_crop.setChecked(False)
             self.add_record_fun()
             print(f"image '{img_name}' cropped")
             # return
@@ -4215,14 +4310,18 @@ class OMAAS(QWidget):
     def _crop_all_views_and_rotate_btn_func(self):
         try:
         # 1. get mask from current Image using auto segemntation
-            current_selection = self.viewer.layers.selection.active
-            h_padding = self.pad_h_pixels.value()
-            v_padding = self.pad_v_pixels.value()
-            pad_value = 0 if self.pad_value.currentText() == "0" else np.nan 
 
-            arrangement = self.crop_view_orientation.currentText()
+            # pad_value = 0 if self.pad_value.currentText() == "0" else np.nan 
+            current_selection = self.viewer.layers.selection.active
 
             if isinstance(current_selection, Image):
+
+                h_padding = self.pad_h_pixels.value()
+                v_padding = self.pad_v_pixels.value()
+                orientation = self.crop_view_orientation.currentText()
+                list_of_rotate_directions = [combo.currentText() for combo in self.view_rotates]
+                
+                    
                 mask = self._on_click_apply_segmentation_btn_fun(return_result_as_layer=False, 
                                                                  return_mask=True)
         
@@ -4234,16 +4333,37 @@ class OMAAS(QWidget):
                 
 
                 # 3.create and crop boxes from labels
-                cropped_images = crop_from_bounding_boxes(img_layer=current_selection,
-                                                          my_labels_data=mask,
-                                                          area_threshold=1000,
-                                                          vertical_padding=v_padding,
-                                                          horizontal_padding=h_padding)
+                cropped_images, cropped_labels, bounding_boxes = crop_from_bounding_boxes(img_layer=current_selection,
+                                                                                          rotate_directions=list_of_rotate_directions,
+                                                                                            my_labels_data=mask,
+                                                                                            area_threshold=1000,
+                                                                                            vertical_padding=v_padding,
+                                                                                            horizontal_padding=h_padding)
+                if self.return_bounding_boxes_only_btn.isChecked():
+                    return self.viewer.add_shapes(bounding_boxes)
 
                 # 3. arrange and combine boxes
+                if self.pad_value.currentText() == "0":
+                    pad_value = 0
+                elif self.pad_value.currentText() == "NaN":
+                    pad_value = np.nan 
+                elif self.pad_value.currentText() == "background":
+                    # takes the mean of the backgorund
+                    pad_value = np.mean(current_selection.data[0][~mask.astype(bool)])
+
                 results = arrange_cropped_images(cropped_images=cropped_images, 
-                                                arrangement=arrangement, 
+                                                arrangement=orientation, 
                                                 padding_value=pad_value)
+                
+                cropped_labels_3d = [label[np.newaxis, :, :] for label in cropped_labels]
+                arranged_labels = arrange_cropped_images([(label, None, None) for label in cropped_labels_3d], 
+                                                         arrangement=orientation, 
+                                                         padding_value=0)
+                
+                self.add_result_label(arranged_labels[0], 
+                                            img_custom_name="Heart_labels", 
+                                            single_label_sufix = f"NullBckgrnd", 
+                                            add_to_metadata = f"Background image masked")
                 
                 self.add_result_img(result_img=results, 
                                 operation_name="crop_and_rearrange_views", 
@@ -4256,6 +4376,38 @@ class OMAAS(QWidget):
             print("cropping")
         except Exception as e:
             print(CustomException(e, sys))
+    
+    def _join_all_views_and_rotate_btn_func(self):
+        current_selection = self.viewer.layers.selection.active
+        mask = self._on_click_apply_segmentation_btn_fun(return_result_as_layer=False, 
+                                                                 return_mask=True)
+        orientation = self.crop_view_orientation.currentText()
+        # 3. arrange and combine boxes
+        if self.pad_value.currentText() == "0":
+            pad_value = 0
+        elif self.pad_value.currentText() == "NaN":
+            pad_value = np.nan 
+        elif self.pad_value.currentText() == "background":
+            # takes the mean of the backgorund
+            pad_value = np.mean(current_selection.data[0][~mask.astype(bool)])
+        cropped_images_names = [item.text() for item in self.join_imgs_selector.selectedItems()]
+        cropped_images = [self.viewer.layers[item].data for item in cropped_images_names]
+
+                
+        results = arrange_cropped_images(cropped_images=[(img, None, None) for img in cropped_images], 
+                                                arrangement=orientation, 
+                                                padding_value=pad_value)
+
+                                                
+        self.add_result_img(result_img=results, 
+                            operation_name="join_and_rearrange_views", 
+                            custom_inputs= cropped_images_names,
+                            custom_img_name=cropped_images_names[0],
+                            method_name=arrange_cropped_images.__name__, 
+                            custom_metadata= current_selection.metadata, 
+                            sufix="Join",
+                            parameters=None)
+        print("lalala")
 
 
 
