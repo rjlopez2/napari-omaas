@@ -3864,9 +3864,13 @@ class OMAAS(QWidget):
                                         method_name="indexing", 
                                         sufix="Clip", parameters=params)
                     # self.add_record_fun()
-                    # self.plot_profile_btn.setChecked(False)
                     self.is_range_clicked_checkbox.setChecked(False)
-                    self.plot_last_generated_img()
+                    self.plot_profile_btn.setChecked(False)
+                    self.listImagewidget.clearSelection()
+                    new_img_indx = len([self.listImagewidget.item(n).text() for n in range(self.listImagewidget.count())]) -1
+                    self.listImagewidget.item(new_img_indx).setSelected(True)
+                    self.plot_profile_btn.setChecked(True)
+                    # self.plot_last_generated_img()
                     
                     print(f"{'*'*5} Clipping from time index: [{start_indx}:{end_indx}] to image: '{image.name}'. {'*'*5}")
             else:
