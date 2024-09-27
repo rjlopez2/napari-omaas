@@ -194,9 +194,9 @@ class OMAAS(QWidget):
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
-        self.splt_chann_btn = QPushButton("Split Channels")
-        self.splt_chann_btn.setToolTip(("Split the current Image stack when using dual illumination."))
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 2, 3, 1, 1)
+        self.split_chann_btn = QPushButton("Split Channels")
+        self.split_chann_btn.setToolTip(("Split the current Image stack when using dual illumination."))
+        self.pre_processing_group.glayout.addWidget(self.split_chann_btn, 2, 3, 1, 1)
 
         # self.glob_norm_data_btn = QPushButton("Normalize (global)")
         # self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
@@ -1306,7 +1306,7 @@ class OMAAS(QWidget):
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         self.apply_normalization_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
-        self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
+        self.split_chann_btn.clicked.connect(self._on_click_splt_chann)
         # self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
         # self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
@@ -2830,7 +2830,8 @@ class OMAAS(QWidget):
                                                                                     #    cycle_length_ms = self.xscale, 
                                                                                     promi= self.prominence)
             except Exception as e:
-                print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
+                print(CustomException(e, sys))
+                # print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
                 return
 
             self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
