@@ -2824,11 +2824,27 @@ class OMAAS(QWidget):
             traces = self.main_plot_widget.axes.lines[0].get_ydata()
             time = self.main_plot_widget.axes.lines[0].get_xdata()
             label = self.main_plot_widget.figure.axes[0].lines[0].get_label()
+            rmp_method = self.APD_computing_method.currentText()
+            img = self.viewer.layers.selection.active
+            is_interpolated = self.make_interpolation_check.isChecked()
+            
 
             try:
-                self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
-                                                                                    #    cycle_length_ms = self.xscale, 
-                                                                                    promi= self.prominence)
+            #     self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
+            #                                                                         #    cycle_length_ms = self.xscale, 
+            #                                                                         promi= self.prominence)
+                self.APs_props = compute_APD_props_func(traces,
+                                                        curr_img_name = img.name, 
+                                                        # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                        cycle_length_ms= self.xscale,
+                                                        rmp_method = rmp_method, 
+                                                        apd_perc = 100, 
+                                                        promi=self.prominence, 
+                                                        roi_indx=0, 
+                                                        # roi_id = roi_id,
+                                                        interpolate= is_interpolated,
+                                                        curr_file_id = img.metadata["CurrentFileSource"])
+                self.ini_i_spl_traces, self.end_i_spl_traces = self.APs_props['indx_at_AP_upstroke'] - min(self.APs_props['indx_at_AP_upstroke']), self.APs_props['indx_at_AP_end']
             except Exception as e:
                 print(CustomException(e, sys))
                 # print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
