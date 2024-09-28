@@ -9,81 +9,30 @@ Replace code below according to your needs.
 from typing import TYPE_CHECKING
 
 from magicgui import magic_factory
-from superqt import (
-    QCollapsible, QLabeledSlider, QLabeledRangeSlider, 
-    QRangeSlider, QDoubleRangeSlider, QLabeledDoubleRangeSlider,
-)
 from qtpy.QtWidgets import (
     QHBoxLayout, QPushButton, QWidget, QFileDialog, 
     QVBoxLayout, QGroupBox, QGridLayout, QTabWidget, QListWidget,
     QDoubleSpinBox, QLabel, QComboBox, QSpinBox, QLineEdit, QPlainTextEdit,
-    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox, QToolButton, 
+    QTreeWidget, QTreeWidgetItem, QCheckBox, QSlider, QTableView, QMessageBox
     )
-
-from qtpy import QtWidgets, QtCore
+from qtpy import QtWidgets
 from warnings import warn
-from qtpy.QtCore import Qt
-from qtpy.QtGui import QIntValidator, QDoubleValidator
+from qtpy.QtCore import Qt, QAbstractTableModel, QModelIndex
+from PyQt5.QtGui import QIntValidator
+from numpy import ndarray as numpy_ndarray
+import pyqtgraph as pg
+# from napari_time_series_plotter import TSPExplorer
 from napari_matplotlib.base import BaseNapariMPLWidget
-from napari.layers import Shapes, Image, Labels
-from napari.components.layerlist import LayerList
-from napari.utils import progress
-
-from skimage.morphology import disk, binary_closing, remove_small_objects, closing, erosion
+from napari.layers import Shapes, Image
+import matplotlib.pyplot as plt
 
 import copy
+import subprocess
 import pandas as pd
 
-import numpy as np
-from .custom_exceptions import CustomException
-import sys
-from .utils import (
-    VHGroup,
-    ToggleButton,
-    PandasModel,
-    MultiComboBox,
-    TrackProcessingSteps,
-    
-    invert_signal,
-    local_normal_fun,
-    slide_window_normalization_func,
-    global_normal_fun,
-    split_channels_fun,
-    apply_gaussian_func,
-    apply_median_filt_func,
-    apply_box_filter,
-    apply_laplace_filter,
-    apply_bilateral_filter,
-    transform_to_unit16_func,
-    apply_butterworth_filt_func,
-    segment_heart_func,
-    pick_frames_fun,
-    return_peaks_found_fun,
-    compute_APD_props_func,
-    return_spool_img_fun,
-    extract_ROI_time_series,
-    return_AP_ini_end_indx_func,
-    split_AP_traces_and_ave_func,
-    segment_image_triangle,
-    segment_image_GHT,
-    polish_mask,
-    segement_region_based_func,
-    optimap_mot_correction,
-    crop_from_shape,
-    macro,
-    return_maps,
-    apply_FIR_filt_func,
-    gaussian_filter_nan,
-    # decodeDictionary,
-    convert_to_json_serializable
-
-)
-
+from .utils import *
 import os
-import sys
 from pathlib import Path
-import h5py
-import tifffile
 
 
 if TYPE_CHECKING:
@@ -120,35 +69,27 @@ class OMAAS(QWidget):
        
        ######## Shapes tab ########
         self.layers_processing = QWidget()
-        self._layers_processing_layout = QGridLayout()
+        self._layers_processing_layout = QVBoxLayout()
         self.layers_processing.setLayout(self._layers_processing_layout)
-        self.tabs.addTab(self.layers_processing, 'Shapes') # this tab is not making the GUI fat, it's ok!
+        self.tabs.addTab(self.layers_processing, 'Shapes')
 
         ######## Mot-Correction tab ########
         self.motion_correction = QWidget()
         self._motion_correction_layout = QVBoxLayout()
         self.motion_correction.setLayout(self._motion_correction_layout)
-        self.tabs.addTab(self.motion_correction, 'Mot-Correction') # this tab is just ok!
-
-        ######## Mapping tab ########
-        self.mapping_processing = QWidget()
-        self._mapping_processing_layout = QVBoxLayout()
-        self.mapping_processing.setLayout(self._mapping_processing_layout)
-        self.tabs.addTab(self.mapping_processing, 'Mapping') # this tab is just ok!
+        self.tabs.addTab(self.motion_correction, 'Mot-Correction')
 
         ######## APD analysis tab ########
         self.APD_analysis = QWidget()
         self._APD_analysis_layout = QVBoxLayout()
         self.APD_analysis.setLayout(self._APD_analysis_layout)
-        self.tabs.addTab(self.APD_analysis, 'APD analysis') # this one makes the GUI fat!
+        self.tabs.addTab(self.APD_analysis, 'APD analysis')
 
         ######## Settings tab ########
         self.settings = QWidget()
         self._settings_layout = QVBoxLayout()
         self.settings.setLayout(self._settings_layout)
-        self.tabs.addTab(self.settings, 'Settings') # this tab is just ok!
-
-        self.metadata_recording_steps = TrackProcessingSteps()
+        self.tabs.addTab(self.settings, 'Settings')
 
         #########################################
         ######## Editing indivicual tabs ########
@@ -160,250 +101,109 @@ class OMAAS(QWidget):
         
         ######## pre-processing  group ########
         self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
+        self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
 
         ######## pre-processing btns ########
+        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
+        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 3, 1, 1, 1)
 
-        self.apply_normalization_btn = QPushButton("Normalize")
-        self.apply_normalization_btn.setToolTip(("Apply Normalization to the current Image."))
-        self.pre_processing_group.glayout.addWidget(self.apply_normalization_btn, 1, 1, 1, 1)
-
-        self.data_normalization_options = QComboBox()
-        self.data_normalization_options.addItems(["Local max", "Slide window", "Global"])
-        self.data_normalization_options.setToolTip(("List of normalization methods."))
-        self.pre_processing_group.glayout.addWidget(self.data_normalization_options, 1, 2, 1, 1)
-
-        self.inv_and_norm_data_btn = QPushButton("Invert + Normalize")        
-        self.inv_and_norm_data_btn.setToolTip(("Invert and Apply Normalization to the current Image."))
-        self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 1, 3, 1, 1)
-        
         self.inv_data_btn = QPushButton("Invert signal")
         self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
-        self.pre_processing_group.glayout.addWidget(self.inv_data_btn , 2, 1, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 3, 2, 1, 1)
 
-        self.slide_wind_n = QSpinBox()
-        self.slide_wind_n.setToolTip(("Windows size for slide window normalization method."))
-        # self.slide_wind_n.setSingleStep(1)
-        self.slide_wind_n.setValue(100)
-        self.slide_wind_n.setMaximum(10000000)
-        self.pre_processing_group.glayout.addWidget(self.slide_wind_n , 2, 2, 1, 1)
+        self.norm_data_btn = QPushButton("Normalize (loc max)")        
+        self.pre_processing_group.glayout.addWidget(self.norm_data_btn, 3, 3, 1, 1)
 
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
         self.splt_chann_btn = QPushButton("Split Channels")
-        self.splt_chann_btn.setToolTip(("Split the current Image stack when using dual illumination."))
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 2, 3, 1, 1)
-
-        # self.glob_norm_data_btn = QPushButton("Normalize (global)")
-        # self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
+        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 3, 4, 1, 1)
  
-        self.compute_ratio_btn = QPushButton("compute ratio")
-        self.compute_ratio_btn.setToolTip(("Compute Ratio of two images with identical dimensions. By default uses Ch0/Ch1 from the images selector"))
-        self.pre_processing_group.glayout.addWidget(self.compute_ratio_btn, 2, 5, 1, 1)
-
-        self.Ch0_ratio = QComboBox()
-        self.pre_processing_group.glayout.addWidget(self.Ch0_ratio, 1, 4, 1, 1)
-        self.Ch1_ratio = QComboBox()
-        self.pre_processing_group.glayout.addWidget(self.Ch1_ratio, 2, 4, 1, 1)
-
-
-        self.is_ratio_inverted = QCheckBox("Invert ratio")
-        self.is_ratio_inverted.setToolTip(("By default Ch0/Ch1 is computed. Tick this checkbox and ratio will be computed inverted (Ch1/Ch0)"))
-        self.is_ratio_inverted.setChecked(False)
-        self.pre_processing_group.glayout.addWidget(self.is_ratio_inverted, 1, 5, 1, 1)
         ######## Filters group ########
-        # QCollapsible creates a collapse container for inner widgets
-       
-        # magicgui doesn't need to be used as a decorator, you can call it
-        # repeatedly to create new widgets:
-        # new_widget = magicgui(do_something)
-        # if you're mixing Qt and magicgui, you need to use the "native"
-        # attribute in magicgui to access the QWidget
-
-
-
-
-
         self.filter_group = VHGroup('Filter Image', orientation='G')
-        # self._pre_processing_layout.addWidget(self.filter_group.gbox)
-
-        self._collapse_filter_group = QCollapsible('Filters', self)
-        self._collapse_filter_group.addWidget(self.filter_group.gbox)
+        self._pre_processing_layout.addWidget(self.filter_group.gbox)
 
 
         ####### temporal filter subgroup #######     
         self.temp_filter_group = VHGroup('Temporal Filters', orientation='G')
-        self.filter_group.glayout.addWidget(self.temp_filter_group.gbox, 1, 0)
+        self.filter_group.glayout.addWidget(self.temp_filter_group.gbox)
 
         ######## temporal Filters btns ########
-        self.temp_filt_type_label = QLabel("Filter type")
-        self.temp_filter_group.glayout.addWidget(self.temp_filt_type_label, 0, 0, 1, 1)
-
         self.temp_filter_types = QComboBox()
         self.temp_filter_types.addItems(["Butterworth", "FIR"])
-        self.temp_filter_group.glayout.addWidget(self.temp_filter_types, 0, 1, 1, 1)
-
-        self.fps_label = QLabel("Sampling Freq (Hz)")
-        self.temp_filter_group.glayout.addWidget(self.fps_label, 0, 2, 1, 1)
-        
-        self.fps_val = QLineEdit()
-        self.fps_val.setText("")
-        self.temp_filter_group.glayout.addWidget(self.fps_val, 0, 3, 1, 1)
-
+        self.temp_filter_group.glayout.addWidget(self.temp_filter_types, 3, 0, 1, 1)
 
         self.cutoff_freq_label = QLabel("Cutoff frequency")
-        self.temp_filter_group.glayout.addWidget(self.cutoff_freq_label, 1, 0, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.cutoff_freq_label, 3, 1, 1, 1)
 
-        self.butter_cutoff_freq_val = QLineEdit()
-        self.butter_cutoff_freq_val.setValidator(QDoubleValidator()) 
-        self.butter_cutoff_freq_val.setText("45")
-        self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_val, 1, 1, 1, 1)
+        self.butter_cutoff_freq_val = QSpinBox()
+        self.butter_cutoff_freq_val.setSingleStep(5)
+        self.butter_cutoff_freq_val.setValue(30)
+        self.temp_filter_group.glayout.addWidget(self.butter_cutoff_freq_val, 3, 2, 1, 1)
         
         self.filt_order_label = QLabel("Filter order")
-        self.temp_filter_group.glayout.addWidget(self.filt_order_label, 1, 2, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.filt_order_label, 3, 3, 1, 1)
 
         self.butter_order_val = QSpinBox()
         self.butter_order_val.setSingleStep(1)
         self.butter_order_val.setValue(5)
-        self.temp_filter_group.glayout.addWidget(self.butter_order_val, 1, 3, 1, 1)
+        self.temp_filter_group.glayout.addWidget(self.butter_order_val, 3, 4, 1, 1)
 
+        self.fps_label = QLabel("Sampling Freq (Hz)")
+        self.temp_filter_group.glayout.addWidget(self.fps_label, 3, 5, 1, 1)
         
+        self.fps_val = QLineEdit()
+        self.fps_val.setText("")
+        self.temp_filter_group.glayout.addWidget(self.fps_val, 3, 6, 1, 1)
 
         self.apply_temp_filt_btn = QPushButton("apply")
-        self.temp_filter_group.glayout.addWidget(self.apply_temp_filt_btn, 2, 0, 1, 4)
+        self.temp_filter_group.glayout.addWidget(self.apply_temp_filt_btn, 3, 7, 1, 1)
 
 
-        ####### spatial filter subgroup #######
-        self.spac_filter_group = VHGroup('Spatial Filters', orientation='G')
-        self.filter_group.glayout.addWidget(self.spac_filter_group.gbox, 0, 0)
+
+
+
+        ####### spacial filter subgroup #######
+        self.spac_filter_group = VHGroup('Spacial Filters', orientation='G')
+        self.filter_group.glayout.addWidget(self.spac_filter_group.gbox)
 
         
-        ######## spatial Filters btns ########
+        ######## spacial Filters btns ########
         # self.filters_label = QLabel("Gaussian filter")
         # self.filter_group.glayout.addWidget(self.filters_label, 3, 0, 1, 1)
 
-        self.spatial_filt_type_label = QLabel("Filter type")
-        self.spac_filter_group.glayout.addWidget(self.spatial_filt_type_label, 0, 0, 1, 1)
-        
         self.spat_filter_types = QComboBox()
-        self.spat_filter_types.addItems(["Gaussian", "Box", "Laplace", "Median", "Bilateral"])
-        self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 0, 1, 1, 1)
+        self.spat_filter_types.addItems(["Gaussian", "Box Filter", "Laplace Filter", "Median"])
+        self.spac_filter_group.glayout.addWidget(self.spat_filter_types, 3, 1, 1, 1)
 
         self.sigma_label = QLabel("Sigma")
-        self.spac_filter_group.glayout.addWidget(self.sigma_label, 0, 2, 1, 1)
+        self.spac_filter_group.glayout.addWidget(self.sigma_label, 3, 2, 1, 1)
 
-        self.sigma_filt_spatial_value = QDoubleSpinBox()
-        self.sigma_filt_spatial_value.setSingleStep(1)
-        self.sigma_filt_spatial_value.setSingleStep(0.1)
-        self.sigma_filt_spatial_value.setValue(1)
-        self.spac_filter_group.glayout.addWidget(self.sigma_filt_spatial_value, 0, 3, 1, 1)
+        self.sigma_filt_param = QDoubleSpinBox()
+        self.sigma_filt_param.setSingleStep(1)
+        self.sigma_filt_param.setSingleStep(0.1)
+        self.sigma_filt_param.setValue(0.5)
+        self.spac_filter_group.glayout.addWidget(self.sigma_filt_param, 3, 3, 1, 1)
 
-        self.kernels_label = QLabel("Kernel/window size")
-        self.spac_filter_group.glayout.addWidget(self.kernels_label, 1, 2, 1, 1)
+        self.kernels_label = QLabel("Kernel size")
+        self.spac_filter_group.glayout.addWidget(self.kernels_label, 3, 4, 1, 1)
 
         self.filt_kernel_value = QSpinBox()
         self.filt_kernel_value.setSingleStep(1)
         self.filt_kernel_value.setSingleStep(1)
-        self.filt_kernel_value.setValue(5)
-        self.spac_filter_group.glayout.addWidget(self.filt_kernel_value, 1, 3, 1, 1)
-
-        self.disk_label = QLabel("Sigma 2 (color)")
-        self.disk_label.setToolTip(("Use this only in Bilateral filter"))
-        self.spac_filter_group.glayout.addWidget(self.disk_label, 1, 0, 1, 1)
-
-        self.sigma_filt_color_value = QDoubleSpinBox()
-        self.sigma_filt_color_value.setSingleStep(1)
-        self.sigma_filt_color_value.setSingleStep(0.1)
-        self.sigma_filt_color_value.setValue(1)
-        self.spac_filter_group.glayout.addWidget(self.sigma_filt_color_value, 1, 1, 1, 1)
+        self.filt_kernel_value.setValue(3)
+        self.spac_filter_group.glayout.addWidget(self.filt_kernel_value, 3, 5, 1, 1)
 
 
         self.apply_spat_filt_btn = QPushButton("apply")
         self.apply_spat_filt_btn.setToolTip(("apply selected filter to the image"))
-        self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 2, 0, 1, 4)
+        self.spac_filter_group.glayout.addWidget(self.apply_spat_filt_btn, 3, 6, 1, 2)
 
-
-        
-        ######## Segmentation group ########
-        
-        self.segmentation_group = VHGroup('Segment shapes', orientation='G')
-
-        self.segmentation_group = VHGroup('Segment Image', orientation='G')
-        # self._pre_processing_layout.addWidget(self.filter_group.gbox)
-
-        self._collapse_segmentation_group = QCollapsible('Segmentation', self)
-        self._collapse_segmentation_group.addWidget(self.segmentation_group.gbox)
-        
-        self.auto_segmentation_group = VHGroup('Automatic segmentation', orientation='G')
-        self.segmentation_group.glayout.addWidget(self.auto_segmentation_group.gbox, 0, 0, 1, 1)
-
-        self.segmentation_methods_lable = QLabel("Method")
-        self.auto_segmentation_group.glayout.addWidget(self.segmentation_methods_lable, 0, 0, 1, 1)
-
-        self.segmentation_methods = QComboBox()
-        self.segmentation_methods.addItems(["threshold_triangle", "GHT", "region_base"])
-        self.auto_segmentation_group.glayout.addWidget(self.segmentation_methods, 0, 1, 1, 1)
-
-
-        self.low_threshold_segmment_label = QLabel("low threshold")
-        self.auto_segmentation_group.glayout.addWidget(self.low_threshold_segmment_label,  0, 2, 1, 1)
-        
-        self.low_threshold_segmment_value = QLineEdit()
-        self.low_threshold_segmment_value.setValidator(QDoubleValidator()) 
-        self.low_threshold_segmment_value.setText("0.05")
-        self.auto_segmentation_group.glayout.addWidget(self.low_threshold_segmment_value,  0, 3, 1, 1)
-
-        self.high_threshold_segmment_label = QLabel("high threshold")
-        self.auto_segmentation_group.glayout.addWidget(self.high_threshold_segmment_label,  0, 4, 1, 1)
-        
-        self.high_threshold_segment_value = QLineEdit("High threshold")
-        self.high_threshold_segment_value.setValidator(QDoubleValidator()) 
-        self.high_threshold_segment_value.setText("0.2")
-        self.auto_segmentation_group.glayout.addWidget(self.high_threshold_segment_value,  0, 5, 1, 1)
-
-        self.is_Expand_mask = QCheckBox("Expand")
-        self.is_Expand_mask.setChecked(False)
-        self.auto_segmentation_group.glayout.addWidget(self.is_Expand_mask,  1, 0, 1, 1)
-
-        self.n_pixels_expand = QComboBox()
-        self.n_pixels_expand.addItems([str(i) for i in range(1, 21)])
-        self.auto_segmentation_group.glayout.addWidget(self.n_pixels_expand, 1, 1, 1, 1)
-
-        self.return_img_no_backg_btn = QCheckBox("Return image")
-        self.return_img_no_backg_btn.setChecked(True)
-        self.return_img_no_backg_btn.setToolTip(("Draw current selection as plot profile"))
-        # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
-        self.auto_segmentation_group.glayout.addWidget(self.return_img_no_backg_btn, 1, 2, 1, 1)
-
-        self.is_inverted_mask = QCheckBox("Inverted mask")
-        self.is_Expand_mask.setChecked(False)
-        self.auto_segmentation_group.glayout.addWidget(self.is_inverted_mask,  1, 3, 1, 1)
-
-        self.apply_segmentation_btn = QPushButton("segment stack (Auto)")
-        self.auto_segmentation_group.glayout.addWidget(self.apply_segmentation_btn, 1, 4, 1, 2)
-
-        self.manual_segmentation_group = VHGroup('Manual segmentation', orientation='G')
-        self.segmentation_group.glayout.addWidget(self.manual_segmentation_group.gbox,  1, 0, 1, 1)
-
-        # self.img_list_manual_segment = QComboBox()
-        # self.img_list_manual_segment_label = QLabel("Image")
-        # self.manual_segmentation_group.glayout.addWidget(self.img_list_manual_segment_label, 0, 0, 1, 1)
-        # self.manual_segmentation_group.glayout.addWidget(self.img_list_manual_segment, 0, 1, 1, 1)
-
-        self.mask_list_manual_segment = QComboBox()
-        self.mask_list_manual_segment_label = QLabel("Mask")
-        self.manual_segmentation_group.glayout.addWidget(self.mask_list_manual_segment_label, 0, 2, 1, 1)
-        self.manual_segmentation_group.glayout.addWidget(self.mask_list_manual_segment, 0, 3, 1, 1)
-
-        self.segment_manual_btn = QPushButton("segment stack (Manual)")
-        self.manual_segmentation_group.glayout.addWidget(self.segment_manual_btn, 0, 4, 1, 1)
-
-
-
-
-
+       
         ######## Load spool data btns Group ########
         self.load_spool_group = VHGroup('Load Spool data', orientation='G')
+        self.filter_group.glayout.addWidget(self.load_spool_group.gbox)
 
         self.dir_btn_label = QLabel("Directory name")
         self.load_spool_group.glayout.addWidget(self.dir_btn_label, 3, 1, 1, 1)
@@ -423,138 +223,52 @@ class OMAAS(QWidget):
         self.search_spool_dir_btn = QPushButton("Search Directory")
         self.load_spool_group.glayout.addWidget(self.search_spool_dir_btn, 3, 4, 1, 1)
 
-        # self.fast_loading = QCheckBox("Multithreading")
-        # self.load_spool_group.glayout.addWidget(self.fast_loading, 3, 5, 1, 1)
-
-
         ######## Segmentation group ########
+        self.segmentation_group = VHGroup('Segmentation', orientation='G')
         # self._pre_processing_layout.addWidget(self.segmentation_group.gbox)
 
         ######## Segmentation btns ########
-        # NOTE: on 26.03.2024 this is zomby code, soon to be removed
+        self.seg_heart_label = QLabel("Segment the heart shape")
+        self.segmentation_group.glayout.addWidget(self.seg_heart_label, 3, 0, 1, 1)
+        self.seg_heart_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.seg_heart_btn, 3, 1, 1, 1)
 
+        self.sub_bkg_label = QLabel("Subtract Background")
+        self.segmentation_group.glayout.addWidget(self.sub_bkg_label, 4, 0, 1, 1)
+        self.sub_backg_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.sub_backg_btn, 4, 1, 1, 1)
 
-        # self.seg_heart_label = QLabel("Segment the heart shape")
-        # self.auto_segmentation_group.glayout.addWidget(self.seg_heart_label, 3, 0, 1, 1)
-        # self.seg_heart_btn = QPushButton("apply")
-        # self.auto_segmentation_group.glayout.addWidget(self.seg_heart_btn, 3, 1, 1, 1)
+        self.del_bkg_label = QLabel("Delete Background")
+        self.segmentation_group.glayout.addWidget(self.del_bkg_label, 5, 0, 1, 1)
+        self.rmv_backg_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.rmv_backg_btn, 5, 1, 1, 1)
 
-        # self.sub_bkg_label = QLabel("Subtract Background")
-        # self.auto_segmentation_group.glayout.addWidget(self.sub_bkg_label, 4, 0, 1, 1)
-        # self.sub_backg_btn = QPushButton("apply")
-        # self.auto_segmentation_group.glayout.addWidget(self.sub_backg_btn, 4, 1, 1, 1)
-
-        # self.del_bkg_label = QLabel("Delete Background")
-        # self.auto_segmentation_group.glayout.addWidget(self.del_bkg_label, 5, 0, 1, 1)
-        # self.rmv_backg_btn = QPushButton("apply")
-        # self.auto_segmentation_group.glayout.addWidget(self.rmv_backg_btn, 5, 1, 1, 1)
-
-        # self.pick_frames_btn = QLabel("Pick frames")
-        # self.auto_segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 0, 1, 1)
-        # self.pick_frames_btn = QPushButton("apply")
-        # self.auto_segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
-
-
-
+        self.pick_frames_btn = QLabel("Pick frames")
+        self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 0, 1, 1)
+        self.pick_frames_btn = QPushButton("apply")
+        self.segmentation_group.glayout.addWidget(self.pick_frames_btn, 6, 1, 1, 1)
 
          ######## Plotting Group ########
-
-        self.plotting_tabs = QTabWidget()
-        self._plotting_profile_tabs_layout = VHGroup('Plot profile', orientation='G')
-        # self.plotting_tabs.setLayout(self._plotting_tabs_layout)
-        
-        # self._plotting_tabs_layout.setAlignment(Qt.AlignTop)
-        
-        
-        
-
-        # self.plot_group = VHGroup('Plot profile', orientation='G')
+        self.plot_grpup = VHGroup('Plot profile', orientation='G')
         # self.main_layout.addWidget(self.plot_grpup.gbox)
+        self._pre_processing_layout.addWidget(self.plot_grpup.gbox)
 
         ############################################
         ############ create plot widget ############
         ############################################
-
-        self.main_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        # self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
-        # self.plot_group.glayout.addWidget(self.plot_widget, 0, 1, 1, 1)
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.main_plot_widget, 0, 0, 1, 3)
-
-
-        ######################################################
-        ############ create plotting button widget ###########
-        ######################################################
-
-        # self.plot_profile_btn = QPushButton("Plot profile")
-        self.plot_profile_btn = QCheckBox("Display profile")
-        self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
-        # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
-        # self.plot_group.glayout.addWidget(self.plot_profile_btn, 1, 1, 1, 1)
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.plot_profile_btn, 1, 0, 1, 1)
-
-        self.x_scale_box_label = QLabel("set x scale")
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.x_scale_box_label, 1, 1, 1, 1)
-        self.x_scale_box =  QLineEdit()
-        self.x_scale_box.setValidator(QDoubleValidator()) 
-        self.x_scale_box.setFixedWidth(50)
-        self.x_scale_box.setText(f"{1}")
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.x_scale_box, 1, 2, 1, 1)
-        
-        self.clip_trace_btn = QPushButton("Clip Trace")
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.clip_trace_btn, 2, 0, 1, 1)
-        
-        self.is_range_clicked_checkbox = QCheckBox("Show range")
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.is_range_clicked_checkbox, 2, 1, 1, 1)
-
-        self.double_slider_clip_trace = QLabeledDoubleRangeSlider(Qt.Orientation.Horizontal)
-        self._plotting_profile_tabs_layout.glayout.addWidget(self.double_slider_clip_trace, 2, 2, 1, 1)
-
-
-        self.plotting_tabs.addTab(self._plotting_profile_tabs_layout.gbox, 'Plot profile')
-
-
-        self._plotting_hisotgram_tabs_layout = VHGroup('Image histogram', orientation='G')
-        self.histogram_plot_widget =  BaseNapariMPLWidget(self.viewer)
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.histogram_plot_widget, 0, 0, 1, 7)
-        
-        self.hist_currf_label = QLabel("current frame")
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.hist_currf_label, 1, 0, 1, 1)
-        
-        self.toggle_hist_data = ToggleButton()
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.toggle_hist_data, 1, 1, 1, 1)
-
-        self.hist_currf_label = QLabel("all stack")
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.hist_currf_label, 1, 2, 1, 1)
-
-        self.hist_bins_label = QLabel("Bins")
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.hist_bins_label, 1, 3, 1, 1)
-
-        self.slider_histogram_bins = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.slider_histogram_bins.setRange(5, 256)
-        self.slider_histogram_bins.setValue(100)
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.slider_histogram_bins, 1, 4, 1, 1)
-
-        self.plot_histogram_btn = QPushButton("Plot Histogram")
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.plot_histogram_btn, 1, 5, 1, 1)
-
-        self.clear_histogram_btn = QPushButton("Clear Plot")
-        self._plotting_hisotgram_tabs_layout.glayout.addWidget(self.clear_histogram_btn, 1, 6, 1, 1)
-
-
-        self.plotting_tabs.addTab(self._plotting_hisotgram_tabs_layout.gbox, 'Histogram')
+        self.plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
+        self.plot_grpup.glayout.addWidget(self.plot_widget, 1, 1, 1, 2)
 
 
         ######################################################
         ############ create Shape selector widget ############
         ######################################################
         
-        self.selector_group = VHGroup('Image/Shapes selector', orientation='G')        
-        self.main_layout.addWidget(self.selector_group.gbox)
-        
         self.listShapeswidget = QListWidget()
+
         self.listShapeswidget_label = QLabel("Select *Shape* for plotting profile")
-        self.selector_group.glayout.addWidget(self.listShapeswidget_label, 0, 2, 1, 1)
-        self.selector_group.glayout.addWidget(self.listShapeswidget, 1, 2, 1, 1)
+        self.plot_grpup.glayout.addWidget(self.listShapeswidget_label, 3, 2, 1, 1)
+        self.plot_grpup.glayout.addWidget(self.listShapeswidget, 4, 2, 1, 1)
 
         ######################################################
         ############ create Image selector widget ############
@@ -566,18 +280,19 @@ class OMAAS(QWidget):
         )
 
         self.listImagewidget_label = QLabel("Select *Image* for plotting profile")
-        self.selector_group.glayout.addWidget(self.listImagewidget_label, 0, 1, 1, 1)
-        self.selector_group.glayout.addWidget(self.listImagewidget, 1, 1, 1, 1)
+        self.plot_grpup.glayout.addWidget(self.listImagewidget_label, 3, 1, 1, 1)
+        self.plot_grpup.glayout.addWidget(self.listImagewidget, 4, 1, 1, 1)
 
-        ########################################################
-        # set the layout of the plotting group in the given order
-        ########################################################
-        self._pre_processing_layout.addWidget(self.load_spool_group.gbox)
-        self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
-        self._pre_processing_layout.addWidget(self._collapse_filter_group)
-        self._pre_processing_layout.addWidget(self._collapse_segmentation_group)
-        # self._pre_processing_layout.addWidget(self.plot_group.gbox)
-        self._pre_processing_layout.addWidget(self.plotting_tabs)
+
+        ######################################################
+        ############ create plotting button widget ###########
+        ######################################################
+
+        # self.plot_profile_btn = QPushButton("Plot profile")
+        self.plot_profile_btn = QCheckBox("Plot profile")
+        self.plot_profile_btn.setToolTip(("Draw current selection as plot profile"))
+        # self._plottingWidget_layout.addWidget(self.plot_profile_btn)
+        self.plot_grpup.glayout.addWidget(self.plot_profile_btn, 2, 1, 1, 1)
 
         ######## Shapes tab ########
         ############################
@@ -586,61 +301,35 @@ class OMAAS(QWidget):
         
         ######## Rois handeling group ########
         self.copy_rois_group = VHGroup('Copy ROIs from one layer to another', orientation='G')
-        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox, 0, 0, 0, 1)
+        self._layers_processing_layout.addWidget(self.copy_rois_group.gbox)
         
         self.ROI_selection_1 = QComboBox()
         self.ROI_1_label = QLabel("From layer")
-        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 1, 0, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_1_label, 3, 0, 1, 1)
         # self.ROI_selection_1.setAccessibleName("From layer")
-        # self.ROI_selection_1.addItems(self.get_rois_list())
-        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 1, 1, 1, 1)
+        self.ROI_selection_1.addItems(self.get_rois_list())
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_1, 3, 1, 1, 1)
         
         self.ROI_selection_2 = QComboBox()
         self.ROI_2_label = QLabel("To layer")
-        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 2, 0, 1, 1)
+        self.copy_rois_group.glayout.addWidget(self.ROI_2_label, 4, 0, 1, 1)
         # self.ROI_selection_2.setAccessibleName("To layer")
-        # self.ROI_selection_2.addItems(self.get_rois_list())
-        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 2, 1, 1, 1)
+        self.ROI_selection_2.addItems(self.get_rois_list())
+        self.copy_rois_group.glayout.addWidget(self.ROI_selection_2, 4, 1, 1, 1)
 
         self.copy_ROIs_btn = QPushButton("Transfer ROIs")
         self.copy_ROIs_btn.setToolTip(("Transfer ROIs from one 'Shape' layer to another 'Shape' layer"))
-        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 3, 0, 1, 2)
-
-        self.crop_from_shape_group = VHGroup('Crop from shape', orientation='G')
-        self._layers_processing_layout.addWidget(self.crop_from_shape_group.gbox, 0, 1, 0, 1)
-        
-        self.shape_crop_label = QLabel("Shape")
-        self.crop_from_shape_group.glayout.addWidget(self.shape_crop_label, 1, 0, 1, 1)
-        
-        self.ROI_selection_crop = QComboBox()
-        self.crop_from_shape_group.glayout.addWidget(self.ROI_selection_crop, 1, 1, 1, 1)
-        
-        self.rotate_l_crop = QCheckBox("Crop + Rotate (L)")
-        self.crop_from_shape_group.glayout.addWidget(self.rotate_l_crop, 1, 2, 1, 1)
-
-        self.image_crop_label = QLabel("Image")
-        self.crop_from_shape_group.glayout.addWidget(self.image_crop_label, 2, 0, 1, 1)
-        
-        self.image_selection_crop = QComboBox()
-        self.crop_from_shape_group.glayout.addWidget(self.image_selection_crop, 2, 1, 1, 1)
-        
-        self.rotate_r_crop = QCheckBox("Crop + Rotate (R)")
-        self.crop_from_shape_group.glayout.addWidget(self.rotate_r_crop, 2, 2, 1, 1)
-
-        self.crop_from_shape_btn = QPushButton("Crop")
-        self.crop_from_shape_group.glayout.addWidget(self.crop_from_shape_btn, 3, 0, 1, 3)
+        self.copy_rois_group.glayout.addWidget(self.copy_ROIs_btn, 5, 0, 1, 2)
 
 
-
-        
         ######## Mot-Correction tab ########
         ####################################
 
         self._motion_correction_layout.setAlignment(Qt.AlignTop)
 
         ######## Transform group ########
-        self.transform_group = VHGroup('Transform Image data', orientation='G') # Zombi code
-        # self._motion_correction_layout.addWidget(self.transform_group.gbox) # Zombi code
+        self.transform_group = VHGroup('Transform Image data', orientation='G')
+        self._motion_correction_layout.addWidget(self.transform_group.gbox)
 
         ######## Transform btns ########
         # self.inv_img_label = QLabel("Transform data to integer")
@@ -650,110 +339,64 @@ class OMAAS(QWidget):
         # self.transform_group.glayout.addWidget(self.transform_to_uint16_btn, 3, 1, 1, 1)
 
         ######## Mot-Correction group ########
-
-         ####### NOTE: deprecating this method on 14.08.22024 #######
-        # self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
-        # self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
+        self.mot_correction_group = VHGroup('Apply image registration (motion correction)', orientation='G')
+        self._motion_correction_layout.addWidget(self.mot_correction_group.gbox)
 
 
-        # self.fottprint_size_label = QLabel("Foot print size")
-        # self.fottprint_size_label.setToolTip(("Footprint size for local normalization"))
-        # self.mot_correction_group.glayout.addWidget(self.fottprint_size_label, 3, 0, 1, 1)
+        self.fottprint_size_label = QLabel("Foot print size")
+        self.fottprint_size_label.setToolTip(("Footprint size for local normalization"))
+        self.mot_correction_group.glayout.addWidget(self.fottprint_size_label, 3, 0, 1, 1)
 
-        # self.use_GPU_label = QLabel("Use GPU")
-        # self.mot_correction_group.glayout.addWidget(self.use_GPU_label, 3, 2, 1, 1)
+        self.use_GPU_label = QLabel("Use GPU")
+        self.mot_correction_group.glayout.addWidget(self.use_GPU_label, 3, 2, 1, 1)
         
-        # self.use_GPU = QCheckBox()
-        # try:
-        #     subprocess.check_output('nvidia-smi')
-        #     warn('Nvidia GPU detected!, setting to default GPU use.\nSet GPU use as default')
-        #     self.use_GPU.setChecked(True)
-        # except Exception: # this command not being found can raise quite a few different errors depending on the configuration
-        #     warn('No Nvidia GPU in system!, setting to default CPU use')
-        #     self.use_GPU.setChecked(False)
+        self.use_GPU = QCheckBox()
+        try:
+            subprocess.check_output('nvidia-smi')
+            warn('Nvidia GPU detected!, setting to default GPU use.\nSet GPU use as default')
+            self.use_GPU.setChecked(True)
+        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+            warn('No Nvidia GPU in system!, setting to default CPU use')
+            self.use_GPU.setChecked(False)
         
-        # self.mot_correction_group.glayout.addWidget(self.use_GPU,  3, 3, 1, 1)
+        self.mot_correction_group.glayout.addWidget(self.use_GPU,  3, 3, 1, 1)
 
 
 
         
-        # self.footprint_size = QSpinBox()
-        # self.footprint_size.setSingleStep(1)
-        # self.footprint_size.setValue(10)
-        # self.mot_correction_group.glayout.addWidget(self.footprint_size, 3, 1, 1, 1)
+        self.footprint_size = QSpinBox()
+        self.footprint_size.setSingleStep(1)
+        self.footprint_size.setValue(10)
+        self.mot_correction_group.glayout.addWidget(self.footprint_size, 3, 1, 1, 1)
 
-        # self.radius_size_label = QLabel("Radius size")
-        # self.radius_size_label.setToolTip(("Radius of the window considered around each pixel for image registration"))
-        # self.mot_correction_group.glayout.addWidget(self.radius_size_label, 4, 0, 1, 1)
+        self.radius_size_label = QLabel("Radius size")
+        self.radius_size_label.setToolTip(("Radius of the window considered around each pixel for image registration"))
+        self.mot_correction_group.glayout.addWidget(self.radius_size_label, 4, 0, 1, 1)
         
-        # self.radius_size = QSpinBox()
-        # self.radius_size.setSingleStep(1)
-        # self.radius_size.setValue(7)
-        # self.mot_correction_group.glayout.addWidget(self.radius_size, 4, 1, 1, 1)
+        self.radius_size = QSpinBox()
+        self.radius_size.setSingleStep(1)
+        self.radius_size.setValue(7)
+        self.mot_correction_group.glayout.addWidget(self.radius_size, 4, 1, 1, 1)
 
-        # self.n_warps_label = QLabel("Number of warps")
-        # self.mot_correction_group.glayout.addWidget(self.n_warps_label, 5, 0, 1, 1)
+        self.n_warps_label = QLabel("Number of warps")
+        self.mot_correction_group.glayout.addWidget(self.n_warps_label, 5, 0, 1, 1)
         
-        # self.n_warps = QSpinBox()
-        # self.n_warps.setSingleStep(1)
-        # self.n_warps.setValue(8)
-        # self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
+        self.n_warps = QSpinBox()
+        self.n_warps.setSingleStep(1)
+        self.n_warps.setValue(8)
+        self.mot_correction_group.glayout.addWidget(self.n_warps, 5, 1, 1, 1)
 
-
-        # self.apply_mot_correct_btn = QPushButton("apply")
-        # self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
-        # self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
-
-
-        
-        
-        
-        
-        # add new group for motion compensation using optimap
-        self.mot_correction_group_optimap = VHGroup('Apply image registration (optimap)', orientation='G')
-        self._motion_correction_layout.addWidget(self.mot_correction_group_optimap.gbox)
-
-        self.c_kernels_label = QLabel("Contrast Kernel")
-        # self.c_kernels_label.setToolTip((""))
-        self.mot_correction_group_optimap.glayout.addWidget(self.c_kernels_label, 1, 0, 1, 1)
-                
-        self.c_kernels = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.c_kernels.setRange(3, 30)
-        self.c_kernels.setValue(5)
-        self.mot_correction_group_optimap.glayout.addWidget(self.c_kernels, 1, 1, 1, 1)
-
-        self.pre_smooth_temp_label = QLabel("Pre-smooth Temp")
-        # self.c_kernels_label.setToolTip((""))
-        self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_temp_label, 1, 2, 1, 1)
-        
-        self.pre_smooth_temp = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.pre_smooth_temp.setRange(0, 10)
-        self.pre_smooth_temp.setValue(1)
-        self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_temp, 1, 3, 1, 1)
-
-        self.pre_smooth_spat_label = QLabel("Pre-smooth Spat")
-        # self.c_kernels_label.setToolTip((""))
-        self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_spat_label, 1, 4, 1, 1)
-
-        self.pre_smooth_spat = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.pre_smooth_spat.setRange(0, 10)
-        self.pre_smooth_spat.setValue(1)
-        self.mot_correction_group_optimap.glayout.addWidget(self.pre_smooth_spat, 1, 5, 1, 1)
-
-        # self.ref_frame_label = QLabel("Ref Frame")
-        # # self.c_kernels_label.setToolTip((""))
-        # self.mot_correction_group_optimap.glayout.addWidget(self.ref_frame_label, 2, 0, 1, 1)
-        
         self.ref_frame_label = QLabel("Reference frame")
-        self.mot_correction_group_optimap.glayout.addWidget(self.ref_frame_label, 2, 0, 1, 1)
+        self.mot_correction_group.glayout.addWidget(self.ref_frame_label, 4, 2, 1, 1)
         
         self.ref_frame_val = QLineEdit()
         self.ref_frame_val.setValidator(QIntValidator()) 
         self.ref_frame_val.setText("0")
-        self.mot_correction_group_optimap.glayout.addWidget(self.ref_frame_val, 2, 1, 1, 1)
+        self.mot_correction_group.glayout.addWidget(self.ref_frame_val, 4, 3, 1, 1)
 
-        self.apply_optimap_mot_corr_btn = QPushButton("apply")
-        self.mot_correction_group_optimap.glayout.addWidget(self.apply_optimap_mot_corr_btn, 2, 4, 1, 2)
+        self.apply_mot_correct_btn = QPushButton("apply")
+        self.apply_mot_correct_btn.setToolTip(("apply registration method to correct the image for motion artefacts"))
+        self.mot_correction_group.glayout.addWidget(self.apply_mot_correct_btn, 6, 0, 1, 1)
 
 
         ######## APD-analysis tab ########
@@ -762,24 +405,24 @@ class OMAAS(QWidget):
 
         ##### APD_plot_group ########
         self.APD_plot_group = VHGroup('APD plot group', orientation='G')
-        
+        self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
 
         self._APD_plot_widget = BaseNapariMPLWidget(self.viewer) 
-        self.APD_plot_group.glayout.addWidget(self._APD_plot_widget, 6, 0, 1, 4)
+        self.APD_plot_group.glayout.addWidget(self._APD_plot_widget, 3, 0, 1, 9)
         
         # self._APD_TSP = NapariMPLWidget(self.viewer)
         # self.APD_plot_group.glayout.addWidget(self._APD_TSP, 3, 0, 1, 8)
         # self.APD_axes = self._APD_TSP.canvas.figure.subplots()
 
         self.compute_APD_btn = QPushButton("Compute APDs")
-        self.compute_APD_btn.setToolTip(("Plot APDs detected in the selected Image in the selector"))
-        self.APD_plot_group.glayout.addWidget(self.compute_APD_btn, 3, 0, 1, 1)
+        self.compute_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
+        self.APD_plot_group.glayout.addWidget(self.compute_APD_btn, 4, 0, 1, 1)
 
         self.clear_plot_APD_btn = QPushButton("Clear traces")
         self.clear_plot_APD_btn.setToolTip(("PLot the current traces displayed in main plotter"))
-        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 3, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.clear_plot_APD_btn, 4, 1, 1, 1)
 
-        self.APD_computing_method_label = QLabel("AP detect meth")
+        self.APD_computing_method_label = QLabel("AP detection method")
         self.APD_computing_method_label.setToolTip(("""        
         Select the method to compute the resting (membrane) to detect the AP. 
          Methods are : 
@@ -788,37 +431,36 @@ class OMAAS(QWidget):
         - post_AP_min: minimum value after AP,
         - ave_pre_post_min: average the minimum value before and after stroke.
          """))
-        self.APD_plot_group.glayout.addWidget(self.APD_computing_method_label, 3, 2, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.APD_computing_method_label, 4, 2, 1, 1)
         
         self.APD_computing_method = QComboBox()
         self.APD_computing_method.addItems(["bcl_to_bcl", "pre_upstroke_min", "post_AP_min", "ave_pre_post_min"])
-        self.APD_plot_group.glayout.addWidget(self.APD_computing_method, 3, 3, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.APD_computing_method, 4, 3, 1, 1)
         
         self.slider_APD_detection_threshold = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_thres_max_range = 10000
         self.slider_APD_detection_threshold.setRange(1, 1000)
         self.slider_APD_detection_threshold.setValue(500)
-        self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 1, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_detection_threshold, 4, 6, 1, 1)
         
         self.slider_label_current_value = QLabel(f"Sensitivity threshold: {self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range )}")
         self.slider_label_current_value.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
-        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 4, 0, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_label_current_value, 4, 4, 1, 1)
         
         self.APD_peaks_help_box_label_def_value = 0
-        self.APD_peaks_help_box_label = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
+        self.APD_peaks_help_box_label = QLabel(f"[detected]: {self.APD_peaks_help_box_label_def_value}")
         self.APD_peaks_help_box_label.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
-        self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 5, 0, 1, 4)
+        self.APD_plot_group.glayout.addWidget(self.APD_peaks_help_box_label, 4, 5, 1, 1)
         
-        self.slider_APD_percentage = QLabeledSlider(Qt.Orientation.Horizontal)
+        self.slider_APD_percentage = QSlider(Qt.Orientation.Horizontal)
         self.slider_APD_percentage.setRange(10, 100)
         self.slider_APD_percentage.setValue(75)
         self.slider_APD_percentage.setSingleStep(5)
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 3, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_percentage, 4, 8, 1, 1)
         
-        self.slider_APD_perc_label = QLabel(f"APD %")
+        self.slider_APD_perc_label = QLabel(f"APD percentage: {self.slider_APD_percentage.value()}")
         self.slider_APD_perc_label.setToolTip('Change the APD at the given percentage')
-        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 2, 1, 1)
+        self.APD_plot_group.glayout.addWidget(self.slider_APD_perc_label, 4, 7, 1, 1)
         values = []
         self.AP_df_default_val = pd.DataFrame({"image_name": values,
                                                "ROI_id" : values, 
@@ -836,238 +478,53 @@ class OMAAS(QWidget):
         self.APD_propert_table.horizontalHeader().setStretchLastSection(True)
         self.APD_propert_table.setAlternatingRowColors(False)
         self.APD_propert_table.setSelectionBehavior(QTableView.SelectRows)
-        self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 7, 0, 1, 4)
+        self.APD_plot_group.glayout.addWidget(self.APD_propert_table, 5, 0, 1, 9)
 
 
          ##### APD export results ########
         self.APD_export_group = VHGroup('Export results', orientation='G')
+        self._APD_analysis_layout.addWidget(self.APD_export_group.gbox)
 
 
         
-
+        self.APD_rslts_export_file_format_label = QLabel("File format")
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 7, 0, 1, 1)
         
+        self.APD_rslts_export_file_format = QComboBox()
+        self.APD_rslts_export_file_format.addItems([".csv", ".xlsx"])
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 7, 1, 1, 1)
 
-        self.APD_rslt_dir_btn_label = QLabel("Save to Directory")
+        self.search_dir_APD_rslts_btn = QPushButton("change directory")
+        self.search_dir_APD_rslts_btn.setToolTip(("Navigate to change the current directory to save your APD results"))
+        self.APD_export_group.glayout.addWidget(self.search_dir_APD_rslts_btn, 7, 2, 1, 1)
+
+        self.APD_rslt_dir_btn_label = QLabel("Current Directory")
         self.APD_rslt_dir_btn_label.setToolTip("Drag and drop folders here to change the current directory to save your APD results")
-        self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 1, 0, 1, 1)
+        self.APD_export_group.glayout.addWidget(self.APD_rslt_dir_btn_label, 7, 4, 1, 1)
 
         self.APD_rslts_dir_box_text = QLineEdit()
         self.APD_rslts_dir_box_text.installEventFilter(self)
         self.APD_rslts_dir_box_text.setAcceptDrops(True)
         self.APD_rslts_dir_box_text.setPlaceholderText(os.getcwd())
         self.APD_rslts_dir_box_text.setToolTip(("Drag and drop or copy/paste a directory path to export your results"))
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 1, 1, 1, 1)
-
-        self.search_dir_APD_rslts_btn = QPushButton("change directory")
-        self.search_dir_APD_rslts_btn.setToolTip(("Navigate to change the current directory to save your APD results"))
-        self.APD_export_group.glayout.addWidget(self.search_dir_APD_rslts_btn, 1, 2, 1, 2)        
+        self.APD_export_group.glayout.addWidget(self.APD_rslts_dir_box_text, 7, 5, 1, 1)
         
-        self.label_rstl_name = QLabel("Rename results")
-        self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
-        self.APD_export_group.glayout.addWidget(self.label_rstl_name, 2, 0,  1, 1)
-        
-        self.table_rstl_name = QLineEdit()
-        self.table_rstl_name.setPlaceholderText("APD_results")
-        self.APD_export_group.glayout.addWidget(self.table_rstl_name, 2, 1, 1, 1)
-
-        self.APD_rslts_export_file_format_label = QLabel("Change format")
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format_label, 2, 2, 1, 1)
-        
-        self.APD_rslts_export_file_format = QComboBox()
-        self.APD_rslts_export_file_format.addItems([".csv", ".xlsx"])
-        self.APD_export_group.glayout.addWidget(self.APD_rslts_export_file_format, 2, 3, 1, 1)
-
-        self.copy_APD_rslts_btn = QPushButton("Copy to clipboard")
+        self.copy_APD_rslts_btn = QPushButton("Copy table")
         self.copy_APD_rslts_btn.setToolTip(("Copy to clipboard the current APD results."))
-        self.APD_export_group.glayout.addWidget(self.copy_APD_rslts_btn, 4, 0, 1, 2)
+        self.APD_export_group.glayout.addWidget(self.copy_APD_rslts_btn, 6, 0, 1, 2)
 
         self.save_APD_rslts_btn = QPushButton("Export table")
         self.save_APD_rslts_btn.setToolTip(("Export current APD results to a directory in .csv format."))
-        self.APD_export_group.glayout.addWidget(self.save_APD_rslts_btn, 4, 2, 1, 2)
+        self.APD_export_group.glayout.addWidget(self.save_APD_rslts_btn, 6, 2, 1, 2)
 
-
-        ######## Mapping tab ########
-        # ####################################
-        self.mapping_tabs = QTabWidget()
-        self._mapping_processing_layout.setAlignment(Qt.AlignTop)
-
-        ##### APD_plot_group ########
-        self.average_trace_group = VHGroup('Average individual AP traces', orientation='G')
-        self._mapping_processing_layout.addWidget(self.average_trace_group.gbox)
-
-        self.preview_AP_splitted_btn = QPushButton("Preview traces")
-        self.preview_AP_splitted_btn.setToolTip(("Preview individual overlaper AP detected from the current trace"))
-        self.average_trace_group.glayout.addWidget(self.preview_AP_splitted_btn, 1, 0, 1, 1)
-
-        self.create_average_AP_btn = QPushButton("Average traces")
-        self.create_average_AP_btn.setToolTip(("Create a single AP by averaging the from the individula APs displayed"))
-        self.average_trace_group.glayout.addWidget(self.create_average_AP_btn, 1, 1, 1, 1)
-
-        self.clear_AP_splitted_btn = QPushButton("Clear Plot")
-        self.clear_AP_splitted_btn.setToolTip(("Clear the current trace"))
-        self.average_trace_group.glayout.addWidget(self.clear_AP_splitted_btn, 1, 2, 1, 1)
-
-        self.create_AP_gradient_btn = QPushButton("Check Activation times")
-        self.average_trace_group.glayout.addWidget(self.create_AP_gradient_btn, 1, 3, 1, 2)
-
-        self.slider_label_current_value_2 = QLabel(self.slider_label_current_value.text())
-        self.slider_label_current_value_2.setToolTip('Change the threshold sensitivity for the APD detection base on peak "prominence"')
-        self.average_trace_group.glayout.addWidget(self.slider_label_current_value_2, 2, 0, 1, 1)
+        self.label_rstl_name = QLabel("Rename results")
+        self.label_rstl_name.setToolTip(("Set the name for the resulting table"))
+        self.APD_export_group.glayout.addWidget(self.label_rstl_name, 6, 4,  1, 1)
         
-        self.slider_APD_detection_threshold_2 = QSlider(Qt.Orientation.Horizontal)
-        self.slider_APD_thres_max_range = 10000
-        self.slider_APD_detection_threshold_2.setRange(1, 1000)
-        self.slider_APD_detection_threshold_2.setValue(500)
-        self.average_trace_group.glayout.addWidget(self.slider_APD_detection_threshold_2, 2, 1, 1, 1)
+        self.table_rstl_name = QLineEdit()
 
-        self.APD_peaks_help_box_label_2 = QLabel(f"[AP detected]: {self.APD_peaks_help_box_label_def_value}")
-        self.APD_peaks_help_box_label_2.setToolTip('Display number of peaks detected as you scrol over the "Sensitivity threshold')
-        self.average_trace_group.glayout.addWidget(self.APD_peaks_help_box_label_2, 2, 2, 1, 1)
-
-        self.remove_mean_label = QLabel("Display mean")
-        self.average_trace_group.glayout.addWidget(self.remove_mean_label, 2, 3, 1, 1)
-
-        self.remove_mean_check = QCheckBox()
-        self.remove_mean_check.setChecked(False)
-        self.average_trace_group.glayout.addWidget(self.remove_mean_check, 2, 4, 1, 1)
-
-        self.slider_N_APs_label = QLabel("Slide to select your current AP")
-        self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 3, 0, 1, 1)
-
-        self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.slider_N_APs.setValue(0)
-        self.average_trace_group.glayout.addWidget(self.slider_N_APs, 3, 1, 1, 1)
-
-        self.shift_AP_label = QLabel("Shift selected AP")
-        self.average_trace_group.glayout.addWidget(self.shift_AP_label, 3, 2, 1, 1)
-
-        self.mv_left_AP_btn = QToolButton()
-        self.shif_trace = False
-        self.mv_left_AP_btn.setArrowType(QtCore.Qt.LeftArrow) # type: ignore
-        self.average_trace_group.glayout.addWidget(self.mv_left_AP_btn, 3, 3, 1, 1)
-        
-        self.mv_righ_AP_btn = QToolButton()
-        self.mv_righ_AP_btn.setArrowType(QtCore.Qt.RightArrow)
-        self.average_trace_group.glayout.addWidget(self.mv_righ_AP_btn, 3, 4, 1, 1)
-
-        self.average_AP_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.average_trace_group.glayout.addWidget(self.average_AP_plot_widget, 4, 0, 1, 5)
-        
-        self.activation_map_label = QLabel("Activation Maps")
-        self.average_trace_group.glayout.addWidget(self.activation_map_label, 5, 0, 1, 1)
-        
-        # self.toggle_map_type = Toggle()
-        self.toggle_map_type = ToggleButton()
-        self.average_trace_group.glayout.addWidget(self.toggle_map_type, 5, 1, 1, 1)
-
-        self.APD_map_label = QLabel("APD Maps")
-        self.average_trace_group.glayout.addWidget(self.APD_map_label, 5, 2, 1, 1)
-        
-        self.make_interpolation_label = QLabel("Interpolate Maps")
-        self.average_trace_group.glayout.addWidget(self.make_interpolation_label, 5, 3, 1, 1)
-
-        self.make_interpolation_check = QCheckBox()
-        self.make_interpolation_check.setChecked(False)
-        self.average_trace_group.glayout.addWidget(self.make_interpolation_check, 5, 4, 1, 1)
-        
-        self.activation_map_percentage_label = QLabel("APD Map percentage")
-        self.average_trace_group.glayout.addWidget(self.activation_map_percentage_label, 6, 0, 1, 1)
-
-        self.slider_APD_map_percentage = QLabeledSlider(Qt.Orientation.Horizontal)
-        self.slider_APD_map_percentage.setRange(10, 100)
-        self.slider_APD_map_percentage.setValue(75)
-        self.slider_APD_map_percentage.setSingleStep(5)
-        self.average_trace_group.glayout.addWidget(self.slider_APD_map_percentage, 6, 1, 1, 1)
-        
-        self.make_maps_btn = QPushButton("Create Maps")
-        self.average_trace_group.glayout.addWidget(self.make_maps_btn, 6, 2, 1, 3)
-
-        self.average_roi_on_map_btn = QPushButton("Get current ROI mean")
-        self.average_trace_group.glayout.addWidget(self.average_roi_on_map_btn, 7, 0, 1, 1)
-        
-        self.average_roi_value_container = QLineEdit()
-        self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
-        self.average_trace_group.glayout.addWidget(self.average_roi_value_container, 7, 1, 1, 1)
-
-        self.plot_APD_boundaries_btn = QPushButton("display boundaries")
-        self.average_trace_group.glayout.addWidget(self.plot_APD_boundaries_btn, 7, 2, 1, 3)
-
-
-
-        ##### Postprocessing Map group ########
-        self.postprocessing_group = VHGroup('Postprocessing Maps', orientation='G')
-        # self._mapping_processing_layout.addWidget(self.postprocessing_group.gbox)
-
-        self.maps_plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.postprocessing_group.glayout.addWidget(self.maps_plot_widget, 0, 0, 1, 5)
-
-        self.maps_selector_label =  QLabel("Image selector:")
-        self.maps_selector_label.setToolTip("Image Selector for diplaying and post-processing maps.")
-        self.postprocessing_group.glayout.addWidget(self.maps_selector_label, 1, 0, 1, 1)
-
-        self.map_imgs_selector = MultiComboBox()
-        # self.map_imgs_selector.addItems(["Option 1", "Option 2", "Option 3", "Option 4"])
-        self.postprocessing_group.glayout.addWidget(self.map_imgs_selector, 1, 1, 1, 4)
-
-        self.map_lower_clip_limit_label = QLabel("Set Lower limit")
-        self.postprocessing_group.glayout.addWidget(self.map_lower_clip_limit_label, 2, 0, 1, 1)
-        self.map_lower_clip_limit =  QLineEdit()
-        self.map_lower_clip_limit.setValidator(QDoubleValidator()) 
-        self.map_lower_clip_limit.setFixedWidth(50)
-        self.map_lower_clip_limit.setText(f"{0}")
-        self.postprocessing_group.glayout.addWidget(self.map_lower_clip_limit, 2, 1, 1, 1)
-
-        self.plot_curr_map_btn = QPushButton("Plot Maps")
-        self.postprocessing_group.glayout.addWidget(self.plot_curr_map_btn, 2, 4, 1, 1)
-
-        self.colormap_n_levels_label = QLabel("No Levels (colormap)")
-        self.postprocessing_group.glayout.addWidget(self.colormap_n_levels_label, 2, 2, 1, 1)
-        
-        self.colormap_n_levels = QSpinBox()
-        self.colormap_n_levels.setSingleStep(1)
-        self.colormap_n_levels.setValue(10)
-        self.postprocessing_group.glayout.addWidget(self.colormap_n_levels, 2, 3, 1, 1)
-        
-        self.map_upper_clip_limit_label = QLabel("Set Upper limit")
-        self.postprocessing_group.glayout.addWidget(self.map_upper_clip_limit_label, 3, 0, 1, 1)
-        self.map_upper_clip_limit =  QLineEdit()
-        self.map_upper_clip_limit.setValidator(QDoubleValidator()) 
-        self.map_upper_clip_limit.setFixedWidth(50)
-        self.map_upper_clip_limit.setText(f"{200}")
-        self.postprocessing_group.glayout.addWidget(self.map_upper_clip_limit, 3, 1, 1, 1)
-
-
-
-        self.apply_cip_limits_map_label = QLabel("Apply limits")
-        self.postprocessing_group.glayout.addWidget(self.apply_cip_limits_map_label, 3, 2, 1, 1)
-        
-        self.apply_cip_limits_map = QCheckBox()
-        self.apply_cip_limits_map.setChecked(False)
-        self.postprocessing_group.glayout.addWidget(self.apply_cip_limits_map, 3, 3, 1, 1)
-
-        self.clear_curr_map_btn = QPushButton("Clear Maps")
-        self.postprocessing_group.glayout.addWidget(self.clear_curr_map_btn, 3, 4, 1, 1)
-        
-        self.erode_siluete_label = QLabel("Reduce Map Edge (px)")
-        self.postprocessing_group.glayout.addWidget(self.erode_siluete_label, 4, 0, 1, 1)
-
-        self.n_pixels_erode = QSpinBox()
-        self.n_pixels_erode.setSingleStep(1)
-        self.n_pixels_erode.setValue(1)
-        self.postprocessing_group.glayout.addWidget(self.n_pixels_erode, 4, 1, 1, 1)
-
-        self.preview_erode_btn = QPushButton("Preview")
-        self.postprocessing_group.glayout.addWidget(self.preview_erode_btn, 4, 2, 1, 1)
-
-
-        # Adding mapping subtabs
-        self.mapping_tabs.addTab(self.average_trace_group.gbox, 'Pre-processing Maps')
-        self.mapping_tabs.addTab(self.postprocessing_group.gbox, 'Post-proecessing Maps')
-        self._mapping_processing_layout.addWidget(self.mapping_tabs)
-
-
-
-
+        self.table_rstl_name.setPlaceholderText("APD_results")
+        self.APD_export_group.glayout.addWidget(self.table_rstl_name, 6, 5, 1, 1)
 
         ######## Settings tab ########
         ####################################
@@ -1077,33 +534,23 @@ class OMAAS(QWidget):
         self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
         self._settings_layout.addWidget(self.macro_group.gbox)
 
-        self.record_script_label = QLabel("Your current actions")
-        self.record_script_label.setToolTip('Display bellow the recorded set of actions of your processing pipeline.')
-        self.macro_group.glayout.addWidget(self.record_script_label, 1, 0, 1, 4)
-       
-        self.macro_box_text = QPlainTextEdit()
-        self.macro_box_text.setStyleSheet("border: 1px solid black;") 
-        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
-        self.macro_group.glayout.addWidget(self.macro_box_text, 2, 0, 1, 4)
-
-        self.activate_macro_label = QLabel("Enable/disable Macro recording")
-        self.activate_macro_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
-        self.macro_group.glayout.addWidget(self.activate_macro_label, 3, 0, 1, 1)
+        self.record_script_label = QLabel("Macro")
+        self.record_script_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
+        self.macro_group.glayout.addWidget(self.record_script_label, 3, 2, 1, 1)
         
         self.record_macro_check = QCheckBox()
         self.record_macro_check.setChecked(True) 
-        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 1, 1, 1)
+        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 3, 1, 1)
 
         self.clear_last_step_macro_btn = QPushButton("Delete last step")
-        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 2, 1, 1)
+        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 4, 1, 1)
         
         self.clear_macro_btn = QPushButton("Clear Macro")
-        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 3, 1, 1)       
-
-
-        
-        self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
-        self._APD_analysis_layout.addWidget(self.APD_export_group.gbox)
+        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 5, 1, 1)       
+       
+        self.macro_box_text = QPlainTextEdit()
+        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
+        self.macro_group.glayout.addWidget(self.macro_box_text, 4, 2, 1, 1)
         
 
         # sub_backg_btn = QPushButton("Subtract Background")
@@ -1130,21 +577,7 @@ class OMAAS(QWidget):
         # self.metadata_tree.setGeometry(30, 30, 300, 100)
         self.metadata_tree.setColumnCount(2)
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
-        self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
-
-        self.record_operations_label = QLabel("Record operations in metadata")
-        self.record_operations_label.setToolTip('Set on if you want to keep track of the processing steps and operations to be recorded and added to the meatadata.')
-        self.metadata_display_group.glayout.addWidget(self.record_operations_label, 1, 0, 1, 1)
-        
-        self.record_metadata_check = QCheckBox()
-        self.record_metadata_check.setChecked(True) 
-        self.metadata_display_group.glayout.addWidget(self.record_metadata_check,  1, 1, 1, 1)
-        
-        self.export_image_btn = QPushButton("Export Image + meatadata")
-        self.metadata_display_group.glayout.addWidget(self.export_image_btn,  1, 2, 1, 1)
-
-        self.export_processing_steps_btn = QPushButton("Export processing steps")
-        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn,  1, 3, 1, 1)
+        self.metadata_display_group.glayout.addWidget(self.metadata_tree)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
@@ -1225,17 +658,16 @@ class OMAAS(QWidget):
         ##################################################################
         
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
-        self.apply_normalization_btn.clicked.connect(self._on_click_norm_data_btn)
+        self.norm_data_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
         self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
-        # self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
-        # self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
+        self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
         self.apply_spat_filt_btn.clicked.connect(self._on_click_apply_spat_filt_btn)
         # self.filter_types.activated.connect(self._filter_type_change)
         # rmv_backg_btn.clicked.connect(self._on_click_rmv_backg_btn)
         # sub_backg_btn.clicked.connect(self._on_click_sub_backg_btn)
-        # self.pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
+        self.pick_frames_btn.clicked.connect(self._on_click_pick_frames_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_and_norm_btn)
         # inv_and_norm_btn.clicked.connect(self._on_click_inv_data_btn, self._on_click_norm_data_btn)
         # load_ROIs_btn.clicked.connect(self._on_click_load_ROIs_btn)
@@ -1244,13 +676,13 @@ class OMAAS(QWidget):
         self.ROI_selection_1.activated.connect(self._get_ROI_selection_1_current_text)
         self.ROI_selection_2.activated.connect(self._get_ROI_selection_2_current_text)
         self.copy_ROIs_btn.clicked.connect(self._on_click_copy_ROIS)
-        # self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
+        self.apply_mot_correct_btn.clicked.connect(self._on_click_apply_mot_correct_btn)
         # self.transform_to_uint16_btn.clicked.connect(self._on_click_transform_to_uint16_btn)
         self.apply_temp_filt_btn.clicked.connect(self._on_click_apply_temp_filt_btn)
         self.compute_APD_btn.clicked.connect(self._get_APD_call_back)
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
-        self.slider_APD_detection_threshold_2.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
+        self.slider_APD_percentage.valueChanged.connect(self._get_APD_percent_slider_vlaue_func)
         self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
         self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
         self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
@@ -1259,37 +691,6 @@ class OMAAS(QWidget):
         self.search_dir_APD_rslts_btn.clicked.connect(self._on_click_search_new_dir_APD_rslts_btn_func)
         self.save_APD_rslts_btn.clicked.connect(self._on_click_save_APD_rslts_btn_func)
         self.APD_computing_method.activated.connect(self._get_APD_call_back)
-        # self.get_AP_btn.clicked.connect(self.show_pop_window_ave_trace)
-        self.preview_AP_splitted_btn.clicked.connect(self._preview_multiples_traces_func)
-        self.remove_mean_check.stateChanged.connect(self._remove_mean_check_func)
-        self.slider_N_APs.valueChanged.connect(self._slider_N_APs_changed_func)
-        self.mv_left_AP_btn.clicked.connect(self._on_click_mv_left_AP_btn_func)
-        self.mv_righ_AP_btn.clicked.connect(self._on_click_mv_right_AP_btn_func)
-        self.clear_AP_splitted_btn.clicked.connect(self._on_click_clear_AP_splitted_btn_fun )
-        self.create_average_AP_btn.clicked.connect(self._on_click_create_average_AP_btn_func )
-        self.make_maps_btn.clicked.connect(self._on_click_make_maps_btn_func)
-        self.create_AP_gradient_btn.clicked.connect(self._on_click_create_AP_gradient_bt_func)
-        self.apply_segmentation_btn.clicked.connect(self._on_click_apply_segmentation_btn_fun)
-        self.average_roi_on_map_btn.clicked.connect(self._on_click_average_roi_on_map_btn_fun)
-        self.plot_histogram_btn.clicked.connect(self._on_click_plot_histogram_btn_func)
-        self.clear_histogram_btn.clicked.connect(self._on_click_clear_histogram_btn_func)
-        self.clip_trace_btn.clicked.connect(self._on_click_clip_trace_btn_func)
-        self.is_range_clicked_checkbox.stateChanged.connect(self._dsiplay_range_func)
-        self.double_slider_clip_trace.valueChanged.connect(self._double_slider_clip_trace_func)
-        self.export_processing_steps_btn.clicked.connect(self._export_processing_steps_btn_func)
-        self.export_image_btn.clicked.connect(self._export_image_btn_func)
-        self.apply_optimap_mot_corr_btn.clicked.connect(self._apply_optimap_mot_corr_btn_func)
-        self.crop_from_shape_btn.clicked.connect(self._on_click_crop_from_shape_btn_func)
-        self.segment_manual_btn.clicked.connect(self._on_click_segment_manual_btn_func)
-        self.plot_APD_boundaries_btn.clicked.connect(self._plot_APD_boundaries_btn_func)
-        self.compute_ratio_btn.clicked.connect(self._compute_ratio_btn_func)
-        self.slider_APD_percentage.valueChanged.connect(self._update_APD_value_for_MAP_func)
-        self.slider_APD_map_percentage.valueChanged.connect(self._update_APD_value_for_APD_func)
-        self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
-        self.plot_curr_map_btn.clicked.connect(self._plot_curr_map_btn_fun)
-        self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
-        self.preview_erode_btn.clicked.connect(self._preview_erode_btn_func)
-        
         
         
         
@@ -1299,15 +700,14 @@ class OMAAS(QWidget):
         # self.viewer.layers.events.reordered.connect(self._shapes_layer_list_changed_callback)
         self.viewer.layers.selection.events.active.connect(self._retrieve_metadata_call_back)
         # self.plot_widget.plotter.selector.model().itemChanged.connect(self._get_current_selected_TSP_layer_callback)
-        # callback for insert /remove / reordered layers
+        # callback for insert /remove layers
         self.viewer.layers.events.inserted.connect(self._layer_list_changed_callback)
         self.viewer.layers.events.removed.connect(self._layer_list_changed_callback)
-        self.viewer.layers.events.reordered.connect(self._layer_list_changed_callback)
         # callback for selection of layers in the selectors
         self.listShapeswidget.itemClicked.connect(self._data_changed_callback)
         self.listImagewidget.itemClicked.connect(self._data_changed_callback)
         # updtae FPS label
-        self.viewer.window._qt_viewer.canvas._scene_canvas.measure_fps(callback = self.update_fps)
+        self.viewer.window.qt_viewer.canvas.measure_fps(callback = self.update_fps)
         # callback for trace plotting
         # self.plot_profile_btn.clicked.connect(self._on_click_plot_profile_btn_func)
         self.plot_profile_btn.stateChanged.connect(self._on_click_plot_profile_btn_func)
@@ -1317,75 +717,25 @@ class OMAAS(QWidget):
     def _on_click_inv_data_btn(self):
         current_selection = self.viewer.layers.selection.active
 
-        try:
-            if isinstance(current_selection, Image):
-                print(f'computing "invert_signal" to image {current_selection}')
-                results =invert_signal(current_selection.data)
-
-                self.add_result_img(
-                    result_img=results,
-                    operation_name="invert_signal",
-                    method_name= "invert_signal",
-                    sufix="Inv", 
-                    parameters=None, 
-                    )
-                self.add_record_fun()
-            else:
-                return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
-        except Exception as e:
-            raise CustomException(e, sys)
-            # print (CustomException(e, sys))
-            
+        if current_selection._type_string == "image":
+            print(f'computing "invert_signal" to image {current_selection}')
+            results =invert_signal(current_selection.data)
+            self.add_result_img(result_img=results, single_label_sufix="Inv", add_to_metadata = "inv_signal")
+            self.add_record_fun()
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_norm_data_btn(self):
         current_selection = self.viewer.layers.selection.active
 
-        type_of_normalization = self.data_normalization_options.currentText()
-        normalization_methods = [self.data_normalization_options.itemText(i) for i in range(self.data_normalization_options.count())]
-
-        if isinstance(current_selection, Image):
-            try:
-                
-                add_metadata = self.record_metadata_check.isChecked()
-
-                if type_of_normalization == normalization_methods[0]:
-                    print(f'computing "{type_of_normalization}" to image {current_selection}')
-                    suffix = "Loc"
-                    method_name = "local_normal_fun"
-                    results = local_normal_fun(current_selection.data)
-
-                elif type_of_normalization == normalization_methods[1]:
-                    print(f'computing "{type_of_normalization}" to image {current_selection}')
-                    wind_size = self.slide_wind_n.value()
-                    suffix = f"SliWind{wind_size}"
-                    method_name = "slide_window_normalization_func"
-                    results = slide_window_normalization_func(current_selection.data, slide_window=wind_size)
-
-                elif type_of_normalization == normalization_methods[2]:
-                    print(f'computing "{type_of_normalization}" to image {current_selection}')
-                    suffix = "Glob"
-                    method_name = "global_normal_fun"
-                    results = global_normal_fun(current_selection.data)
-                else:
-                    warn(f"Normalization method '{type_of_normalization}' no found.")
-
-                parameters= {"Normalization_method": type_of_normalization}
-                parameters = {"Normalization_method": type_of_normalization, "options": {"slide_window" : wind_size}} if type_of_normalization == normalization_methods[1] else parameters
-                
-                self.add_result_img(
-                    result_img=results,
-                    operation_name="Normalization",
-                    method_name= method_name,
-                    sufix=f"Norm{suffix}", 
-                    parameters=parameters, 
-                    track_metadata=add_metadata,
-                    )
-                self.add_record_fun()
-            except Exception as e:
-                raise CustomException(e, sys)
+        if current_selection._type_string == "image":
+            print(f'computing "local_normal_fun" to image {current_selection}')
+            results = local_normal_fun(current_selection.data)
+            self.add_result_img(result_img=results, single_label_sufix="Nor", add_to_metadata = "norm_signal")
+            self.add_record_fun()
         else:
-           return  warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
 
     def _on_click_inv_and_norm_data_btn(self):
@@ -1396,95 +746,57 @@ class OMAAS(QWidget):
     def _on_click_splt_chann(self):
         current_selection = self.viewer.layers.selection.active
 
-        if isinstance(current_selection, Image):
+        if current_selection._type_string == "image":
             print(f'applying "split_channels" to image {current_selection}')
             my_splitted_images = split_channels_fun(current_selection.data)
             curr_img_name = current_selection.name
-            metadata = current_selection.metadata
-            # overwrite the new cycle time
-            if not "CycleTime" in metadata:
-                warn('not "CycleTime" found in metadata. Setted to 1')
-                metadata["CycleTime"] = 1
-            if "CycleTime" in metadata:
-                half_cycle_time = metadata["CycleTime"] * 2
-            
-            new_metadata = metadata.copy()
-            new_metadata["CycleTime"] = half_cycle_time
-
 
             for channel in range(len(my_splitted_images)):
-                
-                params = {"Channel" : {"current_channel":channel},
-                          "cycle_time_changed": {"original_cycle_time": round(metadata["CycleTime"], 3), 
-                                                 "new_cycle_time": round(half_cycle_time, 3)}
-                                                 }
-                self.add_result_img(result_img=my_splitted_images[channel], 
-                                    operation_name="Split_Channels", 
-                                    method_name="split_channels_fun", 
-                                    sufix=f"Ch{channel}", 
-                                    custom_metadata=new_metadata, 
-                                    custom_img_name= curr_img_name,
-                                    custom_outputs=[curr_img_name + "_Ch0", curr_img_name + "_Ch1"],
-                                    parameters=params)
-
+                # self.viewer.add_image(my_splitted_images[channel],
+                # colormap= "turbo", 
+                # name= f"{curr_img_name}_ch{channel + 1}")
+                self.add_result_img(result_img=my_splitted_images[channel], img_custom_name=curr_img_name, single_label_sufix=f"Ch{channel}", add_to_metadata = f"Splitted_Channel_f_Ch{channel}")
                 self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
     
-    # def _on_click_glob_norm_data_btn(self):
-    # NOTE: this fucntion can retire soon. updated on new qcombobox method [self.data_normalization_options] on date 11.04.224
-    #     current_selection = self.viewer.layers.selection.active
+    def get_rois_list(self):
+
+        shape_layer_list = [layer.name for layer in self.viewer.layers if layer._type_string == 'shapes']
         
-    #     if isinstance(current_selection, Image):
-    #         results = global_normal_fun(current_selection.data)
-    #         self.add_result_img(result_img=results, single_label_sufix="GloNor", add_to_metadata = "Global_norm_signal")
+        return shape_layer_list
 
-    #     else:
-    #         return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+    def update_roi_list(self):
 
-
-    #  NOTE: deprecated on 07.02.2023 you can kill this function
+        self.clear()
+        self.addItems(self.get_rois_list())
     
-    # def get_rois_list(self):
-
-    #     shape_layer_list = [layer.name for layer in self.viewer.layers if layer._type_string == 'shapes']
-        
-    #     return shape_layer_list
-
-    # def update_roi_list(self):
-
-    #     self.clear()
-    #     self.addItems(self.get_rois_list())
-        
-
-    
-        
-    # def _shapes_layer_list_changed_callback(self, event):
-    #      if event.type in ['inserted', 'removed']:
-    #         value = event.value
-    #         etype = event.type
-    #         if value._type_string == 'shapes' :
-    #             if value:
-    #                 if etype == 'inserted':  # add layer to model
-    #                     # print("you  enter the event loop")
-    #                     self.ROI_selection_1.clear()
-    #                     self.ROI_selection_1.addItems(self.get_rois_list()) 
-    #                     self.ROI_selection_2.clear()
-    #                     self.ROI_selection_2.addItems(self.get_rois_list())
+    def _shapes_layer_list_changed_callback(self, event):
+         if event.type in ['inserted', 'removed']:
+            value = event.value
+            etype = event.type
+            if value._type_string == 'shapes' :
+                if value:
+                    if etype == 'inserted':  # add layer to model
+                        # print("you  enter the event loop")
+                        self.ROI_selection_1.clear()
+                        self.ROI_selection_1.addItems(self.get_rois_list()) 
+                        self.ROI_selection_2.clear()
+                        self.ROI_selection_2.addItems(self.get_rois_list())
                         
-    #                 elif etype == 'removed':  # remove layer from model
-    #                     self.ROI_selection_1.clear()
-    #                     self.ROI_selection_1.addItems(self.get_rois_list())
-    #                     self.ROI_selection_2.clear()
-    #                     self.ROI_selection_2.addItems(self.get_rois_list())
+                    elif etype == 'removed':  # remove layer from model
+                        self.ROI_selection_1.clear()
+                        self.ROI_selection_1.addItems(self.get_rois_list())
+                        self.ROI_selection_2.clear()
+                        self.ROI_selection_2.addItems(self.get_rois_list())
                         
 
-    #                 elif etype == 'reordered':  # remove layer from model
-    #                     self.ROI_selection_1.clear()
-    #                     self.ROI_selection_1.addItems(self.get_rois_list())
-    #                     self.ROI_selection_2.clear()
-    #                     self.ROI_selection_2.addItems(self.get_rois_list())
+                    elif etype == 'reordered':  # remove layer from model
+                        self.ROI_selection_1.clear()
+                        self.ROI_selection_1.addItems(self.get_rois_list())
+                        self.ROI_selection_2.clear()
+                        self.ROI_selection_2.addItems(self.get_rois_list())
     
     def _on_click_copy_ROIS(self):
         
@@ -1509,339 +821,48 @@ class OMAAS(QWidget):
     # def _filter_type_change(self, _):
     #    ctext = self.filter_types.currentText()
     #    print(f"Current layer 1 is {ctext}")
-    
-    def _compute_ratio_btn_func(self):
-        
-        
-        # if [img0.data.shape] != [img1.data.shape]:
-        #     return warn(f"The shape of your images does not seems to be the same. Please check the images. dim of '{img0_name}' = {img0.data.shape} and dim of '{img1_name}' = {img1.data.shape}")
-        # else :
-        img0_name = self.Ch0_ratio.currentText()
-        img0 = self.viewer.layers[img0_name]
-        img1_name = self.Ch1_ratio.currentText()
-        img1 = self.viewer.layers[img1_name]
-
-        # metadata = img0.metadata
-        params = {"is_ratio_inverted": self.is_ratio_inverted.isChecked()}
-
-        if self.is_ratio_inverted.isChecked():
-            results = img1.data/img0.data
-            
-            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh1Ch0", custom_inputs=[img1_name, img0_name], )                                    
-            
-            print(f"Computing ratio of '{img1_name[:20]}...{img1_name[-5:]}' / '{img0_name[:20]}...{img0_name[-5:]}'")
-
-        else:
-            results = img0.data/img1.data
-            
-            self.add_result_img(result_img=results, operation_name= "Compute_Ratio", method_name="/", sufix=f"RatCh0Ch1", custom_inputs=[img0_name, img1_name], parameters=params)                                    
-
-            print(f"Computing ratio of '{img0_name[:20]}...{img0_name[-5:]}' / '{img1_name[:20]}...{img1_name[-5:]}'")
 
 
     def _on_click_apply_spat_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
-        if isinstance(current_selection, Image):
+        if current_selection._type_string == "image":
         
             filter_type = self.spat_filter_types.currentText()
-            all_my_filters = [self.spat_filter_types.itemText(i) for i in range(self.spat_filter_types.count())]
-            sigma = self.sigma_filt_spatial_value.value()
+            sigma = self.sigma_filt_param.value()
             kernel_size = self.filt_kernel_value.value()
-            sigma_col = self.sigma_filt_color_value.value()
-            metadata = current_selection.metadata
+            
+            if filter_type == "Gaussian":
+                print(f'applying "apply_gaussian_func" to image {current_selection}')
+                results = apply_gaussian_func(current_selection.data, 
+                                            sigma= sigma, 
+                                            kernel_size=kernel_size)
+                self.add_result_img(results, KrnlSiz = kernel_size, Sgma = sigma)
 
-            try:
-                            
-                if filter_type == all_my_filters[0]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
-                    results = apply_gaussian_func(current_selection.data, 
-                                                sigma= sigma, 
-                                                kernel_size=kernel_size)
-                    
-                    met_name = "apply_gaussian_func"
-                    params = {
-                        "filter_type":filter_type,
-                        "sigma": sigma,
-                        "kernel_size": kernel_size
-                        }
-                
-                elif filter_type == all_my_filters[3]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
-                    results = apply_median_filt_func(current_selection.data, kernel_size)
-                    met_name = "apply_median_filt_func"
-                    params = {
-                        "filter_type":filter_type,
-                        "kernel_size": kernel_size
-                        }
+            
+            if filter_type == "Median":
+                print(f'applying "apply_median_filt_func" to image {current_selection}')
+                results = apply_median_filt_func(current_selection.data, kernel_size)
+                self.add_result_img(results, MednFilt = kernel_size)
 
-                elif filter_type == all_my_filters[1]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
-                    results = apply_box_filter(current_selection.data, kernel_size)
-                    met_name = "apply_box_filter"
-                    params = {
-                        "filter_type":filter_type,
-                        "kernel_size": kernel_size
-                        }
-                
-                elif filter_type == all_my_filters[2]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
-                    results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
-                    met_name = "apply_laplace_filter"
-                    params = {
-                        "filter_type":filter_type,
-                         "sigma": sigma,
-                        "kernel_size": kernel_size
-                        }
-                                    
-                elif filter_type == all_my_filters[4]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
-                    results = apply_bilateral_filter(current_selection.data, sigma_spa=sigma, sigma_col = sigma_col, wind_size = kernel_size)
-                    met_name = "apply_bilateral_filter"
-                    params = {
-                        "filter_type":filter_type,
-                         "sigma_spa": sigma,
-                         "sigma_col": sigma_col,
-                        "wind_size": kernel_size
-                        }
-                
-                self.add_record_fun()
-                self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"SpatFilt{filter_type[:4]}", parameters=params)
-                
-            except Exception as e:
-                raise CustomException(e, sys)
-                # print( CustomException(e, sys))
-                
-                
+            if filter_type == "Box Filter":
+                print(f'applying "apply_box_filter" to image {current_selection}')
+                results = apply_box_filter(current_selection.data, kernel_size)
+                self.add_result_img(results, BoxFilt = kernel_size)
+            
+            if filter_type == "Laplace Filter":
+                print(f'applying "apply_laplace_filter" to image {current_selection}')
+                results = apply_laplace_filter(current_selection.data, kernel_size=kernel_size, sigma=sigma)
+                self.add_result_img(results, KrnlSiz = kernel_size, Widht = sigma)
+            
+            self.add_record_fun()
 
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
                 
     
     
-    def add_result_img(self, 
-                        result_img, 
-                        operation_name, 
-                        method_name,
-                        custom_metadata = None,
-                        custom_img_name = None,
-                        custom_inputs = None,
-                        custom_outputs = None,
-                        sufix = None, 
-                        parameters = None,
-                        track_metadata = None, 
-                        colormap="turbo"):
-        """
-        add_result_img: Add new image and handle metadata.
-
-        This function create and handle metadata for the 
-        different processing steps or operations in images.
-
-        Parameters
-        ----------
-        result_img : 'napari.types.ImageData'
-            Image resulting from an operation.
-
-        operation_name : srt, optional
-            Name of the current processing step or operation, by default None
-
-        method_name : srt, optional
-            Name of the current method or function used, by default None
-
-        sufix : str, optional
-            Add sufix to image, by default None
-
-        parameters : dict, optional
-            Set of parameters currently being used, by default None
-
-        track_metadata : bool, optional
-            Set True if you wish to keep track of operations changes and be added to metadata, by default True
-
-        colormap : str, optional
-            Pseudo-color definition for resulting image, by default "turbo"
-
-        """
-
-        if custom_metadata is None:
-            img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
-        else:
-            img_metadata = copy.deepcopy(custom_metadata)
-
-        if custom_img_name is None:
-            img_name = self.viewer.layers.selection.active.name
-        else:
-            img_name = custom_img_name
-        new_img_name = img_name
-
-        if sufix is not None:
-            new_img_name += f"_{sufix}"
-
-        if custom_inputs is None:
-            custom_inputs = [img_name]
-        else:
-            custom_inputs
-        
-        if custom_outputs is None:
-            custom_outputs = [new_img_name]
-        else:
-            custom_outputs
-
-
-        track_metadata = self.record_metadata_check.isChecked() if track_metadata is None else track_metadata
-        
-        if track_metadata:
-
-            # create "ProcessingSteps" key if does not exist
-            key_name = "ProcessingSteps"
-
-            # if key_name in img_metadata:
-            self.metadata_recording_steps.steps = img_metadata[key_name] if key_name in img_metadata else []
-                # img_metadata[key_name] = []
-            # else:
-            #     self.metadata_recording_steps.steps = img_metadata[key_name] if len(img_metadata[key_name]) > 1, else: 
-            
-            self.metadata_recording_steps.add_step(
-                    operation=operation_name,
-                    method_name=method_name,
-                    inputs=custom_inputs,
-                    outputs=custom_outputs,
-                    parameters=parameters
-                    )
-            img_metadata[key_name] = self.metadata_recording_steps.steps
-            
-            
-            return self.viewer.add_image(result_img,
-                        colormap = colormap,
-                        name = new_img_name,
-                        metadata = img_metadata
-                        )
-        else:
-            return self.viewer.add_image(result_img,
-                        colormap = colormap,
-                        name = new_img_name,
-                        metadata = img_metadata
-                        )
-
-
     
-    # NOTE: refactor this function 21.082024
-    # def add_result_img(self, 
-    #                    result_img, 
-    #                    single_label_sufix = None, 
-    #                    auto_metadata = True, 
-    #                    operation_name = None, 
-    #                    parameters = None,
-    #                    custom_metadata = None,
-    #                    track_metadata = True, 
-    #                    colormap="turbo", 
-    #                    img_custom_name = None, 
-    #                    **label_and_value_sufix):
-    #     """
-    #     add_result_img: Add new image and handle metadata.
-
-    #     This function create and handle metadata for the 
-    #     different processing steps or operations in images.
-
-    #     Parameters
-    #     ----------
-    #     result_img : 'napari.types.ImageData'
-    #         Image resulting from an operation.
-
-    #     single_label_sufix : str, optional
-    #         Add sufix to image, by default None
-
-    #     auto_metadata : bool, optional
-    #         If True, tkes curent image metadata and update it, otherwise a new metadata template is required, by default True
-
-    #     add_to_metadata : str, optional
-    #         Parameter to add as metadata, typically the name of the operation, by default None
-
-    #     custom_metadata : dict, optional
-    #         When auto_metadata = False, metadata dict to use as template, by default None
-
-    #     track_metadata : bool, optional
-    #         Set True if you wish to keep track of operations changes and be added to metadata, by default True
-
-    #     colormap : str, optional
-    #         Pseudo-color definition for resulting image, by default "turbo"
-            
-    #     img_custom_name : str, optional
-    #         When you decide to change or modify the current image name, by default None
-        
-    #     Returns
-    #     -------
-    #     result_img_and_metadata : 'napari.types.ImageData'
-    #         The image with metadata updated.
-    #     """
-        
-
-    #     if auto_metadata:
-    #         img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
-    #     else: 
-    #         img_metadata = copy.deepcopy(custom_metadata)
-
-
-    #     if img_custom_name is not None:
-    #         img_name = img_custom_name
-    #     else:
-    #         img_name = self.viewer.layers.selection.active.name
-        
-    #     new_img_name = img_name
-            
-    #     if track_metadata:
-
-    #         # create "ProcessingSteps" key if does not exist
-    #         key_name = "ProcessingSteps"
-
-    #         if key_name not in img_metadata:
-    #             img_metadata[key_name] = []
-
-    #     if single_label_sufix is not None:
-    #         # for value in single_label_sufix:
-    #         new_img_name += f"_{single_label_sufix}"
-
-    #     if label_and_value_sufix is not None:
-    #         for key, value in label_and_value_sufix.items():
-    #             new_img_name += f"_{key}{value}"
-                
-
-    #         # append the given processing step(s) to the key
-    #         if operation_name is not None:            
-
-    #             self.metadata_recording_steps.add_step(
-    #                 operation=operation_name,
-    #                 inputs=[img_name],
-    #                 outputs=[new_img_name],
-    #                 parameters=[None]
-    #                 )
-    #             img_metadata[key_name].append(self.metadata_recording_steps.steps)
-
-
-
-            
-    #         return self.viewer.add_image(result_img,
-    #                     colormap = colormap,
-    #                     name = new_img_name,
-    #                     metadata = img_metadata
-    #                     )
-    #     else:
-            
-    #         return self.viewer.add_image(result_img,
-    #                     colormap = colormap,
-    #                     name = new_img_name,
-    #                     metadata = img_metadata
-    #                     )
-
-        
-        
-
-
-    def add_result_label(self, result_labl, 
-                         single_label_sufix = None, 
-                         metadata = True, 
-                         add_to_metadata = None, 
-                         colormap="turbo", 
-                         img_custom_name = None, 
-                         **label_and_value_sufix):
+    def add_result_img(self, result_img, single_label_sufix = None, metadata = True, add_to_metadata = None, colormap="turbo", img_custom_name = None, **label_and_value_sufix):
         
         if img_custom_name is not None:
             img_name = img_custom_name
@@ -1850,7 +871,7 @@ class OMAAS(QWidget):
 
         self.curr_img_metadata = copy.deepcopy(self.viewer.layers.selection.active.metadata)
 
-        key_name = "ProcessingSteps"
+        key_name = "Processing_method"
         if key_name not in self.curr_img_metadata:
             self.curr_img_metadata[key_name] = []
 
@@ -1868,14 +889,15 @@ class OMAAS(QWidget):
         
         
         if metadata:
-            self.viewer.add_labels(result_labl, 
+            self.viewer.add_image(result_img, 
                         metadata = self.curr_img_metadata,
+                        colormap = colormap,
                         name = img_name)
 
         else: 
-            self.viewer.add_labels(result_labl,
+            self.viewer.add_image(result_img,
+                        colormap = colormap,
                         name = img_name)
-    
 
 
 
@@ -1893,118 +915,78 @@ class OMAAS(QWidget):
     
     def _get_ROI_selection_1_current_text(self, _): # We receive the index, but don't use it.
         ctext = self.ROI_selection_1.currentText()
-        print(f"Current layer 1 is '{ctext}'")
+        print(f"Current layer 1 is {ctext}")
 
     def _get_ROI_selection_2_current_text(self, _): # We receive the index, but don't use it.
         ctext = self.ROI_selection_2.currentText()
-        print(f"Current layer 2 is '{ctext}'")
+        print(f"Current layer 2 is {ctext}")
 
     
-    ####### NOTE: deprecating this method on 14.08.22024 #######
-    # def _on_click_apply_mot_correct_btn(self):
-    #     foot_print = self.footprint_size.value()
-    #     radius_size = self.radius_size.value()
-    #     n_warps = self.n_warps.value()
-    #     try:
-    #         subprocess.check_output('nvidia-smi')
-    #         print('Nvidia GPU detected!')
-    #     except Exception: # this command not being found can raise quite a few different errors depending on the configuration
-    #         warn('No Nvidia GPU in system!, setting to default CPU use')
-    #         self.use_GPU.setChecked(False)
+    def _on_click_apply_mot_correct_btn(self):
+        foot_print = self.footprint_size.value()
+        radius_size = self.radius_size.value()
+        n_warps = self.n_warps.value()
+        try:
+            subprocess.check_output('nvidia-smi')
+            print('Nvidia GPU detected!')
+        except Exception: # this command not being found can raise quite a few different errors depending on the configuration
+            warn('No Nvidia GPU in system!, setting to default CPU use')
+            self.use_GPU.setChecked(False)
         
-    #     gpu_use = self.use_GPU.isChecked() # put this in the GUI         
-    #     ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
-    #     current_selection = self.viewer.layers.selection.active
-    #     raw_data = current_selection.data
-    #     if gpu_use == True:
-    #         raw_data = cp.asarray(raw_data)
+        gpu_use = self.use_GPU.isChecked() # put this in the GUI         
+        ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
+        current_selection = self.viewer.layers.selection.active
+        raw_data = current_selection.data
+        if gpu_use == True:
+            raw_data = cp.asarray(raw_data)
 
-    #     if current_selection._type_string == "image":
+        if current_selection._type_string == "image":
                 
-    #         scaled_img = scaled_img_func(raw_data, 
-    #                                     foot_print_size=foot_print)
+            scaled_img = scaled_img_func(raw_data, 
+                                        foot_print_size=foot_print)
                 
-    #         results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx)
+            results = register_img_func(scaled_img, orig_data= raw_data, radius_size=radius_size, num_warp=n_warps, ref_frame=ref_frame_indx)
             
-    #         if not isinstance(results, numpy_ndarray):
-    #             results =  results.get()    
+            if not isinstance(results, numpy_ndarray):
+                results =  results.get()    
 
-    #         self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
+            self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
         
-    #         self.add_record_fun()
+            self.add_record_fun()
 
             
-    #     else:
-    #         warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
+        else:
+            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
         
-        # NOTE: DEPRECATE this function 21.08.2024
-    # def _on_click_transform_to_uint16_btn(self):
         
-    #     results = transform_to_unit16_func(self.viewer.layers.selection)
-    #     # print( "is doing something")
+    def _on_click_transform_to_uint16_btn(self):
+        
+        results = transform_to_unit16_func(self.viewer.layers.selection)
+        # print( "is doing something")
 
-    #     self.viewer.add_image(results, 
-    #         colormap = "turbo",
-    #      # colormap= "twilight_shifted", 
-    #         name= f"{self.viewer.layers.selection.active}_uint16")
+        self.viewer.add_image(results, 
+            colormap = "turbo",
+         # colormap= "twilight_shifted", 
+            name= f"{self.viewer.layers.selection.active}_uint16")
 
     def _on_click_apply_temp_filt_btn(self):
         current_selection = self.viewer.layers.selection.active
-        
-        if isinstance(current_selection, Image):
-            filter_type = self.temp_filter_types.currentText()
-            all_my_filters = [self.temp_filter_types.itemText(i) for i in range(self.temp_filter_types.count())]
-            cutoff_freq_value = self.butter_cutoff_freq_val.text()
+        if self.viewer.layers.selection.active._type_string == "image":
+
+            cutoff_freq_value = self.butter_cutoff_freq_val.value()
             order_value = self.butter_order_val.value()
             fps_val = float(self.fps_val.text())
-            cutoff_freq_value = int(cutoff_freq_value)
-            metadata = current_selection.metadata
 
-            try:
+            results = apply_butterworth_filt_func(current_selection.data, 
+                                                ac_freq=fps_val, 
+                                                cf_freq= cutoff_freq_value, 
+                                                fil_ord=order_value)
 
-                if filter_type == all_my_filters[0]:
-
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
-                    
-                    results = apply_butterworth_filt_func(current_selection.data, 
-                                                        ac_freq=fps_val, 
-                                                        cf_freq= cutoff_freq_value, 
-                                                        fil_ord=order_value)
-                    
-                    met_name = "apply_butterworth_filt_func"
-                    params = {
-                    "filter_type":filter_type,
-                    "acquisition_freq": fps_val,
-                    "cutoff_freq": cutoff_freq_value,
-                    "order_size": order_value
-                    }
-            
-                elif filter_type == all_my_filters[1]:
-                    print(f'applying "{filter_type}" filter to image: "{current_selection}"')
-                    
-
-                    n_taps = 21 #NOTE: this is hard coded, need to test it if make an impact
-                    
-                    results = apply_FIR_filt_func(current_selection.data, n_taps=n_taps, cf_freq=cutoff_freq_value, acquisition_freq = fps_val)
-
-                    met_name = "apply_FIR_filt_func"
-                    params = {
-                    "acquisition_freq": fps_val,
-                    "n_taps":n_taps,
-                    "cutoff_freq": cutoff_freq_value,
-                    }
-                
-                self.add_record_fun()
-                self.add_result_img(result_img=results, operation_name="Temporal_filter", method_name=met_name, sufix= f"TempFilt{filter_type[:4]}", parameters=params)
-                
-            
-            except Exception as e:
-                # raise CustomException(e, sys)
-                print(CustomException(e, sys))
+            self.add_result_img(results, buttFilt_fre = cutoff_freq_value, ord = order_value, fps=round(fps_val))
+            self.add_record_fun()
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
-    
                 
 
         # print (f"it's responding with freq: {freq_value},  order_val {order_value} and fps = {fps_val}")
@@ -2064,7 +1046,7 @@ class OMAAS(QWidget):
     def _get_current_selected_TSP_layer_callback(self, event):
         # this object is a list of image(s) selected from the Time_series_plotter pluggin layer selector
                 try:
-                    self.current_seleceted_layer_from_TSP = self.main_plot_widget.plotter.selector.model().get_checked()[0].name
+                    self.current_seleceted_layer_from_TSP = self.plot_widget.plotter.selector.model().get_checked()[0].name
                 except:
                     self.current_seleceted_layer_from_TSP = "ImageID"
                 
@@ -2075,13 +1057,7 @@ class OMAAS(QWidget):
         if event.type in ['active']:
             value = event.value
             if isinstance(value, Image):
-                # handle metadata in images saved with tifffile
                 self.img_metadata_dict = self.viewer.layers.selection.active.metadata
-                self.img_metadata_dict = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
-
-                # self.viewer.layers.selection.active.metadata = self.img_metadata_dict
-                # self.viewer.layers.selection.active.metadata = self.viewer.layers.selection.active.metadata["shaped_metadata"][0] if "shaped_metadata" in self.viewer.layers.selection.active.metadata else self.img_metadata_dict
-                # self.viewer.layers.selection.active.metadata = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
                 if "CycleTime" in self.img_metadata_dict:
                     # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
                     self.metadata_tree.clear()
@@ -2096,146 +1072,113 @@ class OMAAS(QWidget):
                     # if metadata["CycleTime"]:
                     # self.xscale = self.img_metadata_dict["CycleTime"]
                         # self.plot_widget.axes.set_xlabel("Time (ms)")
-                    cycl_time = self.img_metadata_dict["CycleTime"]
-                    self.fps_val.setText(f"{round(1/cycl_time, 2)}")
-
-                    # set the current x scale
-                    self.x_scale_box.clear()
-                    self.x_scale_box.setText(f"{round(cycl_time * 1000, 2)}")
-                    self.xscale = cycl_time * 1000
-                    # self.main_plot_widget.axes.set_xlabel("Time (ms)")
+                    self.fps_val.setText(str(round(1/self.img_metadata_dict["CycleTime"], 2)))
                 else:
-                    self.x_scale_box.clear()
-                    self.x_scale_box.setText(f"{1}")
-                    self.xscale = 1
-                    # self.main_plot_widget.axes.set_xlabel("Frames")
+                    # self.xscale = 1
                     self.fps_val.setText("Unknown sampling frequency (fps)")
                 
             if not isinstance(value, Image):
                 self.fps_val.setText("")
                 self.metadata_tree.clear()
-                # self.x_scale_box.clear()
-                # self.x_scale_box.setText(f"{1}")
-                # self.xscale = 1
 
-    def _update_x_scale_box_func(self, event):
-        new_x_scale = self.x_scale_box.text()
-        if len(new_x_scale) > 0:
-            self.xscale = np.float16(new_x_scale)
-            self._on_click_plot_profile_btn_func()
+
 
     def _get_APD_call_back(self, event):
 
-        # assert that there is a trace in the main plotting canvas
-        if len(self.main_plot_widget.figure.axes) > 0 :
+        if len(self.plot_widget.figure.axes) > 0 :
 
             self._APD_plot_widget.figure.clear()
             self._APD_plot_widget.add_single_axes()
             traces = self.data_main_canvas["y"]
             time = self.data_main_canvas["x"]
             rmp_method = self.APD_computing_method.currentText()
-            is_interpolated = self.make_interpolation_check.isChecked()
             apd_percentage = self.slider_APD_percentage.value()
-            # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
+            prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
             
             APD_props = []
             # get selection of images iand shape from the selector
-            selected_img_list, selected_shps_list = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+            selected_img_list, selected_shps_list = self._get_imgs_and_shpes_items(return_img=True)
 
             for img_indx, img in enumerate(selected_img_list):
 
-                # for shape_indx, shape in enumerate(selected_shps_list[0].data):
-                for shape_indx in range(len(selected_shps_list[0].data)):
-                    if 'ID' in self.shape_layer.features.iloc[shape_indx]:
-                        roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
-                    else:
-                        roi_id = f"{shape_indx}"
-
-                    img_label = f"{img.name}_{selected_shps_list[0]}_ROI:{roi_id}"
-                    
-                    if len(img_label) > 40:
-                        img_label = img_label[4:][:15] + "..." + img_label[-9:]
-                        # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
-
+                for shape_indx, shape in enumerate(selected_shps_list[0].data):
 
                     # update detected APs labels
-                    # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
-                    # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
-                    #                                           cycle_length_ms = self.xscale,
-                    #                                           promi=self.prominence)]
-                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
-                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shape_indx])}')
 
                     # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
-                    # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
-                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=img_label, alpha=0.8)
+                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
 
                     ##### catch error here and exit nicely for the user with a warning or so #####
                     try:
 
-                        self.APs_props = compute_APD_props_func(traces[img_indx + shape_indx],
+                        props = compute_APD_props_func(traces[img_indx + shape_indx], 
                                                         curr_img_name = img.name, 
                                                         # cycle_length_ms= self.curr_img_metadata["CycleTime"],
-                                                        cycle_length_ms= self.xscale,
+                                                        cycle_length_ms= self.img_metadata_dict["CycleTime"],
                                                         rmp_method = rmp_method, 
                                                         apd_perc = apd_percentage, 
-                                                        promi=self.prominence, 
-                                                        roi_indx=shape_indx, 
-                                                        roi_id = roi_id,
-                                                        interpolate= is_interpolated,
-                                                        curr_file_id = img.metadata["CurrentFileSource"])
+                                                        promi=prominence, 
+                                                        roi_indx=shape_indx)
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
-                        ini_indx = self.APs_props["indx_at_AP_upstroke"]
-                        peak_indx = self.APs_props["indx_at_AP_peak"]
-                        end_indx = self.APs_props["indx_at_AP_end"]
-
-                        y_min = self.APs_props["resting_V"]
+                        ini_indx = props[-3]
+                        peak_indx = props[-2]
+                        end_indx = props[-1]
+                        dVdtmax = props[5]
+                        resting_V = props[8]
+                        y_min = resting_V
                         y_max = traces[img_indx + shape_indx][peak_indx]
                         # plot vline of AP start
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][ini_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
-                                            linestyles='dashed', color = "green", 
-                                            # label=f'AP_ini',
-                                            lw = 0.5, alpha = 0.8)
+                                            linestyles='dashed', color = "green", label=f'AP_ini', lw = 0.5, alpha = 0.8)
                         # plot vline of AP end
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][end_indx], 
                                             ymin= y_min,
                                             ymax= y_max,
-                                            linestyles='dashed', color = "red", 
-                                            # label=f'AP_end',
-                                            lw = 0.5, alpha = 0.8)
+                                            linestyles='dashed', color = "red", label=f'AP_end', lw = 0.5, alpha = 0.8)
                         # plot hline of AP baseline
-                        self._APD_plot_widget.axes.hlines(y_min,
+                        self._APD_plot_widget.axes.hlines(resting_V,
                                             xmin = time[img_indx + shape_indx][ini_indx],
                                             xmax = time[img_indx + shape_indx][end_indx],
-                                            linestyles='dashed', color = "grey", 
-                                            # label=f'AP_base',
-                                            lw = 0.5, alpha = 0.8)
+                                            linestyles='dashed', color = "grey", label=f'AP_base', lw = 0.5, alpha = 0.8)
 
-                        # APD_props[f"ImgIndx{img_indx}_ROIIndx{shape_indx}"] = self.APs_props
-                        APD_props.append(self.APs_props)
-                        
-                        print(f"APD computed on image '{img.name}' with roi: {shape_indx}")
+                        APD_props.append(props)
 
                     except Exception as e:
                         # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
                         raise e
 
-            self._APD_plot_widget.axes.legend(fontsize="8")
+            colnames = [ "image_name",
+                         "ROI_id",
+                         "AP_id" ,
+                         "APD_perc" ,
+                         "APD",
+                         "AcTime_dVdtmax",
+                         "amp_Vmax",
+                         "BasCycLength_bcl",
+                         "resting_V",
+                         "time_at_AP_upstroke",
+                         "time_at_AP_peak",
+                         "time_at_AP_end",
+                         "indx_at_AP_upstroke",
+                         "indx_at_AP_peak",
+                         "indx_at_AP_end"]
+            # self._APD_plot_widget.axes.legend()
             self._APD_plot_widget.canvas.draw()
 
-        try:
 
-            self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
+            self.APD_props_df = pd.DataFrame(APD_props, columns=colnames).explode(colnames).reset_index(drop=True)
+
             # convert back to the correct type the numeric columns
             cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
             cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
 
             self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
+
             # convert numeric values to ms and round then
-            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
+            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x * 1000, 2) if x.dtypes == "float64" else x ) 
 
             
             model = PandasModel(self.APD_props_df[["image_name",
@@ -2249,11 +1192,6 @@ class OMAAS(QWidget):
             self.APD_propert_table.setModel(model)
 
             self.add_record_fun()
-        except Exception as e:
-            # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-            raise e
-        else:
-            return warn("Create a trace first by clicking on 'Display Profile'") 
 
                 
 
@@ -2274,33 +1212,21 @@ class OMAAS(QWidget):
 
 
     def _get_APD_thre_slider_vlaue_func(self, value):
-        value = int(value)
-        self.prominence = value / (self.slider_APD_thres_max_range)
-        self.slider_APD_detection_threshold.setValue(value)
-        self.slider_APD_detection_threshold_2.setValue(value)
+        prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
 
-        self.slider_label_current_value.setText(f'Sensitivity threshold: {self.prominence}')
-        self.slider_label_current_value_2.setText(self.slider_label_current_value.text())
+        self.slider_label_current_value.setText(f'Sensitivity threshold: {prominence}')
         
         # check that you have content in the graphics panel
-        if len(self.main_plot_widget.figure.axes) > 0 :
+        if len(self.plot_widget.figure.axes) > 0 :
             traces = self.data_main_canvas["y"]
-            selected_img_list, shapes = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+            selected_img_list, shapes = self._get_imgs_and_shpes_items(return_img=True)
             for img_indx, img_name in enumerate(selected_img_list):
-                for shpae_indx, shape in enumerate(shapes[0].data):
+                for shpae_indx, trace in enumerate(shapes[0].data):
+                    traces[img_indx + shpae_indx]
+                    self.APD_peaks_help_box_label.setText(f'[detected]: {return_peaks_found_fun(promi=prominence, np_1Darray=traces[img_indx + shpae_indx])}')
 
-                    try:
-
-                        traces[img_indx + shpae_indx]
-                        n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shpae_indx])
-                        self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
-                        self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
-
-                    except Exception as e:
-                        print(f">>>>> this is a known error when computing peaks found while creating shapes interactively: '{e}'")
-
-                break
-
+    def _get_APD_percent_slider_vlaue_func(self, value):
+        self.slider_APD_perc_label.setText(f'APD percentage: {value}')
 
 
     def _on_click_clear_macro_btn(self, event):
@@ -2327,7 +1253,7 @@ class OMAAS(QWidget):
         else:
             print("the selected entry does not seem to be a valid directory")
     
-    def _get_imgs_and_shapes_items_from_selector(self, return_img = False):
+    def _get_imgs_and_shpes_items(self, return_img = False):
         """
         Helper function that retunr the names of imags and shapes picked in the selector
         """
@@ -2462,91 +1388,38 @@ class OMAAS(QWidget):
     
     def draw(self)-> None:
 
-        self.main_plot_widget.canvas.draw() # you must add this in order tp display the plot
+        self.plot_widget.canvas.draw() # you must add this in order tp display the plot
 
         
     def _layer_list_changed_callback(self, event):
         """Callback function for layer list changes.
-        Update the selector model on each layer list change to insert or remove items accordingly,
-        while preserving the current selection.
+        Update the selector model on each layer list change to insert or remove items accordingly.
         """
         
         value = event.value
         etype = event.type
-        
-        if etype in ['inserted', 'removed', 'reordered']:
-
-            # Capture the current selected items
-            curr_img_items, curr_shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
-            
-            if isinstance(value, Shapes) or isinstance(value, LayerList):
-                # selected_items = [item.text() for item in self.listShapeswidget.selectedItems()]
-
-                # Clear and update the list
-                self.listShapeswidget.clear()
-                shape_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Shapes)]
-                
-                items = [QtWidgets.QListWidgetItem(shape) for shape in shape_layers]
-                for item in items:
-                    self.listShapeswidget.addItem(item)
-                    # Restore the selection if the item was selected before
-                    if item.text() in curr_shapes_items:
-                        item.setSelected(True)
-
-                # Update other selectors
-                self.ROI_selection_1.clear()
-                self.ROI_selection_1.addItems(shape_layers) 
-                self.ROI_selection_2.clear()
-                self.ROI_selection_2.addItems(shape_layers)
-                self.ROI_selection_crop.clear()
-                self.ROI_selection_crop.addItems(shape_layers) 
-                self.ROI_selection_crop.setCurrentIndex(0)
-
-            if isinstance(value, Image) or isinstance(value, LayerList):
-                # Capture the current selected items
-                # selected_items = [item.text() for item in self.listImagewidget.selectedItems()]
-
-                all_images = [layer.name for layer in self.viewer.layers if isinstance(layer, Image)]
-                
-                # Update image selector for cropping
-                self.image_selection_crop.clear()
-                self.image_selection_crop.addItems(all_images)
-                self.image_selection_crop.setCurrentIndex(0)
-                
-                all_images_2d = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim == 2]
-                self.map_imgs_selector.clear()
-                self.map_imgs_selector.addItems(all_images_2d)
-                self.map_imgs_selector.setCurrentIndex(-1)
-
-                self.Ch0_ratio.clear()
-                self.Ch0_ratio.addItems(all_images)
-                self.Ch1_ratio.clear()
-                self.Ch1_ratio.addItems(all_images)
-
-                if len(all_images) >= 3:
-                    n_imgs = len(all_images)
-                    self.Ch0_ratio.setCurrentIndex(n_imgs - 2)
-                    self.Ch1_ratio.setCurrentIndex(n_imgs - 1)
-
-                # Clear and update the main image list
-                self.listImagewidget.clear()
-                image_layers = [layer.name for layer in self.viewer.layers if isinstance(layer, Image) and layer.ndim > 2]
-
-                for image in image_layers:
-                    item = QtWidgets.QListWidgetItem(image)
-                    self.listImagewidget.addItem(item)
-                    # Restore the selection if the item was selected before
-                    if item.text() in curr_img_items:
-                        item.setSelected(True)
-
-            if isinstance(value, Labels) or isinstance(value, LayerList):
-                all_labels = [layer.name for layer in self.viewer.layers if isinstance(layer, Labels)]
-                # Update mask selector for manual segmentation
-                self.mask_list_manual_segment.clear()
-                self.mask_list_manual_segment.addItems(all_labels)
+        # control selection of Shape layers
+        if isinstance(value, Shapes):
+            if etype  == 'inserted':
+                item = QtWidgets.QListWidgetItem(value.name)
+                self.listShapeswidget.addItem(item)
+            if event.type  == 'removed':
+                item = self.listShapeswidget.findItems(value.name, Qt.MatchExactly)
+                item_row = self.listShapeswidget.row(item[0])
+                curr_item = self.listShapeswidget.takeItem(item_row)
+                del curr_item
+       # control selection of Image Layers
+        elif isinstance(value, Image):
+            if etype  == 'inserted':
+                item = QtWidgets.QListWidgetItem(value.name)
+                self.listImagewidget.addItem(item)
+            if event.type  == 'removed':
+                item = self.listImagewidget.findItems(value.name, Qt.MatchExactly)
+                item_row = self.listImagewidget.row(item[0])
+                curr_item = self.listImagewidget.takeItem(item_row)
+                del curr_item    
 
     
-
     def update_fps(self, fps):
         """Update fps."""
         self.viewer.text_overlay.text = f"Currently rendering at: {fps:1.1f} FPS"
@@ -2556,30 +1429,30 @@ class OMAAS(QWidget):
         
         if state == True:
             # print('Checked')
-            img_items, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=False)
+            img_items = [item.text() for item in self.listImagewidget.selectedItems()]
+            shapes_items = [item.text() for item in self.listShapeswidget.selectedItems()]
+            img_items, shapes_items = self._get_imgs_and_shpes_items(return_img=False)
             
             if not shapes_items and img_items:
-                return warn("Please create and Select a SHAPE from the Shape selector to plot profile")
+                warn("Please create and Select a SHAPE from the Shape selector to plot profile")
             if not img_items and shapes_items:
-                return warn("Please open and Select an IMAGE from the Image selector to plot profile")
+                warn("Please open and Select an IMAGE from the Image selector to plot profile")
             if not img_items and not shapes_items:
-                return warn("Please select a SHAPE & IMAGE from the Shape and Image selectors")
-            
-            try:
-                # img_layer = self.viewer.layers[img_items[0]]
-                img_layer = [self.viewer.layers[layer] for layer in img_items]
-                self.shape_layer = self.viewer.layers[shapes_items[0]]
-                n_shapes = len(self.shape_layer.data)
-                if n_shapes == 0:
-                    return warn("Draw a new square shape to plot profile in the current selected shape")
-                else:
-                    self.main_plot_widget.figure.clear()
-                    self.main_plot_widget.add_single_axes()
-                    # define container for data
-                    self.data_main_canvas = {"x": [], "y": []}
-                    # take a list of the images that contain "CycleTime" metadata
-                    if len(img_layer) > 1:
-
+                warn("Please select a SHAPE & IMAGE from the Shape and Image selectors")
+            if img_items and shapes_items:
+                try:
+                    # img_layer = self.viewer.layers[img_items[0]]
+                    img_layer = [self.viewer.layers[layer] for layer in img_items]
+                    self.shape_layer = self.viewer.layers[shapes_items[0]]
+                    n_shapes = len(self.shape_layer.data)
+                    if n_shapes == 0:
+                        warn("Draw a new square shape to plot profile in the current selected shape")
+                    else:
+                        self.plot_widget.figure.clear()
+                        self.plot_widget.add_single_axes()
+                        # define container for data
+                        self.data_main_canvas = {"x": [], "y": []}
+                        # take a list of the images that contain "CycleTime" metadata
                         fps_metadata = [image.metadata["CycleTime"] for image in img_layer if "CycleTime" in image.metadata ]
                         imgs_metadata_names = [image.name for image in img_layer if "CycleTime" in image.metadata ]
                         
@@ -2593,1480 +1466,46 @@ class OMAAS(QWidget):
                             return warn(f"Not all images seem to have the same 'CycleTime'. Check that the images have same 'CycleTime'. Current 'CycleTime' values are: {fps_metadata}")
                         else:
                             self.img_metadata_dict = img_layer[0].metadata                        
-                    
+                        
 
-                    if "CycleTime" in img_layer[0].metadata:
-                        if np.allclose(round(img_layer[0].metadata["CycleTime"] * 1000, 2), round(self.xscale, 2), 2):
-                            self.main_plot_widget.axes.set_xlabel("Time (ms)")
+                        if "CycleTime" in self.img_metadata_dict:
+                            self.plot_widget.axes.set_xlabel("Time (ms)")
+                            self.xscale = self.img_metadata_dict["CycleTime"]
                         else:
-                            self.main_plot_widget.axes.set_xlabel("Frames/custom")
-                            
-                    else:
-                        self.main_plot_widget.axes.set_xlabel("Frames/custom")
+                            self.xscale = 1
+                            self.plot_widget.axes.set_xlabel("Frames")
 
-                    # loop over images
-                    for img in img_layer:
-                        # loop over shapes
-                        for roi in range(n_shapes):
-                            if 'ID' in self.shape_layer.features.iloc[roi]:
-                                roi_id = self.shape_layer.features.iloc[roi]['ID']
-                            else:
-                                roi_id = f"{roi}"
+                        # loop over images
+                        for img in img_layer:
+                            # loop over shapes
+                            for roi in range(n_shapes):
+                                x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale * 1000 )
+                                self.plot_widget.axes.plot(x, y, label= f"{img.name}_{shapes_items}_ROI:{roi}")
+                                self.plot_widget.axes.legend()                                
+                                self.draw()
 
-                            img_label = f"{img.name}_{shapes_items[0]}_ROI:{roi_id}"
-                            x, y = extract_ROI_time_series(img_layer = img, shape_layer = self.shape_layer, idx_shape = roi, roi_mode="Mean", xscale = self.xscale)
-                            if len(img_label) > 40:
-                                img_label = img_label[4:][:15] + "..." + img_label[-9:]
-                                self.main_plot_widget.axes.plot(x, y, label= img_label)
-                                # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
-                            else:
-                                self.main_plot_widget.axes.plot(x, y, label= img_label)
-
-                            self.main_plot_widget.axes.legend()                                
-                            self.draw()
-
-                            self.data_main_canvas["x"].append(x)
-                            self.data_main_canvas["y"].append(y)
-                    # update range for cliping trace
-                    max_range = x.size * self.xscale
-                    self.double_slider_clip_trace.setRange(0, max_range  )
-                    self.double_slider_clip_trace.setValue((max_range * 0.2, max_range * 0.8))
-
-                    self.shape_layer.events.data.connect(self._data_changed_callback)
-            except Exception as e:
-                print(f"You have the following error @ function _on_click_plot_profile_btn_func: --->> '{e}' <----")
-                raise CustomException(e, sys)
+                                self.data_main_canvas["x"].append(x)
+                                self.data_main_canvas["y"].append(y)
+                        self.shape_layer.events.data.connect(self._data_changed_callback)
+                except Exception as e:
+                    print(f"You have the following error: --->> {e} <----")
         else:
             # print('Unchecked')
-            self.main_plot_widget.figure.clear()
+            self.plot_widget.figure.clear()
             self.draw()
-            # reset some variables
-            if hasattr(self, "data_main_canvas"):
-                del self.data_main_canvas
 
         
     
     def _data_changed_callback(self, event):
 
-        # self.prominence = self.slider_APD_detection_threshold.value() / (self.slider_APD_thres_max_range)
-        self._get_APD_thre_slider_vlaue_func(value=self.prominence * self.slider_APD_thres_max_range)
         self._retrieve_metadata_call_back(event)
         state = self.plot_profile_btn.isChecked()
         if state:
             self._on_click_plot_profile_btn_func()
-            self.main_plot_widget.canvas.draw()
+            self.plot_widget.canvas.draw()
         else:
-            # warn("Please Check on 'Plot profile' to creaate the plot")
-            return
-        
-    def _preview_multiples_traces_func(self):
+            warn("Please Check on 'Plot profile' to creaate the plot")
 
-        # assert that there is a trace in the main plotting canvas
-        if len(self.main_plot_widget.figure.axes) > 0 :
-
-            # self._data_changed_callback(event)
-            self.shape_layer.events.data.connect(self._data_changed_callback)
-            # prominence = self.slider_label_current_value / (self.slider_APD_thres_max_range)
-            
-            traces = self.main_plot_widget.axes.lines[0].get_ydata()
-            time = self.main_plot_widget.axes.lines[0].get_xdata()
-            label = self.main_plot_widget.figure.axes[0].lines[0].get_label()
-
-            try:
-                self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
-                                                                                    #    cycle_length_ms = self.xscale, 
-                                                                                    promi= self.prominence)
-            except Exception as e:
-                print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
-                return
-
-            self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
-            
-            # re-create canvas
-            self.average_AP_plot_widget.figure.clear()
-            self.average_AP_plot_widget.add_single_axes()
-            
-            if self.ini_i_spl_traces.size == 1:
-                self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]_{label}", alpha = 0.8)
-                # remove splitted_stack value if exists
-
-                try:
-                    if hasattr(self, "splitted_stack"):
-                        # del self.splitted_stack
-                        self.splitted_stack = traces
-                    # else:
-                #         raise AttributeError
-                except Exception as e:
-                    return print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'splitted_stack' : --->> {e} <----")
-                
-
-                print("Preview trace created")
-                warn(f"Only one AP detected")
-
-            elif self.ini_i_spl_traces.size > 1:
-
-                # NOTE: need to fix this function
-                self.splitted_stack = split_AP_traces_and_ave_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
-                new_time_len = self.splitted_stack.shape[-1]
-                time = time[:new_time_len]            
-
-                for indx, array in progress(enumerate(self.splitted_stack)):
-                    # handle higlighting of selected AP
-                    if indx == self.slider_N_APs.value():
-                        # if self.shif_trace:
-
-                        #     # NOTE!!!: eveytime the plotting is call it recalculate the peak index, etc and therefore no further shift happen if called multiples time.
-                        #     # need to find a way to store the data/canvas and thereafter manipulate/update the figure with the new data
-                        #     # functions affected by this behaviour are: _slider_N_APs_changed_func, _remove_mean_check_func, _on_click_mv_left_AP_btn_func and _on_click_mv_right_AP_btn_func
-                            
-                        #     # duplicate the last value and pad the tail with that
-                        #     if self.shift_to_left:
-                        #         y = array[-1]
-                        #         array = np.concatenate([array[1:], [y]])
-
-                        #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
-                                
-                        #         self.splitted_stack[indx] = array
-                        #         self.shif_trace = False
-                        #         self.shift_to_left = False
-                            
-                        #     elif  self.shift_to_right:
-                        #         y = array[0]
-                        #         array = np.concatenate([[y], array[:-1]])
-
-                        #         self.average_AP_plot_widget.axes.plot(time[:new_time_len], array, "--", label = f"AP [{indx}]", alpha = 0.8)
-                                
-                        #         self.splitted_stack[indx] = array
-                        #         self.shif_trace = False
-                        #         self.shift_to_right = False
-                            
-                        # else:
-                        self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-                    else:
-                        self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
-                
-                # plot the average
-                if self.remove_mean_check.isChecked():
-
-                    self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
-                
-            
-            
-
-                # first create remove the attributes if they already exist
-                # self._remove_attribute_widget()
-                # self.slider_N_APs_label = QLabel("Slide to select your current AP")
-                # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 0, 1, 1)
-
-                # self.slider_N_APs = QLabeledSlider(Qt.Orientation.Horizontal)
-                
-                # self.slider_N_APs.setValue(0)
-                # self.average_trace_group.glayout.addWidget(self.slider_N_APs, 5, 1, 1, 1)
-
-                # self.remove_mean_label = QLabel("remove mean")
-                # self.average_trace_group.glayout.addWidget(self.slider_N_APs_label, 5, 2, 1, 1)
-
-                # self.remove_mean_check = QCheckBox()
-                # self.average_trace_group.glayout.addWidget(self.slider_N_APremove_mean_checks_label, 5, 3, 1, 1)
-                
-                print("Preview trace created")
-
-            else:
-                self._on_click_clear_AP_splitted_btn_fun()
-                return warn("No AP detected")
-        
-            self.average_AP_plot_widget.axes.legend()
-            self.average_AP_plot_widget.canvas.draw()             
-            print("done")
-
-        else:
-            return warn("Create a trace first by clicking on 'Plot Profile'") 
-
-
-    def _remove_mean_check_func(self):
-        # print("lalala")
-        self._slider_N_APs_changed_func()
-        # if not self.remove_mean_check.isChecked():
-        #     self._preview_multiples_traces_func()
-        # else:
-        #     self._preview_multiples_traces_func()
-        # self._preview_multiples_traces_func()
-
-
-    
-    def _on_click_clear_AP_splitted_btn_fun(self):
-        # self._remove_attribute_widget()
-        self.average_AP_plot_widget.figure.clear()
-        self.average_AP_plot_widget.canvas.draw()
-    
-    # this method can be reomoved
-    # def _remove_attribute_widget(self):
-    #     my_attr_list = ["slider_N_APs", "slider_N_APs_label"]
-    #     for attr in my_attr_list:
-    #         if hasattr(self, attr):
-    #             for widget in list_of_widgets:
-    #                 widget.destroy() 
-
-        
-        
-        # [self.attr = None for attr in my_attr_list if hasattr(self, attr)]
-        # if hasattr(self, "slider_N_APs"):
-        #         self.slider_N_APs = None
-        #         self.slider_N_APs_label = None
-
-    
-    def _on_click_create_average_AP_btn_func(self):
-        # traces = self.data_main_canvas["y"][0]
-        # time = self.data_main_canvas["x"][0]
-        # NOTE: make new logic: fistr check that tupdated data is collected here: self.splitted_stack
-        # and then use this info for averaging teh full image stack
-        # current_selection = self.viewer.layers.selection.active
-
-        # if isinstance(current_selection, Image):
-        #     print(f'computing "local_normal_fun" to image {current_selection}')
-        #     results = local_normal_fun(current_selection.data)
-        #     self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
-        #     self.add_record_fun()
-
-        
-        # assert that you have content in the canvas
-        if len(self.average_AP_plot_widget.figure.axes) != 0 and hasattr(self, "data_main_canvas"):            
-
-            ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
-
-            if ini_i.size > 1:
-
-                img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                if len(img_items) > 1:
-                    return warn("Please select only one image in the image selector")
-                current_img_selected = img_items[0]
-                params={"prestep": {"method_name": "return_AP_ini_end_indx_func",
-                                      "parameters": {"promi": self.prominence}},
-                        "ini_index": ini_i.tolist(),
-                        "end_index": end_i.tolist()}
-                
-                results= split_AP_traces_and_ave_func(current_img_selected.data, ini_i, end_i, type = "3d", return_mean=True)
-
-                self.add_result_img(result_img=results, 
-                                    custom_metadata=current_img_selected.metadata, 
-                                    custom_img_name=current_img_selected.name,
-                                    operation_name="Average_from_mutiples_APs", 
-                                    method_name=split_AP_traces_and_ave_func.__name__,
-                                    sufix="AveAP", parameters=params)
-                print("Average trace created")
-                self.add_record_fun()
-
-            elif ini_i.size == 1:
-                return warn(f"Only {ini_i.size} AP detected. No average computed.")
-            elif ini_i.size < 1:
-                self._on_click_clear_AP_splitted_btn_fun()
-                return warn("No AP detected")
-
-        else:
-            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
-
-
-    def _on_click_mv_left_AP_btn_func(self):
-        
-        if hasattr(self, "data_main_canvas"):
-             
-            time = self.data_main_canvas["x"][0]
-            new_time_len = self.splitted_stack.shape[-1]
-            time = time[:new_time_len]
-            # self._preview_multiples_traces_func()
-            self.average_AP_plot_widget.figure.clear()
-            self.average_AP_plot_widget.add_single_axes()
-
-            selected_AP = self.slider_N_APs.value()
-            # for the selected AP shift to the left 1 position and append the last value (to match size)
-            self.splitted_stack[selected_AP] = np.concatenate([ self.splitted_stack[selected_AP][1:], [self.splitted_stack[selected_AP][-1]] ])
-            
-            for indx, array in progress(enumerate(self.splitted_stack)):
-                # handle higlighting of selected AP
-                if indx == self.slider_N_APs.value():
-                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-                else:
-                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
-                
-            if self.remove_mean_check.isChecked():
-                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
-
-            self.average_AP_plot_widget.axes.legend()
-            self.average_AP_plot_widget.canvas.draw()
-
-            print("move to left")
-        
-        else:
-            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
-
-
-    def _on_click_mv_right_AP_btn_func(self):
-
-        if hasattr(self, "data_main_canvas"):
-
-            time = self.data_main_canvas["x"][0]
-            new_time_len = self.splitted_stack.shape[-1]
-            time = time[:new_time_len]
-            # self._preview_multiples_traces_func()
-            self.average_AP_plot_widget.figure.clear()
-            self.average_AP_plot_widget.add_single_axes()
-
-            selected_AP = self.slider_N_APs.value()
-            # for the selected AP shift to the left 1 position and append the last value (to match size)
-            self.splitted_stack[selected_AP] = np.concatenate([ [self.splitted_stack[selected_AP][0]], self.splitted_stack[selected_AP][:-1]  ])
-            
-            for indx, array in progress(enumerate(self.splitted_stack)):
-                # handle higlighting of selected AP
-                if indx == self.slider_N_APs.value():
-                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-                else:
-                    self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
-                
-            if self.remove_mean_check.isChecked():
-                self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
-
-            self.average_AP_plot_widget.axes.legend()
-            self.average_AP_plot_widget.canvas.draw()
-            
-            print("move to right")
-        
-        else:
-            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
-        
-
-
-
-
-    # def show_pop_window_ave_trace(self):
-    #     print ("Opening a new popup window...")
-    #     self.average_tracce_pop_pup_window = MyPopup(self)
-    #     self.average_tracce_pop_pup_window.setGeometry(QRect(100, 100, 400, 200))
-    #     self.average_tracce_pop_pup_window.show()
-    def _slider_N_APs_changed_func(self):
-        if hasattr(self, "data_main_canvas"):
-
-            time = self.data_main_canvas["x"][0]
-            new_time_len = self.splitted_stack.shape[-1]
-            time = time[:new_time_len]
-            # self._preview_multiples_traces_func()
-            self.average_AP_plot_widget.figure.clear()
-            self.average_AP_plot_widget.add_single_axes()
-            
-            if self.splitted_stack.ndim > 1:
-
-                for indx, array in progress(enumerate(self.splitted_stack)):
-                    # handle higlighting of selected AP
-                    if indx == self.slider_N_APs.value():
-                        self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.8)
-                    else:
-                        self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{indx}]", alpha = 0.2)
-                    
-                if self.remove_mean_check.isChecked():
-                    self.average_AP_plot_widget.axes.plot(time, np.mean(self.splitted_stack, axis = 0), label = f"Mean", c = "b")
-            else:
-                array = self.splitted_stack
-                self.average_AP_plot_widget.axes.plot(time, array, "--", label = f"AP [{0}]", alpha = 0.8)
-                warn("Cannot average from a single AP")
-
-            self.average_AP_plot_widget.axes.legend()
-            self.average_AP_plot_widget.canvas.draw()
-            print("update plot")
-
-        else:
-
-            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
-        # self._preview_multiples_traces_func()
-
-
-    
-    def _on_click_make_maps_btn_func(self):
-        # NOTE: you need to decide if you use image form the selector o from the 
-        # the napary layer list!!! and assert accordingly the image properties
-
-        
-        # assert that a profile was created
-        if hasattr(self, "data_main_canvas"):
-
-            time = self.data_main_canvas["x"][0]
-            _, AP_peaks_indx, _ = return_AP_ini_end_indx_func(self.data_main_canvas["y"][0], promi=self.prominence)
-            # assert that you have a single AP detected
-            if len(AP_peaks_indx) == 1:
-
-                #########################
-                #  start computing maps #
-                #########################
-
-                percentage = self.slider_APD_map_percentage.value()
-                # current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
-                current_img_selection_name = self.viewer.layers.selection.active.name
-                current_img_selection = self.viewer.layers[current_img_selection_name]
-
-                if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
-                    return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
-
-                # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
-                map_type = self.toggle_map_type.checkState()
-                
-                # check for "CycleTime" in metadtata
-                if "CycleTime" in self.img_metadata_dict:
-                    cycl_t = self.img_metadata_dict["CycleTime"]
-                else:
-                    cycl_t = 1
-                
-                is_interpolated = self.make_interpolation_check.isChecked()
-
-                if map_type == 0:
-                
-                    results = return_maps(current_img_selection.data, 
-                                         cycle_time=cycl_t,
-                                         map_type = map_type,
-                                         percentage = percentage)
-                    params = {"Activation_map":{"cycle_time": cycl_t,
-                              "map_type": map_type,
-                              "percentage": percentage}}
-                    meth_name = return_maps.__name__
-                    sufix = "ActMap"
-                    
-                    # self.add_result_img(result_img=results, 
-                    #                 img_custom_name=current_img_selection.name, 
-                    #                 single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
-                    #                 operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-                    
-                    
-                
-                elif map_type == 2:
-                    image = current_img_selection.data.copy()
-                    n_frames, y_size, x_size = image.shape
-                    rmp_method = self.APD_computing_method.currentText()
-                    apd_percentage = self.slider_APD_percentage.value()
-
-                    results = np.zeros((y_size, x_size))
-                    mask = np.isnan(image[0, ...])
-                    results[mask] = np.nan
-
-                    for y_px  in progress(range(y_size)):
-                        for x_px in progress(range(x_size)):
-                            if not np.isnan(results[y_px, x_px]).any():
-                                try:
-                                    APs_props = compute_APD_props_func(image[:, y_px, x_px],
-                                                                    curr_img_name = current_img_selection_name, 
-                                                                    # cycle_length_ms= self.curr_img_metadata["CycleTime"],
-                                                                    cycle_length_ms= self.xscale,
-                                                                    rmp_method = rmp_method, 
-                                                                    apd_perc = apd_percentage, 
-                                                                    promi=self.prominence, 
-                                                                    interpolate = is_interpolated)
-                                    if not APs_props["APD"]:
-                                        print(f"Could not detect APD at pixel coordinate: [{y_px}, {x_px}].")
-                                        results[y_px, x_px] = np.nan
-                                    else:
-                                        apd_value = APs_props["APD"]
-                                        results[y_px, x_px] = apd_value
-                                
-                                except Exception as e:
-                                    results[y_px, x_px] = np.nan
-                                    print(f">>>>> this is your error @ method: '_on_click_make_maps_btn_func': {e}")
-                                        
-                            # else:
-                            #     APD[:, y_px, x_px] = 0
-                    
-                    # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
-                    # self.average_AP_plot_widget.axes.legend()
-                    # self.average_AP_plot_widget.canvas.draw()
-                    np.clip(results, a_min=0, a_max=None, out=results)
-
-                    params = {"APD_maps": {"curr_img_name": current_img_selection_name,
-                            "cycle_length_ms": self.xscale,
-                            "rmp_method" : rmp_method, 
-                            "apd_perc" : apd_percentage,
-                            "promi":self.prominence,
-                            "interpolate" : is_interpolated}}
-                    meth_name = compute_APD_props_func.__name__
-                    sufix = f"APDMap{percentage}"
-                    
-                    # self.add_result_img(result_img=APD, 
-                    #                     auto_metadata=False, 
-                    #                     custom_metadata=current_img_selection.metadata,
-                    #                     img_custom_name=current_img_selection.name, 
-                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                    #                     operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
-
-                    print("finished")
-
-                    # results,  mask_repol_indx_out, t_index_out,  resting_V = return_maps(current_img_selection.data, 
-                    #                                                                     cycle_time=cycl_t,
-                    #                                                                     map_type = map_type,
-                    #                                                                     percentage = percentage)
-
-                    # self._preview_multiples_traces_func()
-                    
-                    # _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                    # if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
-                    #     ndim = current_img_selection.ndim
-                    #     dshape = current_img_selection.data.shape
-                    #     _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
-
-                    #     if len(y_px) == 1 and len(x_px) == 1:
-                    #         self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "green", 
-                    #                                                  label=f'AP_ini',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "red", 
-                    #                                                  label=f'AP_end',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "grey", 
-                    #                                                  label=f'AP_resting_V',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.legend()
-                    #         self.average_AP_plot_widget.canvas.draw()
-                        # else:
-                        #     warn(" Not ROI larger than a single pixel. Please reduce the size to plot it")
-
-
-                    
-                    # self.add_result_img(result_img=APD, 
-                    #                     auto_metadata=False, 
-                    #                     custom_metadata=current_img_selection.metadata,
-                    #                     img_custom_name=current_img_selection.name, 
-                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                    #                     add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-                self.add_result_img(result_img=results, 
-                                    operation_name="Generate_maps", 
-                                    method_name=meth_name, 
-                                    custom_img_name=current_img_selection.name, 
-                                    custom_metadata=current_img_selection.metadata, 
-                                    sufix=sufix, parameters=params)
-
-
-                self.add_record_fun()
-                print("Map generated")
-            else:
-                return warn("Either non or more than 1 AP detected. Please average your traces, clip 1 AP or make sure you have at least one AP detected by changing the 'Sensitivity threshold'.") 
-       
-        else:
-            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
-
-
-
-    def _plot_APD_boundaries_btn_func(self):
-
-        img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-        if len(img_items)  < 1 :
-            return warn("Select an Image layer from the selector to apply this function.")
-
-        current_img_selection = img_items[0]
-        current_img_selection_name = current_img_selection.name
-        # current_img_selection = self.viewer.layers[current_img_selection_name]
-        
-        # if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
-        #             return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
-        
-        self._preview_multiples_traces_func()
-        
-        # check that you have data in the canvas
-        if len(self.average_AP_plot_widget.figure.axes) == 1:
-            percentage = self.slider_APD_map_percentage.value()
-            # check for "CycleTime" in metadtata
-            if "CycleTime" in current_img_selection.metadata:
-                cycl_t = current_img_selection.metadata["CycleTime"]
-            else:
-                cycl_t = 1
-
-            
-
-            map_type = self.toggle_map_type.checkState()
-
-            if map_type == 0:                   
-                
-                return warn("you re plotting the activation map which is not yet implemented.")
-                # results = return_index_for_map(current_img_selection.data, 
-                #                       cycle_time=cycl_t,
-                #                       map_type = map_type,
-                #                       percentage = percentage)
-            elif map_type == 2:                               
-                
-                _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                # cropped_img, _, _  = crop_from_shape(shapes_items[0], current_img_selection)
-
-                # results,  mask_repol_indx_out, t_index_out = return_index_for_map(cropped_img, 
-                #                                                         cycle_time=cycl_t,
-                #                                                         map_type = map_type,
-                # APD, mask_repol_indx_out, t_index_out, resting_V = return_maps(cropped_img, 
-                #                                                         cycle_time=cycl_t,
-                #                                                         map_type = map_type,
-                #                                                         percentage = percentage)
-                # if cropped_img.squeeze().ndim > 1:
-                #     cropped_img = np.mean(cropped_img, axis = (1, 2))
-                # else:
-                #     cropped_img = cropped_img.squeeze()
-
-                for shape_indx, _ in enumerate(shapes_items[0].data):
-                    try:
-                        rmp_method = self.APD_computing_method.currentText()
-                        apd_percentage = self.slider_APD_percentage.value()
-                        traces = self.average_AP_plot_widget.axes.lines[shape_indx].get_ydata()
-                        time = self.average_AP_plot_widget.axes.lines[shape_indx].get_xdata()
-
-                        APs_props = compute_APD_props_func(traces,
-                                                            curr_img_name = current_img_selection_name, 
-                                                            # cycle_length_ms= self.curr_img_metadata["CycleTime"],
-                                                            cycle_length_ms= self.xscale,
-                                                            rmp_method = rmp_method, 
-                                                            apd_perc = apd_percentage, 
-                                                            promi=self.prominence, 
-                                                            roi_indx=shape_indx)
-                        # collect indexes of AP for plotting AP boudaries: ini, end, baseline
-                        ini_indx = APs_props[-3]
-                        peak_indx = APs_props[-2]
-                        end_indx = APs_props[-1]
-                        dVdtmax = APs_props[5]
-                        resting_V = APs_props[8]
-                        y_min = resting_V
-
-                        y_max = traces[peak_indx]
-                        # plot vline of AP start
-                        self.average_AP_plot_widget.axes.vlines(time[ini_indx], 
-                                            ymin= y_min,
-                                            ymax= y_max,
-                                            linestyles='dashed', color = "green", 
-                                            label=f'AP_ini',
-                                            lw = 0.5, alpha = 0.8)
-                        # plot vline of AP end
-                        self.average_AP_plot_widget.axes.vlines(time[end_indx], 
-                                            ymin= y_min,
-                                            ymax= y_max,
-                                            linestyles='dashed', color = "red", 
-                                            label=f'AP_end',
-                                            lw = 0.5, alpha = 0.8)
-                        # plot hline of AP baseline
-                        self.average_AP_plot_widget.axes.hlines(resting_V,
-                                            xmin = time[ini_indx],
-                                            xmax = time[end_indx],
-                                            linestyles='dashed', color = "grey", 
-                                            label=f'AP_resting',
-                                            lw = 0.5, alpha = 0.8)
-
-                        # APD_props.append(self.APs_props)
-                        self.average_AP_plot_widget.axes.legend(fontsize="8")
-                        self.average_AP_plot_widget.canvas.draw()
-                        
-                        print(f"APD computed on image '{current_img_selection_name}' with roi: {shape_indx}")
-
-                    except Exception as e:
-                        print(f">>>>> this is your error @ method: '_plot_APD_boundaries_btn_func': {e}")
-                    # # collect indexes of AP for plotting AP boudaries: ini, end, baseline
-                    # ini_indx = self.APs_props[-3]
-                    # peak_indx = self.APs_props[-2]
-                    # end_indx = self.APs_props[-1]
-                    # dVdtmax = self.APs_props[5]
-                    # resting_V = self.APs_props[8]
-                    # y_min = resting_V
-
-                    # y_max = traces[img_indx + shape_indx][peak_indx]
-                
-                
-
-                # plot boundaries in indexes found
-                # dshape = cropped_img.shape
-                # _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
-                # if len(y_px) == 0:
-                #     y_px = 0
-                # if len(x_px) == 0:
-                #     x_px = 0
-                # self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
-                #                                                      linestyle='dashed', 
-                #                                                      color = "green", 
-                #                                                      label=f'AP_ini',
-                #                                                      lw = 0.5, 
-                #                                                      alpha = 0.8)
-                            
-                # self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
-                #                                             linestyle='dashed', 
-                #                                             color = "red", 
-                #                                             label=f'AP_end',
-                #                                             lw = 0.5, 
-                #                                             alpha = 0.8)
-                
-                # self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
-                #                                             linestyle='dashed', 
-                #                                             color = "grey", 
-                #                                             label=f'AP_resting_V',
-                #                                             lw = 0.5, 
-                #                                             alpha = 0.8)
-                
-                
-            
-            
-            # traces = self.average_AP_plot_widget.axes.lines[0].get_ydata()
-            # time = self.average_AP_plot_widget.axes.lines[0].get_xdata()
-
-        print("plotting AP boundaries")
-
-
-
-    def _on_click_average_roi_on_map_btn_fun(self):
-        
-        _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-        current_img_selected = self.viewer.layers.selection.active
-
-        if isinstance(current_img_selected, Image) and current_img_selected.ndim == 2 and len(shapes_items) > 0:
-            ndim = current_img_selected.ndim
-            dshape = current_img_selected.data.shape
-            masks = shapes_items[0].to_masks(dshape)
-            
-            if masks.ndim == 3:
-                for indx_roi, roi in enumerate(masks):
-                    
-                    results = np.nanmean(current_img_selected.data[roi])
-                    # self.average_roi_value_container.
-                    print(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
-                    self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
-                return            
-            
-            elif masks.ndim == 2:
-                
-                results = np.nanmean(current_img_selected.data[masks])
-                self.average_roi_value_container.setText(f"mean of roi: '{indx_roi}' in '{shapes_items[0].name}' for '{current_img_selected.name}' is: \n{round(results, 2)}")
-                return print(f"mean of roi in shape '{shapes_items[0].name}' for image '{current_img_selected.name}' is: \n{round(results, 2)}")
-            else:
-                self.average_roi_value_container.setText("")
-                # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
-                warn(f" you seem to have an issue with your shapes")
-        
-        else:
-            
-            self.average_roi_value_container.setText("")
-            # self.average_roi_value_container.setPlaceholderText("select a ROI and click the 'Get current ROI mean' button.")
-            return warn(f"No an image or shape selected or image: '{current_img_selected.name}' has ndim = {current_img_selected.ndim }. Select an 2d image retunred from a map.")
-
-
-
-# def extract_ROI_time_series(img_layer, shape_layer, idx_shape, roi_mode, xscale = 1):
-#     """Extract the array element values inside a ROI along the first axis of a napari viewer layer.
-
-#     :param current_step: napari viewer current step
-#     :param layer: a napari image layer
-#     :param labels: 2D label array derived from a shapes layer (Shapes.to_labels())
-#     :param idx_shape: the index value for a given shape
-#     :param roi_mode: defines how to handle the values inside of the ROI -> calc mean (default), median, sum or std
-#     :return: shape index, ROI mean time series
-#     :rtype: np.ndarray
-#     """
-
-#     ndim = img_layer.ndim
-#     dshape = img_layer.data.shape
-
-#     mode_dict = dict(
-#         Min=np.min,
-#         Max=np.max,
-#         Mean=np.mean,
-#         Median=np.median,
-#         Sum=np.sum,
-#         Std=np.std,
-#     )
-#     # convert ROI label to mask
-#     if ndim == 3:    
-#         label = shape_layer.to_labels(dshape[-2:])
-#         mask = np.tile(label == (idx_shape + 1), (dshape[0], 1, 1))
-
-#     if mask.any():
-#         return add_index_dim(mode_dict[roi_mode](img_layer.data[mask].reshape(dshape[0], -1), axis=1), xscale)
-    
-
-
-
-
-
-    
-    def _on_click_create_AP_gradient_bt_func(self):
-        current_img_selected = self.viewer.layers.selection.active
-        
-        if isinstance(current_img_selected, Image):
-
-            if current_img_selected.ndim == 3:
-                results = np.gradient(current_img_selected.data, axis=0)
-
-                print(f"Computing Gradient on image: {current_img_selected.name}")
-                self.add_result_img(result_img=results, 
-                                    custom_img_name=current_img_selected.name,
-                                    custom_metadata=current_img_selected.metadata,
-                                    operation_name="AP Gradient", 
-                                    method_name=np.gradient.__name__, 
-                                    sufix="ActTime", 
-                                    parameters={"axis": 0})
-            else: 
-                return warn(f"The image selected: '{current_img_selected.name}'  has ndim = {current_img_selected.ndim }. \nPlease select an image with ndim = 3 to compute Gradient.")
-        
-        return warn(f"No an image selected or image. Please select an image layer.")
-    
-
-
-        
-
-    def _on_click_apply_segmentation_btn_fun(self):
-        current_selection = self.viewer.layers.selection.active
-        if isinstance(current_selection, Image):
-
-            try:
-        
-                segmentation_method_selected = self.segmentation_methods.currentText()
-                segmentation_methods = [self.segmentation_methods.itemText(i) for i in range(self.segmentation_methods.count())]
-                is_mask_inverted = self.is_inverted_mask.isChecked()
-                is_return_image = self.return_img_no_backg_btn.isChecked()
-                
-                # Handeling size ndim of data (2d or 3d allow only)
-                if current_selection.ndim == 3:
-                    # data = current_selection.data.mean(axis = 0)
-                    array2d_for_mask = current_selection.data.max(axis = 0)
-                elif current_selection.ndim == 2:
-                    array2d_for_mask = current_selection.data
-                else : 
-                    raise ValueError(f"Not implemented segemntation for Image with dimensions = {current_selection.ndim}.")
-                
-                if segmentation_method_selected == segmentation_methods[0]:
-                    try:
-                        mask = segment_image_triangle(array2d_for_mask)
-                        mask = polish_mask(mask)
-                        meth_name = segment_image_triangle.__name__ 
-                        params = {"Segmentation_mode": "Auto",
-                                  "Segmentation_method": f"{segmentation_method_selected}",
-                                  "postprocessing_step":{"method":{polish_mask.__name__:
-                                                              {"parameters":"default"}}}}
-                            # {"postprocessing_step":{"method":{polish_mask.__name__:
-                            #                                   {"parameters":"default"}}}}}
-                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
-
-                    except Exception as e:
-                        raise CustomException(e, sys)
-
-                    
-                elif segmentation_method_selected == segmentation_methods[1]:
-                    try:
-                        mask, threshold = segment_image_GHT(array2d_for_mask, return_threshold=True)
-                        mask = polish_mask(mask)
-                        meth_name = segment_image_GHT.__name__ 
-                        params = {"Segmentation_mode": "Auto",
-                                  "Segmentation_method": f"{segmentation_method_selected}",
-                                  "postprocessing_step":{"method":{polish_mask.__name__:
-                                                              {"parameters":"default"}}}}
-
-                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
-
-                    except Exception as e:
-                        raise CustomException(e, sys)
-                
-                
-                elif segmentation_method_selected == segmentation_methods[2]:
-                    # take fisrt frame and use it for segementation
-                    try:   
-
-                        lo_t = float(self.low_threshold_segmment_value.text())
-                        hi_t = float(self.high_threshold_segment_value.text())
-                        params = {"Segmentation_mode": "Auto",
-                                    "Segmentation_method": f"{segmentation_method_selected}",
-                                    "parameters":{"lo_t":lo_t, 
-                                                "hi_t": hi_t}}
-                        meth_name = segement_region_based_func.__name__ 
-
-                        if self.is_Expand_mask.isChecked():
-                            expand = int(self.n_pixels_expand.currentText())
-                            # using maximum pixels intetnsity as reference                            
-                            mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = expand)
-                            params["parameters"]["expand"] = expand                            
-                            
-                        else:
-                            # using maximum pixels intetnsity as reference
-                            mask = segement_region_based_func(array2d_for_mask, lo_t = lo_t, hi_t = hi_t, expand = None)                            
-                            params["parameters"]["expand"] = None
-                            
-                        print(f"{'*'*5} Aplying 'Auto' segmentation with method: '{segmentation_method_selected}' to image: '{current_selection}' {'*'*5}")
-                    except Exception as e:
-                        raise CustomException(e, sys)
-
-                    
-                else:
-                    return warn( f"selected filter '{segmentation_method_selected}' no known.")
-                
-                
-                if is_mask_inverted:
-                    mask = np.invert(mask.astype(bool))
-                params["inverted_mask"]= is_mask_inverted
-
-                self.add_result_label(mask, 
-                                        img_custom_name="Heart_labels", 
-                                        single_label_sufix = f"NullBckgrnd", 
-                                        add_to_metadata = f"Background image masked")
-                
-                if is_return_image:
-                    params["return_image"] = is_return_image
-                    # 8. remove background using mask
-                    n_frames =current_selection.data.shape[0]
-                    masked_image = current_selection.data.copy()
-
-                    if masked_image.ndim == 3:
-                        
-                        try:
-
-                            if np.issubdtype(masked_image.dtype, np.integer):
-                                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
-
-                            else:
-                                masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-                        except Exception as e:
-                                raise CustomException(e, sys)
-                    else:
-
-                        try:
-                            if np.issubdtype(masked_image.dtype, np.integer):
-                                masked_image[~mask.astype(bool)] = 0
-                            else:
-                                masked_image[~mask.astype(bool)] = None
-
-                        except Exception as e:
-                                raise CustomException(e, sys)
-
-
-
-
-                    # 9. subtract bacground from original image 
-                    background = np.nanmean(masked_image)
-                    
-                    masked_image = masked_image - background
-
-                    self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
-                                        sufix=f"{params['Segmentation_mode'][:3]}Segm{segmentation_method_selected[:3].capitalize()}", 
-                                        custom_outputs=[current_selection.name + f"_Segm{segmentation_method_selected[:3].capitalize()}", "Heart_labels"],
-                                        method_name=meth_name, 
-                                        custom_img_name=current_selection.name, parameters=params)
-                    
-                        
-                
-                self.add_record_fun()
-            
-            except Exception as e:
-                # raise CustomException(e, sys)
-                print(CustomException(e, sys))
-
-        else:
-            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
-    
-
-
-    def _on_click_segment_manual_btn_func(self):
-
-        current_selection = self.viewer.layers.selection.active
-        if isinstance(current_selection, Image):
-
-        
-            # current_selection = self.viewer.layers[self.img_list_manual_segment.currentText()]
-            mask_layer = self.viewer.layers[self.mask_list_manual_segment.currentText()]
-            current_timpe_point = self.viewer.dims.current_step[0]
-            n_frames = current_selection.data.shape[0]
-            is_mask_inverted = self.is_inverted_mask.isChecked()
-
-            if mask_layer.data.ndim == 3:
-                mask = mask_layer.data[current_timpe_point, ...] > 0
-            elif mask_layer.data.ndim == 2:
-                mask = mask_layer.data > 0
-            else:
-                raise ValueError(" Not implemented yet how to handle mask of ndim = {mask_layer.data.ndim}. Please report this or file an issue via github")
-
-            masked_image = current_selection.data.copy()
-
-            if is_mask_inverted:
-                mask = np.invert(mask.astype(bool))
-            
-            params = {"Segmentation_mode": "Manual"}
-            params["inverted_mask"]= is_mask_inverted
-
-            try:
-
-                if np.issubdtype(masked_image.dtype, np.integer):
-                    masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = 0
-                elif np.issubdtype(masked_image.dtype, np.inexact):
-                    masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-                else:
-                        masked_image[~np.tile(mask.astype(bool), (n_frames, 1, 1))] = None
-            except Exception as e:
-                raise CustomException(e, sys)
-
-            self.add_result_img(result_img=masked_image, operation_name="Image_segmentation", 
-                                sufix=f"{params['Segmentation_mode'][:3]}Segm", 
-                                custom_inputs=[current_selection.name , mask_layer.name],
-                                method_name=None, 
-                                custom_img_name=current_selection.name, parameters=params)
-
-            print(f"{'*'*5} Aplying 'Manual' segmentation to image: '{current_selection}' {'*'*5}")
-
-        else:
-            warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
-    
-    
-    
-    def _on_click_plot_histogram_btn_func(self):
-
-        layer = self.viewer.layers.selection.active
-        # NOTE: assert here that layer is an image and you have layers
-        if isinstance(layer, Image):
-
-            self.histogram_plot_widget.figure.clear()
-            self.histogram_plot_widget.add_single_axes()
-            n_bins = self.slider_histogram_bins.value()
-            _COLORS = {"r": "tab:red", "g": "tab:green", "b": "tab:blue"}
-            
-            if not self.toggle_hist_data.isChecked():
-                time_point = self.viewer.dims.current_step[0]
-                # layer, _ = self._get_imgs_and_shpes_items(return_img=True)
-                # layer = layer[0]
-
-                if layer.data.ndim - layer.rgb == 3:
-                    # 3D data, can be single channel or RGB
-                    data = layer.data[time_point]
-                    self.histogram_plot_widget.axes.set_title(f"z={time_point}")
-                else:
-                    data = layer.data
-                # Read data into memory if it's a dask array
-                data = np.asarray(data)
-
-                # Important to calculate bins after slicing 3D data, to avoid reading
-                # whole cube into memory.
-                # bins = np.linspace(np.min(data), np.max(data), n_bins)
-
-                if layer.rgb:
-                    # Histogram RGB channels independently
-                    for i, c in enumerate("rgb"):
-                        self.histogram_plot_widget.axes.hist(
-                            data[..., i].ravel(),
-                            bins=n_bins,
-                            label=c,
-                            # histtype="step",
-                            edgecolor='white',
-                            # linewidth=1.2,
-                            color=_COLORS[c],
-                        )
-                else:
-                    self.histogram_plot_widget.axes.hist(data.ravel(), 
-                                                        bins=n_bins, 
-                                                        #  histtype="step",
-                                                        edgecolor='white',
-                                                        #  linewidth=1.2,
-                                                        label=layer.name)
-
-                self.histogram_plot_widget.axes.legend()
-                print(f"Histogram of frame: '{time_point}' created ")
-
-            else:
-                data = layer.data
-                # bins = np.linspace(np.min(data), np.max(data), n_bins)
-                self.histogram_plot_widget.axes.hist(data.ravel(), 
-                                                        bins=n_bins, 
-                                                        #  histtype="step",
-                                                        edgecolor='white',
-                                                        #  linewidth=1.2,
-                                                        label=layer.name)
-                
-                print(f"Histogram of full stack ({data.shape[0]} frames) created ")
-        else:
-            return warn(f"Select an Image layer to display histogrma. \nThe selected layer: '{layer}' is of type: '{layer._type_string}'")
-
-
-
-        
-        self.histogram_plot_widget.canvas.draw()
-    
-    def _on_click_clear_histogram_btn_func(self):
-        self.histogram_plot_widget.figure.clear()
-        self.histogram_plot_widget.canvas.draw()
-        print("Clearing Histogram plot")
-    
-
-    def _on_click_clip_trace_btn_func(self):
-
-        # self.main_plot_widget.figure.clear()
-        # self.main_plot_widget.add_single_axes()
-
-        start_indx, end_indx = self.double_slider_clip_trace.value()
-        start_indx = int(start_indx / self.xscale)
-        end_indx = int(end_indx / self.xscale)
-        params = {"start_indx": start_indx,
-                  "end_indx": end_indx}
-        # assert that there is a trace in the main plotting canvas
-        if len(self.main_plot_widget.figure.axes) > 0 :
-            
-            if self.is_range_clicked_checkbox.isChecked():
-                
-                time = self.data_main_canvas["x"]
-                selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                for image in selected_img_list:
-                    results = image.data[start_indx:end_indx]
-                    self.add_result_img(result_img=results, 
-                                        custom_metadata=image.metadata,
-                                        custom_img_name=image.name,
-                                        operation_name= "clip_image",
-                                        method_name="indexing", 
-                                        sufix="Clip", parameters=params)
-                    # self.add_record_fun()
-                    # self.plot_profile_btn.setChecked(False)
-                    self.is_range_clicked_checkbox.setChecked(False)
-                    self.plot_last_generated_img()
-                    print(f"image '{image.name}' clipped from time/index: {round(start_indx * self.xscale, 2)}/[{start_indx}] to {round(end_indx * self.xscale, 2)}/[{end_indx}]")
-            else:
-                return warn("Preview the clipping range firts by ticking the 'Show range'.")
-        else:
-            return warn("Create a trace first by clicking on 'Display Profile'") 
-    
-    def _dsiplay_range_func(self):
-        state = self.is_range_clicked_checkbox.isChecked()
-        
-        if state == True and self.plot_profile_btn.isChecked() :
-            start_indx, end_indx = self.double_slider_clip_trace.value()
-            # assert that there is a trace in the main plotting canvas
-            if len(self.main_plot_widget.figure.axes) > 0 :
-                time = self.data_main_canvas["x"]
-                selected_img_list, _ = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                self.main_plot_widget.axes.axvline(start_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
-                self.main_plot_widget.axes.axvline(end_indx, c = "silver", linestyle = 'dashed', linewidth = 1)
-                self.main_plot_widget.canvas.draw()
-            else:
-                return warn("Create a trace first by clicking on 'Display Profile'") 
-        else:
-            if len(self.main_plot_widget.figure.axes) > 0 and len(self.main_plot_widget.figure.axes[0].lines) > 1:
-                for i in range(2):
-                    self.main_plot_widget.figure.axes[0].lines[-1].remove()
-            self.main_plot_widget.canvas.draw()
-
-            return
-    
-    def _double_slider_clip_trace_func(self):
-        state = self.is_range_clicked_checkbox.isChecked()
-
-        try:
-        
-            if state == True and self.plot_profile_btn.isChecked():
-                # self._dsiplay_range_func()
-                n_lines = len(self.main_plot_widget.figure.axes[0].lines)
-                if n_lines == 3:
-                    for i in range(2):
-                        self.main_plot_widget.figure.axes[0].lines[-1].remove()
-                else:
-                    self.main_plot_widget.figure.axes[0].lines[-1].remove()
-                
-                self._dsiplay_range_func()
-
-
-            else:
-                return
-        except Exception as e:
-            raise CustomException(e, sys)
-    
-    def _export_processing_steps_btn_func(self):
-        
-        current_selection = self.viewer.layers.selection.active
-        
-        if isinstance(current_selection, Image):
-            metadata = current_selection.metadata
-            key = "ProcessingSteps"
-
-            if key in metadata.keys():
-
-                fileName, _ = QFileDialog.getSaveFileName(self,
-                                                    "Save File",
-                                                        "",
-                                                        "YAML file (yml);;TOML file;;Text Files (*.txt)")
-                if not len(fileName) == 0:
-                    fileName, _ = os.path.splitext(fileName)
-                    self.metadata_recording_steps.steps = metadata[key] if key in metadata else []
-                    self.metadata_recording_steps.save_to_yaml(fileName + ".yml")
-                
-                    # with h5py.File(fileName, "w") as hf:
-
-                    #     # NOTE: may be add more information: original image name, date, etc?
-                    #     hf.attrs.update({key:metadata[key]})
-                        
-                    print(f"{'*'*5} Exporting porcessing steps for image: '{current_selection.name}' {'*'*5}")
-            else:
-                return warn("No 'Preprocessing' steps detected.")
-        else:
-            return warn("Please select an image leyer.")
-    
-
-    def _export_image_btn_func(self):
-
-        current_selection = self.viewer.layers.selection.active
-        
-        if isinstance(current_selection, Image):
-            
-            try:
-                options = QFileDialog.Options()
-                # options |= QFileDialog.DontUseNativeDialog                        
-                fileName, extension_ = QFileDialog.getSaveFileName(self,
-                                                        "Save File",
-                                                            "",
-                                                            "TIFF image format (*.tif);;All Files (*)",
-                                                            options=options)
-                if fileName:
-                    if not len(fileName) == 0:
-                        file_basename = os.path.basename(fileName)
-                        file_dir = os.path.dirname(fileName)
-                        # remove extension if exists and preserve only first part
-                        splitted_file_basename = file_basename.split(".")
-                        fileName = os.path.join(file_dir, splitted_file_basename[0] + ".tif" ) # here you can eventually to change 
-
-                        metadata = convert_to_json_serializable(current_selection.metadata)
-                        self.metadata_recording_steps.save_to_tiff(
-                            current_selection.data, 
-                            metadata, 
-                            fileName
-                            )
-
-                        # NOTE: still not able to export the metadata correctly with this method
-                        # with tifffile.TiffWriter(fileName) as tif:
-                            
-                        #     metadata_tif = {
-                        #         'axes': 'TYX',
-                        #         'fps': 1/metadata['CycleTime'],
-                        #         'comment': metadata
-                        #         # 'shape': (metadata['NumberOfFrames'], metadata['DetectorDimensions'][0], metadata['DetectorDimensions'][1])
-                        #     }
-                        #     options = dict(photometric='minisblack',
-                                           
-                        #                 #    tile=(128, 128),
-                        #                 #    compression='jpeg',
-                        #                 #    resolutionunit='CENTIMETER',
-                        #                    maxworkers=2
-                        #                 )
-                            
-                        #     tif.write(current_selection.data, 
-                        #             #   metadata =  current_selection.metadata,
-                        #             # shaped = False,
-                        #             metadata =  metadata_tif,
-                        #             # metadata =  metadata,
-                        #             **options)
-
-                        
-                        print(f"Image '{current_selection.name}' exported")
-                    else:
-                        return
-            except Exception as e:
-                raise CustomException(e, sys)
-        else:
-            return warn("Please select an image leyer.")
-    
-
-    def _apply_optimap_mot_corr_btn_func(self):
-        
-        current_selection = self.viewer.layers.selection.active
-        
-        if isinstance(current_selection, Image) and current_selection.ndim == 3:
-            c_k = self.c_kernels.value()
-            pre_smooth_t=self.pre_smooth_temp.value()
-            pre_smooth_s=self.pre_smooth_spat.value()
-            ref_frame_indx = int(self.ref_frame_val.text()) # put this in the GUI
-
-            params = {"Contrast_Kernel": c_k,
-                      "pre_smooth_temporal" : pre_smooth_t,
-                      "pre_smooth_sapatial" : pre_smooth_s,
-                      "reference_frame" : ref_frame_indx}
-
-            print("running motion stabilization")
-            results = optimap_mot_correction(current_selection.data, 
-                                             c_k = c_k,
-                                             pre_smooth_t= pre_smooth_t,
-                                             proe_smooth_s= pre_smooth_s, 
-                                             ref_fr=ref_frame_indx)
-            
-            self.add_result_img(result_img=results, 
-                                operation_name="Motion_correction", 
-                                method_name="optimap_mot_correction", 
-                                sufix="MotStab", 
-                                parameters=params)
-            
-            self.add_record_fun()
-
-        else:
-            
-            return warn(f"No an image selected or image: '{current_selection.name}' has ndim = {current_selection.ndim }. Select an temporal 3d image stack")
-        
-    
-    def _on_click_crop_from_shape_btn_func(self):
-
-        shape_name = self.ROI_selection_crop.currentText()
-        shape_layer = self.viewer.layers[shape_name]
-
-        img_name = self.image_selection_crop.currentText()
-        img_layer = self.viewer.layers[img_name]
-        metadata = img_layer.metadata
-
-        try:
-            cropped_img, ini_index, end_index = crop_from_shape(shape_layer, img_layer)
-            a, b, c, d = shape_layer.data[0]
-            param = {
-                "from_shape": {"name": shape_name,
-                               "data": {"t_right" : a.tolist(),
-                                        "t_left" : b.tolist(),
-                                        "b_left" : c.tolist(),
-                                        "b_right" : d.tolist()}
-                                        },
-                "crop_indexes": {"y": {"ini_index":int(ini_index[0]),
-                                    "end_index": int(end_index[0])},
-                                "x": {"ini_index":int(ini_index[1]),
-                                            "end_index": int(end_index[1])}}
-                                        
-                }
-
-            if self.rotate_l_crop.isChecked():
-                cropped_img = np.rot90(cropped_img, axes=(1, 2))
-                print(f"result image rotate 90° to the left")
-                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [1, 2]}                
-
-            elif self.rotate_r_crop.isChecked():
-                cropped_img = np.rot90(cropped_img, axes=(2, 1))
-                param["rotate_image"] = {"method_name" : "np.rot90", "axes": [2, 1]}
-                print(f"result image rotate 90° to the right")
-
-            self.add_result_img(result_img=cropped_img, 
-                                operation_name="Crop_image", 
-                                custom_img_name=img_name, 
-                                method_name="crop_from_shape", 
-                                custom_metadata= metadata, 
-                                sufix="Crop", parameters=param)
-            self.add_record_fun()
-            print(f"image '{img_name}' cropped")
-            return
-
-
-        except Exception as e:
-            raise CustomException(e, sys)
-            # print(CustomException(e, sys))
-
-
-    def _update_APD_value_for_MAP_func(self):
-        new_value = self.slider_APD_percentage.value()
-        self.slider_APD_map_percentage.setValue(new_value)
-
-    def _update_APD_value_for_APD_func(self):
-        new_value = self.slider_APD_map_percentage.value()
-        self.slider_APD_percentage.setValue(new_value)
-    
-    def plot_last_generated_img(self, shape_indx = 0):
-        """
-        easy helper to change selections and plot last image generated
-        """
-        self.listShapeswidget.clearSelection()
-        self.listShapeswidget.item(shape_indx).setSelected(True)
-        
-        self.listImagewidget.clearSelection()
-        last_img_indx = self.listImagewidget.count() -1 if self.listImagewidget.count() > 0 else None 
-        self.listImagewidget.item(last_img_indx).setSelected(True)
-        if self.plot_profile_btn.isChecked():
-            self.plot_profile_btn.click()
-            self.plot_profile_btn.click()
-        else:
-            self.plot_profile_btn.click()
-    
-    def _plot_curr_map_btn_fun(self):
-
-        # selectedItems = self.map_imgs_selector.lineEdit().text().split(", ")
-        selectedItems = [x.strip() for x in self.map_imgs_selector.lineEdit().text().split(',')]
-        # selectedItems = [selectedItems] if isinstance(selectedItems, str) else selectedItems
-        # current_selection = self.viewer.layers.selection.active
-        self.maps_plot_widget.figure.clear()
-        self.maps_plot_widget.add_single_axes()
-
-        if len(selectedItems) == 1 and len(selectedItems[0]) > 0:
-            current_selection = self.viewer.layers[selectedItems[0]]
-            self.map_data = current_selection.data
-
-        elif len(selectedItems) > 1:
-            current_selection = [self.viewer.layers[item].data for item in selectedItems]
-            self.map_data = np.concatenate(current_selection, axis = 1)
-        
-        else:
-            return warn(f"No image selected. Please select an Image from the selector")
-                
-            # print("Selected items:", selectedItems)
-
-        if self.apply_cip_limits_map.isChecked():
-            lower_limit = float(self.map_lower_clip_limit.text())
-            upper_limit = float(self.map_upper_clip_limit.text())
-            self.map_data = np.clip(self.map_data, lower_limit, upper_limit)
-
-        else:
-            lower_limit = None
-            upper_limit = None
-            self.map_data = self.map_data
-            
-        
-        self.maps_plot_widget.axes.contour(self.map_data, 
-                                        levels= self.colormap_n_levels.value(), 
-                                        colors='k', origin="image", linewidths=1)
-        CSF = self.maps_plot_widget.axes.contourf(self.map_data, 
-                                                levels= self.colormap_n_levels.value(), 
-                                                cmap = "turbo", origin="image", 
-                                                #   vmin = lower_limit, 
-                                                #   vmax = upper_limit, 
-                                                extend = "neither")
-
-        self.maps_plot_widget.figure.colorbar(CSF)
-        self.maps_plot_widget.axes.axis('off')
-
-        def extract_and_combine(s):
-            prefix = s[:19]  # Extract the first 19 characters
-            # Find the substring that contains "Map" surrounded by underscores
-            map_part = [part for part in s.split('_') if 'Map' in part][0]
-            return f"{prefix}_{map_part}"
-        
-        img_title = [extract_and_combine(item) for item in selectedItems]
-        
-        self.maps_plot_widget.axes.set_title(f"{' '.join(str(i) for i in img_title)}", color = "k")
-
-        print(f"{'*'*5} plotting maps succesfully {'*'*5}")
-        # self.maps_plot_widget.axes.set_facecolor("white")
-        self.maps_plot_widget.figure.set_facecolor("white")
-        self.maps_plot_widget.canvas.draw()
-
-            
-    
-    def _clear_curr_map_btn_func(self):
-        self.maps_plot_widget.figure.clear()
-        print("clearing maps")
-        self.maps_plot_widget.canvas.draw()
-    
-    
-    
-    def _preview_erode_btn_func(self):
-        # self.w = AnotherWindow()
-        # self.w.show()
-
-        self.InterctiveWindod_edit_map = InterctiveWindowMapErode(self.viewer, self)
-        self.InterctiveWindod_edit_map.show()
-
-    
-    def _close_preview_erode_window_btn(self):
-        self.InterctiveWindowMapErode.close()
-
-
-
-
-
-
-
-
-
-
-
-        
 
 
 @magic_factory
@@ -4081,215 +1520,6 @@ def example_function_widget(img_layer: "napari.layers.Image"):
     print(f"you have selected {img_layer}")
 
 
-# class MyPopup(QWidget):
-#     def __init__(self, napari_viewer):
-#         super().__init__()
-#         # QWidget.__init__(self)
-#         self.viewer = napari_viewer
-#         self.main_layout = QVBoxLayout()
-#         self.setLayout(self.main_layout)
-
-#         # self.tabs = QTabWidget()
-#         # self.main_layout.addWidget(self.tabs)
-#         ######## pre-processing tab ########
-#         self.average_APs_widget = QWidget()
-#         self._pre_processing_layout = QVBoxLayout()
-#         self.average_APs_widget.setLayout(self._pre_processing_layout)
-#         # self.tabs.addTab(self.pre_processing_tab, 'Average Trace')
-#         # self.tabs.addTab(self.pre_processing_tab, 'Average Trace')
-#         self.main_layout.addWidget(self.average_APs_widget)
-
-
-#         ######## Pre-processing tab ########
-#         ####################################
-#         self._pre_processing_layout.setAlignment(Qt.AlignTop)
-        
-#         ######## pre-processing  group ########
-#         self.pre_processing_group = VHGroup('Pre-porcessing', orientation='G')
-
-#         ######## pre-processing btns ########
-#         self.inv_and_norm_data_btn = QPushButton("Invert + Normalize (loc max)")        
-#         self.pre_processing_group.glayout.addWidget(self.inv_and_norm_data_btn, 0, 1, 1, 1)
-
-#         self.inv_data_btn = QPushButton("Invert signal")
-#         self.inv_data_btn.setToolTip(("Invert the polarity of the signal"))
-#         self.pre_processing_group.glayout.addWidget(self.inv_data_btn, 1, 1, 1, 1) 
-
-#         self._pre_processing_layout.addWidget(self.pre_processing_group.gbox)
-
-        
-#         self.plot_grpup = VHGroup('Plot profile', orientation='G')
-#         self.plot_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-#         self.plot_grpup.glayout.addWidget(self.plot_widget, 1, 1, 1, 2)
-#         self.main_layout.addWidget(self.average_APs_widget)
-
-class InterctiveWindowMapErode(QWidget):
-    """
-    This "window" is a QWidget. If it has no parent, it
-    will appear as a free-floating window as we want.
-    """
-    def __init__(self, napari_viewer, OMAAS):
-        self.viewer = napari_viewer
-        self.o = OMAAS
-        super().__init__()
-        # layout = QVBoxLayout()
-        # self.label = QLabel("Another Window % d" % randint(0,100))
-        # layout.addWidget(self.label)
-        # self.setLayout(layout)
-        # self.main_widget = QWidget()
-        self.InterctiveWindowMapErode_layout = QVBoxLayout()
-
-        self.preview_map_erode_group = VHGroup('Erode map image edges', orientation='G')
-
-        self.InterctiveWindowMapErode_layout.addWidget(self.preview_map_erode_group.gbox)
-
-        # self.test_label = QLabel("Another Window % d" % randint(0,100))
-        # self.preview_map_erode_group.glayout.addWidget(self.test_label, 0, 0, 1, 1)
-        self.preview_plotter_widget =  BaseNapariMPLWidget(self.viewer) # this is the cleanest widget thatz does not have any callback on napari
-        self.preview_plotter_widget.add_single_axes()
-        self.map_data = self.o.map_data.copy()
-        self.preview_plotter_widget.axes.imshow(self.map_data, cmap="turbo")
-        # self.maps_plot_widget.axes.contour(data, 
-        #                                 levels= self.colormap_n_levels.value(), 
-        #                                 colors='k', origin="image", linewidths=1)
-        # CSF = self.maps_plot_widget.axes.contourf(data, 
-        #                                         levels= self.colormap_n_levels.value(), 
-        #                                         cmap = "turbo", origin="image", 
-        #                                         #   vmin = lower_limit, 
-        #                                         #   vmax = upper_limit, 
-        #                                         extend = "neither")
-        self.preview_map_erode_group.glayout.addWidget(self.preview_plotter_widget, 0, 0, 1, 6)
-
-        self.n_pixels_erode_label = QLabel("Number of Px:")
-        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode_label, 1, 0, 1, 1)
-        
-        self.n_pixels_erode = QLabeledSlider()
-        self.n_pixels_erode.setRange(0, 100)
-        self.preview_map_erode_group.glayout.addWidget(self.n_pixels_erode, 1, 1, 1, 1)
-
-        self.apply_erosion_btn = QPushButton( "Apply changes")
-        self.preview_map_erode_group.glayout.addWidget(self.apply_erosion_btn, 1, 2, 1, 4)
-
-        self.gaussian_filter_label = QLabel("Gaussian Filter")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_filter_label, 2, 0, 1, 1)
-        
-        self.gaussian_sigam_label = QLabel("Sigma")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigam_label, 2, 1, 1, 1)
-
-        self.gaussian_sigma = QDoubleSpinBox()
-        self.gaussian_sigma.setSingleStep(0.1)
-        self.gaussian_sigma.setValue(1)
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_sigma, 2, 2, 1, 1)
-                  
-        self.gaussian_radius_label = QLabel("Radius")
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius_label, 2, 3, 1, 1)
-
-        self.gaussian_radius = QSpinBox()
-        self.gaussian_radius.setSingleStep(1)
-        self.gaussian_radius.setValue(4)
-        self.preview_map_erode_group.glayout.addWidget(self.gaussian_radius, 2, 4, 1, 1)
-
-        self.apply_gaussian_filt_btn = QPushButton( "Apply changes")
-        self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 2, 5, 1, 1)
-
-                  
-        
-        self.setLayout(self.InterctiveWindowMapErode_layout)
-    
-        ##############
-        # Callbacks ##
-        ##############
-        self.apply_erosion_btn.clicked.connect(self._apply_erosion_btn_func)
-        self.n_pixels_erode.valueChanged.connect(self.n_pixels_erode_func)
-        self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
-
-
-    def _apply_erosion_btn_func(self):
-
-        self.n_pixels_erode_func()
-        current_image = self.viewer.layers.selection.active
-        
-        self.o.add_result_img(self.result_map_image,
-                            img_custom_name=f"{current_image.name}_postprocessed",
-                            auto_metadata = False, 
-                            custom_metadata = self.viewer.layers.selection.active.metadata, 
-                            single_label_sufix = "Crop",
-                            # add_to_metadata = f"cropped_indx[:, {yl}:{yr}, {xl}:{xr}]")
-                            add_to_metadata = "Post-precessed_Map[test]")
-        print("Image exported")
-    
-    def n_pixels_erode_func(self):
-        try:
-
-            # mask = segment_image_triangle(self.map_data)
-            self.result_map_image = self.map_data.copy()
-            mask = np.invert(np.isnan(self.result_map_image))
-
-            
-            # mask = binary_closing(mask, 10)
-            eros_value = self.n_pixels_erode.value()
-            small_holes_s = 4
-            print(f"clossing small object of size = {small_holes_s}")
-            mask = remove_small_objects(mask, small_holes_s)
-            footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
-            mask = binary_closing(mask, footprint=footprint)
-            self.result_map_image = closing(self.result_map_image, footprint=footprint)
-
-
-            mask = erosion(mask, footprint=disk(eros_value))
-            self.result_map_image[~mask] = None
-            
-            self.preview_plotter_widget.figure.clear()
-            self.preview_plotter_widget.add_single_axes()
-            self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
-            self.preview_plotter_widget.canvas.draw()
-
-            print("lalala")
-        except Exception as e:
-            raise CustomException(e, sys)
-        
-
-    def _apply_gaussian_filt_btn_func(self):
-
-        try:
-
-            self.n_pixels_erode_func()
-
-            # self.result_map_image = self.result_map_image.copy()
-            # NOTE: may be use intepolation method to refill holes in mask
-            # after that you cna do erosion or gaussina filter.
-            # need to try out.
-            sigma = self.gaussian_sigma.value()
-            radius = self.gaussian_radius.value()
-            self.result_map_image = gaussian_filter_nan(self.result_map_image, sigma=sigma, radius=radius)
-
-            self.preview_plotter_widget.figure.clear()
-            self.preview_plotter_widget.add_single_axes()
-            self.preview_plotter_widget.axes.imshow(self.result_map_image, cmap="turbo")
-            self.preview_plotter_widget.canvas.draw()
-            print("applying Gaussian filter")
-        
-        except Exception as e:
-            raise CustomException(e, sys)
-
-        
-        
-        # self.InterctiveWindowMapErode.show()
-
-        # print("preview")
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-        
