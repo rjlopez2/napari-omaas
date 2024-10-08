@@ -13,6 +13,7 @@ from skimage.morphology import disk, binary_closing, remove_small_objects, closi
 from skimage.registration import optical_flow_ilk
 from skimage import transform, exposure, morphology, registration, segmentation
 from skimage.restoration import denoise_bilateral
+from skimage.measure import regionprops
 
 ########## utils ##########
 import warnings
@@ -958,42 +959,6 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
     img_name = [curr_img_name for i in range(peaks_times.shape[-1])]
     file_id = [curr_file_id for i in range(peaks_times.shape[-1])]
 
-
-    # rslt_df = [img_name, 
-    #             ROI_ids, 
-    #             AP_ids, 
-    #             apd_perc, 
-    #             APD, 
-    #             dVdtmax, 
-    #             amp_Vmax, 
-    #             bcl_list, 
-    #             resting_V,
-    #             time[AP_ini], 
-    #             time[AP_peak], 
-    #             time[AP_end], 
-    #             AP_ini, 
-    #             AP_peak, 
-    #             AP_end,
-    #             file_id]
-    # rslt_dict = dict(
-    #     img_name = img_name,
-    #     ROI_ids = ROI_ids,
-    #     AP_ids = AP_ids,
-    #     apd_perc = apd_perc,
-    #     APD = APD,
-    #     dVdtmax = dVdtmax,
-    #     amp_Vmax = amp_Vmax,
-    #     bcl_list = bcl_list,
-    #     resting_V = resting_V,
-    #     time_AP_ini = time[AP_ini],
-    #     time_AP_peak = time[AP_peak], 
-    #     time_AP_end = time[AP_end], 
-    #     AP_ini = AP_ini, 
-    #     AP_peak = AP_peak, 
-    #     AP_end = AP_end,
-    #     file_id = file_id
-    # )
-
     rslt_dict = {
         "image_name": img_name,
         "ROI_id": ROI_ids,
@@ -1372,7 +1337,7 @@ def return_index_for_map(image: "napari.types.ImageData", cycle_time, percentage
                         raise e
 
 @macro.record
-def crop_from_shape(shape_layer, img_layer):
+def crop_from_shape(shape_layer_data, img_layer):
     dshape = img_layer.data.shape
 
     # NOTE: you need to handel case for 2d images alike 3d images
@@ -1381,7 +1346,7 @@ def crop_from_shape(shape_layer, img_layer):
     
     # label = shape_layer.to_labels(dshape[-2:])
     # get vertices from shape: top-right, top-left, botton-left, botton-right
-    tl, tr, bl, br = shape_layer.data[0].astype(int)
+    tl, tr, bl, br = shape_layer_data.astype(int)
     y_ini, y_end = sorted([tr[-2], br[-2]])
     x_ini, x_end = sorted([tl[-1], tr[-1]])
     ini_index = [y_ini, x_ini ]
@@ -1409,6 +1374,155 @@ def crop_from_shape(shape_layer, img_layer):
 
     return cropped_img, ini_index, end_index
 
+
+def bounding_box_vertices(my_labels_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
+    """
+    Create bounding box vertices with optional padding for each region in my_labels_data.
+    The resulting bounding boxes are sorted from left to right based on their position.
+    
+    Parameters:
+    - my_labels_data: The labeled image data.
+    # - img_data: 2d intensity image data used for regioprops.
+    - area_threshold: Minimum area to include a region.
+    - vertical_padding: Pixels to increase bounding box height (top and bottom).
+    - horizontal_padding: Pixels to increase bounding box width (left and right).
+    
+    Returns:
+    - A sorted list of bounding box vertices suitable for drawing shapes in Napari.
+    - A list of cropped regions (both image and label) based on the bounding boxes.
+    """
+    # Retrieve bounding boxes from regionprops
+    bounding_boxes = [region.bbox for region in regionprops(label_image=my_labels_data) if region.area > area_threshold]
+
+    # Sort bounding boxes from left to right based on min_col (second value in bbox)
+    bounding_boxes.sort(key=lambda bbox: bbox[1])  # Sort by the second value (min_col)
+
+    # Prepare lists to store bounding box vertices, cropped images, and cropped labels
+    napari_boxes = []
+    cropped_labels = []
+    
+    for bbox in bounding_boxes:
+        # (min_row, min_col, max_row, max_col)
+        min_row, min_col, max_row, max_col = bbox
+
+        # Apply padding to bounding box
+        min_row = max(min_row - vertical_padding, 0)  # Ensure not negative
+        max_row += vertical_padding
+        min_col = max(min_col - horizontal_padding, 0)  # Ensure not negative
+        max_col += horizontal_padding
+
+        # Create a numpy array of vertices in the required format
+        box_vertices = np.array([
+            [min_row, min_col],  # top-left corner
+            [min_row, max_col],  # top-right corner
+            [max_row, max_col],  # bottom-right corner
+            [max_row, min_col],  # bottom-left corner
+        ])
+
+        napari_boxes.append(box_vertices)
+
+        # Crop the label data corresponding to this bounding box
+        cropped_label = my_labels_data[min_row:max_row, min_col:max_col]
+        cropped_labels.append(cropped_label)
+
+    return napari_boxes, cropped_labels
+
+
+def crop_from_bounding_boxes(img_layer, my_labels_data, rotate_directions, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
+    """
+    Crop regions from an image based on bounding boxes from labels.
+
+    Parameters:
+    - img_layer: The image layer from which to crop.
+    - my_labels_data: Labeled data to generate bounding boxes.
+    - rotate_directions: list of 4 elements (strings) showing the direction to rotate the image R (right) or L (left).
+    - area_threshold: Minimum area to include a region.
+    - vertical_padding: Pixels to increase bounding box height (top and bottom).
+    - horizontal_padding: Pixels to increase bounding box width (left and right).
+
+    Returns:
+    - A list of cropped images corresponding to each bounding box.
+    """
+    dshape = img_layer.data.shape
+    bounding_boxes, cropped_labels = bounding_box_vertices(my_labels_data, area_threshold, vertical_padding, horizontal_padding)
+    
+    cropped_images = []
+    
+    for indx, (box, label, direction)in enumerate(zip(bounding_boxes, cropped_labels, rotate_directions)):
+        # Get top-left (tl) and bottom-right (br) corners
+        tl, _, br, _ = box
+
+        # Convert to integer values
+        tl = tl.astype(int)
+        br = br.astype(int)
+
+        # Crop coordinates
+        y_ini, x_ini = tl
+        y_end, x_end = br
+
+        # Ensure the coordinates are within valid ranges
+        if y_ini < 0: y_ini = 0
+        if x_ini < 0: x_ini = 0
+        if y_end > dshape[-2]: y_end = dshape[-2]
+        if x_end > dshape[-1]: x_end = dshape[-1]
+
+        # Crop the image
+        cropped_img = img_layer.data[:, y_ini:y_end, x_ini:x_end]
+        if indx in [0, 1, 2]:
+            cropped_img = np.rot90(cropped_img, axes=(1, 2))
+            cropped_labels[indx] = np.rot90(label, axes=(0, 1))
+        if indx == 3:
+            cropped_img = np.rot90(cropped_img, axes=(2, 1))
+            cropped_labels[indx] = np.rot90(label, axes=(1, 0))
+            
+
+        cropped_images.append((cropped_img, [y_ini, x_ini], [y_end, x_end]))
+
+    return cropped_images, cropped_labels, bounding_boxes
+
+def arrange_cropped_images(cropped_images, arrangement='horizontal', padding_value=0):
+    """
+    Arrange cropped images horizontally or vertically into a new array, padding smaller images as needed.
+
+    Parameters:
+    - cropped_images: List of tuples containing (cropped_image, ini_index, end_index).
+                      Each cropped_image is a numpy array of the form (channels, height, width).
+    - arrangement: 'horizontal' or 'vertical' arrangement of the images.
+    - padding_value: The value to use for padding (default: 0, but could be NaN or any other value).
+    
+    Returns:
+    - A new numpy array with the images arranged horizontally or vertically with padding.
+    """
+    # Get the maximum height and width among all cropped images
+    max_height = max([img.shape[-2] for img, _, _ in cropped_images])
+    max_width = max([img.shape[-1] for img, _, _ in cropped_images])
+
+    # Initialize a list to hold the padded images
+    padded_images = []
+
+    for img, _, _ in cropped_images:
+        # Get current image dimensions
+        img_height, img_width = img.shape[-2], img.shape[-1]
+
+        # Create a new array filled with padding_value and of the max size
+        padded_img = np.full((img.shape[0], max_height, max_width), fill_value=padding_value, dtype=img.dtype)
+
+        # Place the original image in the top-left corner of the padded array
+        padded_img[:, :img_height, :img_width] = img
+
+        padded_images.append(padded_img)
+
+    # Stack the padded images horizontally or vertically
+    if arrangement == 'horizontal':
+        # Concatenate along the width axis
+        new_image = np.concatenate(padded_images, axis=-1)
+    elif arrangement == 'vertical':
+        # Concatenate along the height axis
+        new_image = np.concatenate(padded_images, axis=-2)
+    else:
+        raise ValueError("Arrangement must be either 'horizontal' or 'vertical'")
+
+    return new_image
 
 @macro.record
 def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df = False, percentage = 75):
@@ -1565,14 +1679,24 @@ def segement_region_based_func(array_2d, lo_t = 0.05, hi_t = 0.2, expand = None)
     return (mask)
 
 @macro.record
-def polish_mask(mask, small_obj_s = 500, small_holes_s = 5):
+def polish_mask(mask, small_obj_s = 1000, small_holes_s = 5):
+    
+    # Number of pixels you want to reduce from the edges
+    erosion_size = 3 
 
-    cleared = remove_small_objects(mask, small_obj_s)
+    # Pad the mask using numpy.pad
+    padded_mask = np.pad(mask, pad_width=erosion_size, mode='constant', constant_values=0)
+    # Apply erosion with a square or custom structuring element
+    eroded_mask = morphology.binary_erosion(padded_mask, disk(erosion_size))
+    # Remove the padding to get the mask back to its original size
+    cleared = eroded_mask[erosion_size:-erosion_size, erosion_size:-erosion_size]
+    
+    cleared = remove_small_objects(cleared, small_obj_s)
     
     # 6. fill smaall holes ininside regions objects
     footprint=[(np.ones((small_holes_s, 1)), 1), (np.ones((1, small_holes_s)), 1)]
     cleared = binary_closing(cleared, footprint=footprint)
-    # cleared = clear_border(bw)
+    cleared = segmentation.clear_border(cleared)
 
     # 7.  label image regions
     label_image = label(cleared)

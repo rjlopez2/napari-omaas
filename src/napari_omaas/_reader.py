@@ -10,9 +10,13 @@ import numpy as np
 import os
 from glob import glob 
 from warnings import warn
+from napari_tiff.napari_tiff_reader import reader_function as napar_tif_reader
+from .custom_exceptions import CustomException
+import sys
 # import napari_omaas as o
 
-SUPPORTED_IMAGES = ".sif", ".SIF", ".sifx", ".SIFX"
+SUPPORTED_SIF_IMAGES = ".sif", ".SIF", ".sifx", ".SIFX"
+SUPPORTED_TIF_IMAGES = ".tif", ".TIF", "tiff", "TIFF"
 
 def napari_get_reader(path):
     """A basic implementation of a Reader contribution.
@@ -29,32 +33,31 @@ def napari_get_reader(path):
         same path or list of paths, and returns a list of layer data tuples.
     """
     if isinstance(path, list):
-        # reader plugins may be handed single path, or a list of paths.
-        # if it is a list, it is assumed to be an image stack...
-        # so we are only going to look at the first file.
+        # If the path is a list, assume it is an image stack and check the first file.
         path = path[0]
     
     if isinstance(path, str) and os.path.isdir(path):
+        # If the path is a directory, check for .sifx files
         sifx_file = glob(os.path.join(path, "*.sifx"))
 
-        if len(sifx_file) > 0:
-            # sifx_file[0].endswith(".sifx"):
-            return reader_function
+        if sifx_file:
+            return reader_sif_function
         else:
-            warn(" No file found in current directory with extension '*.sifx'")
+            warn("No file found in the current directory with extension '*.sifx'")
             return None
 
-        
-    # if we know we cannot read the file, we immediately return None.
-    if not any(path.lower().endswith(ext) for ext in SUPPORTED_IMAGES):
-        return None
-    
+    # Check for supported SIF images
+    if any(path.lower().endswith(ext) for ext in SUPPORTED_SIF_IMAGES):
+        return reader_sif_function
 
+    # Check for supported TIF images
+    if any(path.lower().endswith(ext) for ext in SUPPORTED_TIF_IMAGES):
+        return reader_tif_function
 
-    # otherwise we return the *function* that can read ``path``.
-    return reader_function
+    # If the file format is not supported, return None.
+    return None
 
-def reader_function(path):
+def reader_sif_function(path):
     """Take a path or list of paths and return a list of LayerData tuples.
 
     Readers are expected to return data as a list of tuples, where each tuple
@@ -113,3 +116,25 @@ def reader_function(path):
 
     layer_type = "image"  # optional, default is "image"
     return [(data, add_kwargs, layer_type)]
+
+def reader_tif_function(path):
+    
+    data = napar_tif_reader(path)
+    data, metadata, layer_type = data[0]
+    try:
+        if "metadata" in metadata.keys():
+            # metadata = metadata['metadata']
+            if 'shaped_metadata' in metadata['metadata'].keys():
+                metadata = metadata['metadata']['shaped_metadata'][0]
+        
+        # optional kwargs for the corresponding viewer.add_* method
+        add_kwargs = {
+            "colormap" : "turbo",
+            # "gamma" : 0.15,
+            "metadata": metadata
+        }
+
+        return [(data, add_kwargs, layer_type)]
+    
+    except Exception as e:
+        raise CustomException(e, sys)
