@@ -85,3 +85,7 @@ venv/
 
 # ignore .sif images files
 **/img/*.sif
+
+# ignore folder where you run local tests
+
+local_experiments/
