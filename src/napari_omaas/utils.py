@@ -934,7 +934,8 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         amp_V = (((100 - apd_perc) / 100) * (V_max - resting_V[peak])) + resting_V[peak]
         # Find index where the AP has recovered the given percentage (or if it didnt, take the last index)
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
-        resting_V_indx = upstroke_indx - np.argwhere(np_1Darray[ini_indx:upstroke_indx][::-1] < resting_V[peak])[0][0] # look backwards and find the first index where the the baseline start
+        indx_baseline = np.argwhere(np_1Darray[ini_indx:upstroke_indx][::-1] <= resting_V[peak]) # look backwards and find the first index where the the baseline start
+        resting_V_indx = upstroke_indx - indx_baseline[0][0] if indx_baseline.size > 0 else upstroke_indx - np.argwhere(np_1Darray[ini_indx:upstroke_indx][::-1] <= np.mean(np_1Darray[ini_indx:upstroke_indx]))[0][0] # uses index of baseline if exists otherwise get the average from ini_indx:upstroke_indx
         repol_index =  AP_peaks_indx[peak] + np.minimum(np.argmax(current_APD_segment <= amp_V) , current_APD_segment.shape[-1] -1)
         pre_repol_index = repol_index - 2
         # generate fine grid for interpolation in ms
