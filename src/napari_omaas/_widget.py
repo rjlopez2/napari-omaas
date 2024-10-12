@@ -2355,7 +2355,8 @@ class OMAAS(QWidget):
                                                         interpolate= is_interpolated,
                                                         curr_file_id = img.metadata["CurrentFileSource"])
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
-                        ini_indx = self.APs_props["indx_at_AP_upstroke"]
+                        ini_indx = self.APs_props["indx_at_AP_resting"]
+                        upstroke_indx = self.APs_props["indx_at_AP_upstroke"]
                         peak_indx = self.APs_props["indx_at_AP_peak"]
                         end_indx = self.APs_props["indx_at_AP_end"]
 
@@ -2368,6 +2369,14 @@ class OMAAS(QWidget):
                                             linestyles='dashed', color = "green", 
                                             # label=f'AP_ini',
                                             lw = 0.5, alpha = 0.8)
+                        # plot point at upstroke
+                        self._APD_plot_widget.axes.scatter(
+                                            time[img_indx + shape_indx][upstroke_indx], 
+                                            traces[img_indx + shape_indx][upstroke_indx],
+                                            marker="_",
+                                            color = "yellow", 
+                                            # label=f'AP_upstroke',
+                                            lw = 0.5, alpha = 0.5)
                         # plot vline of AP end
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][end_indx], 
                                             ymin= y_min,
@@ -2390,7 +2399,7 @@ class OMAAS(QWidget):
 
                     except Exception as e:
                         # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-                        raise e
+                        raise CustomException(e, sys)
 
             self._APD_plot_widget.axes.legend(fontsize="8")
             self._APD_plot_widget.canvas.draw()
