@@ -842,9 +842,10 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
     dfdt =  (dfdt - dfdt.min()) /  dfdt.max()
     # dff_filt = signal.savgol_filter(dff, filter_size, 2)
     
-    AP_ini = []
-    AP_peak = []
-    AP_end = [] 
+    indx_AP_upstroke = []
+    indx_AP_peak = []
+    indx_AP_end = []
+    indx_AP_resting = []
 
     for peak in range(len(peaks_times)):
         #  Find RMP and APD
@@ -852,7 +853,8 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
         bcl = bcl_list[peak]
         # Find interval of AP in indices
-        ini_indx = np.max(np.append(np.argwhere(time >= peaks_times[peak] - bcl/1.5)[0], 0))
+        ini_indx = np.argmax(time >= (peaks_times[peak] - bcl / 1.5))  # finds the first True index
+        ini_indx = max(ini_indx, 0)  # ensures the index is at least 0
         
         if peak + 1 == len(peaks_times):
             end_indx = np.argmax(time)
@@ -892,7 +894,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
             # dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
             activation_time[peak] = time[upstroke_indx]
-            dVdtmax[peak] = dfdt[upstroke_indx] * cycle_length_ms
+            dVdtmax[peak] = np.max(dfdt) * cycle_length_ms
 
 
         # compute RMP from before and after upstroke
@@ -932,6 +934,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         amp_V = (((100 - apd_perc) / 100) * (V_max - resting_V[peak])) + resting_V[peak]
         # Find index where the AP has recovered the given percentage (or if it didnt, take the last index)
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
+        resting_V_indx = upstroke_indx - np.argwhere(np_1Darray[ini_indx:upstroke_indx][::-1] < resting_V[peak])[0][0] # look backwards and find the first index where the the baseline start
         repol_index =  AP_peaks_indx[peak] + np.minimum(np.argmax(current_APD_segment <= amp_V) , current_APD_segment.shape[-1] -1)
         pre_repol_index = repol_index - 2
         # generate fine grid for interpolation in ms
@@ -941,11 +944,13 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         repol_index_interpolated = np.append(np.argwhere(Vm_interpolated <= amp_V), time_fine_grid.size -1 ).min()
 
         repol_time[peak] = time_fine_grid[repol_index_interpolated] #* 1000
-        APD[peak] = repol_time[peak] - activation_time[peak]
+        # APD[peak] = repol_time[peak] - activation_time[peak]
+        APD[peak] = repol_time[peak] - time[resting_V_indx]
 
-        AP_ini.append(upstroke_indx) 
-        AP_peak.append(AP_peaks_indx[peak]) 
-        AP_end.append(repol_index ) 
+        indx_AP_upstroke.append(upstroke_indx) 
+        indx_AP_peak.append(AP_peaks_indx[peak]) 
+        indx_AP_end.append(repol_index )
+        indx_AP_resting.append(resting_V_indx)
 
 
 
@@ -969,12 +974,13 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         "amp_Vmax":amp_Vmax,
         "BasCycLength_bcl":bcl_list,
         "resting_V":resting_V,
-        "time_at_AP_upstroke":time[AP_ini],
-        "time_at_AP_peak":time[AP_peak], 
-        "time_at_AP_end":time[AP_end], 
-        "indx_at_AP_upstroke":AP_ini, 
-        "indx_at_AP_peak":AP_peak, 
-        "indx_at_AP_end":AP_end,
+        "time_at_AP_upstroke":time[indx_AP_upstroke],
+        "time_at_AP_peak":time[indx_AP_peak], 
+        "time_at_AP_end":time[indx_AP_end], 
+        "indx_at_AP_resting":indx_AP_resting,
+        "indx_at_AP_upstroke":indx_AP_upstroke,
+        "indx_at_AP_peak":indx_AP_peak, 
+        "indx_at_AP_end":indx_AP_end,
         "curr_file_id":file_id
         }
      
