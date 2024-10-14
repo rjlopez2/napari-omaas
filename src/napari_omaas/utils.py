@@ -842,9 +842,10 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
     dfdt =  (dfdt - dfdt.min()) /  dfdt.max()
     # dff_filt = signal.savgol_filter(dff, filter_size, 2)
     
-    AP_ini = []
-    AP_peak = []
-    AP_end = [] 
+    indx_AP_upstroke = []
+    indx_AP_peak = []
+    indx_AP_end = []
+    indx_AP_resting = []
 
     for peak in range(len(peaks_times)):
         #  Find RMP and APD
@@ -852,7 +853,8 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
         bcl = bcl_list[peak]
         # Find interval of AP in indices
-        ini_indx = np.max(np.append(np.argwhere(time >= peaks_times[peak] - bcl/1.5)[0], 0))
+        ini_indx = np.argmax(time >= (peaks_times[peak] - bcl / 1.5))  # finds the first True index
+        ini_indx = max(ini_indx, 0)  # ensures the index is at least 0
         
         if peak + 1 == len(peaks_times):
             end_indx = np.argmax(time)
@@ -892,7 +894,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
             # dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
             activation_time[peak] = time[upstroke_indx]
-            dVdtmax[peak] = dfdt[upstroke_indx] * cycle_length_ms
+            dVdtmax[peak] = np.max(dfdt) * cycle_length_ms
 
 
         # compute RMP from before and after upstroke
@@ -932,6 +934,8 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         amp_V = (((100 - apd_perc) / 100) * (V_max - resting_V[peak])) + resting_V[peak]
         # Find index where the AP has recovered the given percentage (or if it didnt, take the last index)
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
+        indx_baseline = np.argwhere(np_1Darray[ini_indx:upstroke_indx][::-1] <= resting_V[peak]) # look backwards and find the first index where the the baseline start
+        resting_V_indx = upstroke_indx - indx_baseline[0][0] if indx_baseline.size > 0 else upstroke_indx - np.argwhere(np_1Darray[ini_indx:upstroke_indx][::-1] <= np.mean(np_1Darray[ini_indx:upstroke_indx]))[0][0] # uses index of baseline if exists otherwise get the average from ini_indx:upstroke_indx
         repol_index =  AP_peaks_indx[peak] + np.minimum(np.argmax(current_APD_segment <= amp_V) , current_APD_segment.shape[-1] -1)
         pre_repol_index = repol_index - 2
         # generate fine grid for interpolation in ms
@@ -941,11 +945,13 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         repol_index_interpolated = np.append(np.argwhere(Vm_interpolated <= amp_V), time_fine_grid.size -1 ).min()
 
         repol_time[peak] = time_fine_grid[repol_index_interpolated] #* 1000
-        APD[peak] = repol_time[peak] - activation_time[peak]
+        # APD[peak] = repol_time[peak] - activation_time[peak]
+        APD[peak] = repol_time[peak] - time[resting_V_indx]
 
-        AP_ini.append(upstroke_indx) 
-        AP_peak.append(AP_peaks_indx[peak]) 
-        AP_end.append(repol_index ) 
+        indx_AP_upstroke.append(upstroke_indx) 
+        indx_AP_peak.append(AP_peaks_indx[peak]) 
+        indx_AP_end.append(repol_index )
+        indx_AP_resting.append(resting_V_indx)
 
 
 
@@ -969,12 +975,13 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         "amp_Vmax":amp_Vmax,
         "BasCycLength_bcl":bcl_list,
         "resting_V":resting_V,
-        "time_at_AP_upstroke":time[AP_ini],
-        "time_at_AP_peak":time[AP_peak], 
-        "time_at_AP_end":time[AP_end], 
-        "indx_at_AP_upstroke":AP_ini, 
-        "indx_at_AP_peak":AP_peak, 
-        "indx_at_AP_end":AP_end,
+        "time_at_AP_upstroke":time[indx_AP_upstroke],
+        "time_at_AP_peak":time[indx_AP_peak], 
+        "time_at_AP_end":time[indx_AP_end], 
+        "indx_at_AP_resting":indx_AP_resting,
+        "indx_at_AP_upstroke":indx_AP_upstroke,
+        "indx_at_AP_peak":indx_AP_peak, 
+        "indx_at_AP_end":indx_AP_end,
         "curr_file_id":file_id
         }
      
@@ -1337,7 +1344,7 @@ def return_index_for_map(image: "napari.types.ImageData", cycle_time, percentage
                         raise e
 
 @macro.record
-def crop_from_shape(shape_layer, img_layer):
+def crop_from_shape(shape_layer_data, img_layer):
     dshape = img_layer.data.shape
 
     # NOTE: you need to handel case for 2d images alike 3d images
@@ -1346,7 +1353,7 @@ def crop_from_shape(shape_layer, img_layer):
     
     # label = shape_layer.to_labels(dshape[-2:])
     # get vertices from shape: top-right, top-left, botton-left, botton-right
-    tl, tr, bl, br = shape_layer.data[0].astype(int)
+    tl, tr, bl, br = shape_layer_data.astype(int)
     y_ini, y_end = sorted([tr[-2], br[-2]])
     x_ini, x_end = sorted([tl[-1], tr[-1]])
     ini_index = [y_ini, x_ini ]
@@ -1375,29 +1382,32 @@ def crop_from_shape(shape_layer, img_layer):
     return cropped_img, ini_index, end_index
 
 
-def bounding_box_vertices(my_labels_data, img_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
+def bounding_box_vertices(my_labels_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
     """
     Create bounding box vertices with optional padding for each region in my_labels_data.
     The resulting bounding boxes are sorted from left to right based on their position.
     
     Parameters:
     - my_labels_data: The labeled image data.
-    - img_data: 2d intensity image data used for regioprops.
+    # - img_data: 2d intensity image data used for regioprops.
     - area_threshold: Minimum area to include a region.
     - vertical_padding: Pixels to increase bounding box height (top and bottom).
     - horizontal_padding: Pixels to increase bounding box width (left and right).
     
     Returns:
     - A sorted list of bounding box vertices suitable for drawing shapes in Napari.
+    - A list of cropped regions (both image and label) based on the bounding boxes.
     """
     # Retrieve bounding boxes from regionprops
-    bounding_boxes = [region.bbox for region in regionprops(label_image=my_labels_data, intensity_image=img_data) if region.area > area_threshold]
+    bounding_boxes = [region.bbox for region in regionprops(label_image=my_labels_data) if region.area > area_threshold]
 
     # Sort bounding boxes from left to right based on min_col (second value in bbox)
     bounding_boxes.sort(key=lambda bbox: bbox[1])  # Sort by the second value (min_col)
 
-    # Convert bounding boxes to vertex arrays for Napari
+    # Prepare lists to store bounding box vertices, cropped images, and cropped labels
     napari_boxes = []
+    cropped_labels = []
+    
     for bbox in bounding_boxes:
         # (min_row, min_col, max_row, max_col)
         min_row, min_col, max_row, max_col = bbox
@@ -1418,16 +1428,21 @@ def bounding_box_vertices(my_labels_data, img_data, area_threshold=1000, vertica
 
         napari_boxes.append(box_vertices)
 
-    return napari_boxes
+        # Crop the label data corresponding to this bounding box
+        cropped_label = my_labels_data[min_row:max_row, min_col:max_col]
+        cropped_labels.append(cropped_label)
+
+    return napari_boxes, cropped_labels
 
 
-def crop_from_bounding_boxes(img_layer, my_labels_data, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
+def crop_from_bounding_boxes(img_layer, my_labels_data, rotate_directions, area_threshold=1000, vertical_padding=0, horizontal_padding=0):
     """
     Crop regions from an image based on bounding boxes from labels.
 
     Parameters:
     - img_layer: The image layer from which to crop.
     - my_labels_data: Labeled data to generate bounding boxes.
+    - rotate_directions: list of 4 elements (strings) showing the direction to rotate the image R (right) or L (left).
     - area_threshold: Minimum area to include a region.
     - vertical_padding: Pixels to increase bounding box height (top and bottom).
     - horizontal_padding: Pixels to increase bounding box width (left and right).
@@ -1436,11 +1451,11 @@ def crop_from_bounding_boxes(img_layer, my_labels_data, area_threshold=1000, ver
     - A list of cropped images corresponding to each bounding box.
     """
     dshape = img_layer.data.shape
-    bounding_boxes = bounding_box_vertices(my_labels_data, img_layer.data[0], area_threshold, vertical_padding, horizontal_padding)
+    bounding_boxes, cropped_labels = bounding_box_vertices(my_labels_data, area_threshold, vertical_padding, horizontal_padding)
     
     cropped_images = []
     
-    for indx, box in enumerate(bounding_boxes):
+    for indx, (box, label, direction)in enumerate(zip(bounding_boxes, cropped_labels, rotate_directions)):
         # Get top-left (tl) and bottom-right (br) corners
         tl, _, br, _ = box
 
@@ -1462,14 +1477,15 @@ def crop_from_bounding_boxes(img_layer, my_labels_data, area_threshold=1000, ver
         cropped_img = img_layer.data[:, y_ini:y_end, x_ini:x_end]
         if indx in [0, 1, 2]:
             cropped_img = np.rot90(cropped_img, axes=(1, 2))
+            cropped_labels[indx] = np.rot90(label, axes=(0, 1))
         if indx == 3:
             cropped_img = np.rot90(cropped_img, axes=(2, 1))
+            cropped_labels[indx] = np.rot90(label, axes=(1, 0))
             
 
         cropped_images.append((cropped_img, [y_ini, x_ini], [y_end, x_end]))
 
-    return cropped_images
-
+    return cropped_images, cropped_labels, bounding_boxes
 
 def arrange_cropped_images(cropped_images, arrangement='horizontal', padding_value=0):
     """

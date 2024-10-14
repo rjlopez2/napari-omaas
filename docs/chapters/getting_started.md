@@ -23,7 +23,7 @@ To install the latest development version (recommended) :
 pip install git+https://github.com/rjlopez2/napari-omaas.git
 ```
 
-## Custom installation:
+## Custom installation
 ```{admonition} Note
 :class: Note
 This is a recommended method we currently use to install napari-omaas and all additional dependencies in a custom environment:
@@ -33,12 +33,12 @@ This is a recommended method we currently use to install napari-omaas and all ad
 ```sh
 curl -O https://raw.githubusercontent.com/rjlopez2/OMAAS/master/setup_files/environments/environment_OMAAS_CPU.yml
 ```
-2. Cretae the environment using the downlowded file:
+2. Cretae the environment using the downlowded file.
 
 ```sh
 conda create -f environment_OMAAS_CPU.yml
 ```
-3. Activate the environment:
+3. Activate the environment.
 
 ```sh
 conda activate omaas_base
@@ -46,15 +46,15 @@ conda activate omaas_base
 
 You should now be ready to use napari-omaas.
 
-## Update to the latest version:
+## Update to the latest version
 
-1. Uninstall the current version
+1. Uninstall the current version.
 
 ```sh
 pip uninstall napari-omaas
 ```
 
-2. Install the latest developing version:
+2. Install the latest developing version.
 
 ```sh
 pip install git+https://github.com/rjlopez2/napari-omaas.git
