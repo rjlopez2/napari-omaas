@@ -3085,11 +3085,14 @@ class OMAAS(QWidget):
 
         
         # assert that you have content in the canvas
-        if len(self.average_AP_plot_widget.figure.axes) != 0 and hasattr(self, "data_main_canvas"):            
+        if len(self.average_AP_plot_widget.figure.axes) != 0 and hasattr(self, "data_main_canvas"):
 
-            ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+            
 
-            if ini_i.size > 1:
+            # ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+            ini_i, end_i = self.ini_i_spl_traces, self.end_i_spl_traces
+
+            if len(ini_i) > 1:
 
                 img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
                 if len(img_items) > 1:
@@ -3097,8 +3100,8 @@ class OMAAS(QWidget):
                 current_img_selected = img_items[0]
                 params={"prestep": {"method_name": "return_AP_ini_end_indx_func",
                                       "parameters": {"promi": self.prominence}},
-                        "ini_index": ini_i.tolist(),
-                        "end_index": end_i.tolist()}
+                        "ini_index": ini_i,
+                        "end_index": end_i}
                 
                 results= split_AP_traces_and_ave_func(current_img_selected.data, ini_i, end_i, type = "3d", return_mean=True)
 
@@ -3111,9 +3114,9 @@ class OMAAS(QWidget):
                 print(f"{'*'*5} Average from image: '{current_img_selected.name,}' created {'*'*5}")
                 self.add_record_fun()
 
-            elif ini_i.size == 1:
-                return warn(f"Only {ini_i.size} AP detected. No average computed.")
-            elif ini_i.size < 1:
+            elif len(ini_i) == 1:
+                return warn(f"Only {len(ini_i)} AP detected. No average computed.")
+            elif len(ini_i) < 1:
                 self._on_click_clear_AP_splitted_btn_fun()
                 return warn("No AP detected")
 
