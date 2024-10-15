@@ -194,9 +194,9 @@ class OMAAS(QWidget):
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
-        self.splt_chann_btn = QPushButton("Split Channels")
-        self.splt_chann_btn.setToolTip(("Split the current Image stack when using dual illumination."))
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 2, 3, 1, 1)
+        self.split_chann_btn = QPushButton("Split Channels")
+        self.split_chann_btn.setToolTip(("Split the current Image stack when using dual illumination."))
+        self.pre_processing_group.glayout.addWidget(self.split_chann_btn, 2, 3, 1, 1)
 
         # self.glob_norm_data_btn = QPushButton("Normalize (global)")
         # self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
@@ -1364,7 +1364,7 @@ class OMAAS(QWidget):
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         self.apply_normalization_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
-        self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
+        self.split_chann_btn.clicked.connect(self._on_click_splt_chann)
         # self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
         # self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
@@ -2925,13 +2925,32 @@ class OMAAS(QWidget):
             traces = self.main_plot_widget.axes.lines[0].get_ydata()
             time = self.main_plot_widget.axes.lines[0].get_xdata()
             label = self.main_plot_widget.figure.axes[0].lines[0].get_label()
+            rmp_method = self.APD_computing_method.currentText()
+            img = self.viewer.layers.selection.active
+            is_interpolated = self.make_interpolation_check.isChecked()
+            
 
             try:
-                self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
-                                                                                    #    cycle_length_ms = self.xscale, 
-                                                                                    promi= self.prominence)
+            #     self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
+            #                                                                         #    cycle_length_ms = self.xscale, 
+            #                                                                         promi= self.prominence)
+                self.APs_props = compute_APD_props_func(traces,
+                                                        curr_img_name = img.name, 
+                                                        # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                        cycle_length_ms= self.xscale,
+                                                        rmp_method = rmp_method, 
+                                                        apd_perc = 100, 
+                                                        promi=self.prominence, 
+                                                        roi_indx=0, 
+                                                        # roi_id = roi_id,
+                                                        interpolate= is_interpolated,
+                                                        curr_file_id = img.metadata["CurrentFileSource"])
+                self.ini_i_spl_traces, self.end_i_spl_traces = self.APs_props['indx_at_AP_upstroke'] - min(self.APs_props['indx_at_AP_upstroke']), self.APs_props['indx_at_AP_end'] + min(self.APs_props['indx_at_AP_upstroke'])
+                # self.ini_i_spl_traces, self.end_i_spl_traces = upstroke_indx, end_indx
+                
             except Exception as e:
-                print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
+                print(CustomException(e, sys))
+                # print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
                 return
 
             self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
@@ -2940,7 +2959,7 @@ class OMAAS(QWidget):
             self.average_AP_plot_widget.figure.clear()
             self.average_AP_plot_widget.add_single_axes()
             
-            if self.ini_i_spl_traces.size == 1:
+            if len(self.ini_i_spl_traces) == 1:
                 self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]_{label}", alpha = 0.8)
                 # remove splitted_stack value if exists
 
@@ -2951,13 +2970,13 @@ class OMAAS(QWidget):
                     # else:
                 #         raise AttributeError
                 except Exception as e:
-                    return print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'splitted_stack' : --->> {e} <----")
+                    print(CustomException(e, sys))
                 
 
                 warn(f"Only one AP detected")
                 print(f"{'*'*5} Preview from image: '{self.viewer.layers.selection.active.name}' created {'*'*5}")
 
-            elif self.ini_i_spl_traces.size > 1:
+            elif len(self.ini_i_spl_traces) > 1:
 
                 # NOTE: need to fix this function
                 self.splitted_stack = split_AP_traces_and_ave_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
@@ -3965,9 +3984,13 @@ class OMAAS(QWidget):
                                         method_name="indexing", 
                                         sufix="Clip", parameters=params)
                     # self.add_record_fun()
-                    # self.plot_profile_btn.setChecked(False)
                     self.is_range_clicked_checkbox.setChecked(False)
-                    self.plot_last_generated_img()
+                    self.plot_profile_btn.setChecked(False)
+                    self.listImagewidget.clearSelection()
+                    new_img_indx = len([self.listImagewidget.item(n).text() for n in range(self.listImagewidget.count())]) -1
+                    self.listImagewidget.item(new_img_indx).setSelected(True)
+                    self.plot_profile_btn.setChecked(True)
+                    # self.plot_last_generated_img()
                     
                     print(f"{'*'*5} Clipping from time index: [{start_indx}:{end_indx}] to image: '{image.name}'. {'*'*5}")
             else:
