@@ -2945,7 +2945,9 @@ class OMAAS(QWidget):
                                                         # roi_id = roi_id,
                                                         interpolate= is_interpolated,
                                                         curr_file_id = img.metadata["CurrentFileSource"])
-                self.ini_i_spl_traces, self.end_i_spl_traces = self.APs_props['indx_at_AP_upstroke'] - min(self.APs_props['indx_at_AP_upstroke']), self.APs_props['indx_at_AP_end']
+                self.ini_i_spl_traces, self.end_i_spl_traces = self.APs_props['indx_at_AP_upstroke'] - min(self.APs_props['indx_at_AP_upstroke']), self.APs_props['indx_at_AP_end'] + min(self.APs_props['indx_at_AP_upstroke'])
+                # self.ini_i_spl_traces, self.end_i_spl_traces = upstroke_indx, end_indx
+                
             except Exception as e:
                 print(CustomException(e, sys))
                 # print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
@@ -2957,7 +2959,7 @@ class OMAAS(QWidget):
             self.average_AP_plot_widget.figure.clear()
             self.average_AP_plot_widget.add_single_axes()
             
-            if self.ini_i_spl_traces.size == 1:
+            if len(self.ini_i_spl_traces) == 1:
                 self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]_{label}", alpha = 0.8)
                 # remove splitted_stack value if exists
 
@@ -2968,13 +2970,13 @@ class OMAAS(QWidget):
                     # else:
                 #         raise AttributeError
                 except Exception as e:
-                    return print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'splitted_stack' : --->> {e} <----")
+                    print(CustomException(e, sys))
                 
 
                 warn(f"Only one AP detected")
                 print(f"{'*'*5} Preview from image: '{self.viewer.layers.selection.active.name}' created {'*'*5}")
 
-            elif self.ini_i_spl_traces.size > 1:
+            elif len(self.ini_i_spl_traces) > 1:
 
                 # NOTE: need to fix this function
                 self.splitted_stack = split_AP_traces_and_ave_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
