@@ -1100,33 +1100,83 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
     
 
 @macro.record
-def split_AP_traces_and_ave_func(trace, ini_i, end_i, type = "1d", return_mean = False):
-    """
-    This function takes a 1d or 3D array, ini index, end index of ap 
-    previously computed with function 'return_AP_ini_end_indx_func' 
-    and return the splitted arrays for each AP.
-    """
-    # must check that all len are the same
-    n_peaks = len(ini_i)
+# def split_AP_traces_and_ave_func(trace, ini_i, end_i, type = "1d", return_mean = False):
+#     """
+#     This function takes a 1d or 3D array, ini index, end index of ap 
+#     previously computed with function 'return_AP_ini_end_indx_func' 
+#     and return the splitted arrays for each AP.
+#     """
+#     # must check that all len are the same
+#     n_peaks = len(ini_i)
     
-    splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
-    # take the small trace len and adjust the other traces to that
-    min_dim = np.min([trace[0].shape for trace in splitted_traces])
-    splitted_traces = [trace[0][:min_dim] for trace in splitted_traces]
+#     splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
+#     # take the small trace len and adjust the other traces to that
+#     min_dim = np.min([trace[0].shape for trace in splitted_traces])
+#     splitted_traces = [trace[0][:min_dim] for trace in splitted_traces]
 
-    if type == "1d":
-        splitted_traces = np.array(splitted_traces).reshape(n_peaks, -1)
+#     if type == "1d":
+#         splitted_traces = np.array(splitted_traces).reshape(n_peaks, -1)
     
-    elif type == "3d":
-        img_dim_x, img_dim_y = trace.shape[-2:]
-        splitted_traces = np.array(splitted_traces).reshape( n_peaks, -1, img_dim_x, img_dim_y)
+#     elif type == "3d":
+#         img_dim_x, img_dim_y = trace.shape[-2:]
+#         splitted_traces = np.array(splitted_traces).reshape( n_peaks, -1, img_dim_x, img_dim_y)
     
 
-    if return_mean:
-        splitted_traces = np.mean(np.array([trace for trace in splitted_traces]), axis=(0))
+#     if return_mean:
+#         splitted_traces = np.mean(np.array([trace for trace in splitted_traces]), axis=(0))
         
     
-    return splitted_traces
+#     return splitted_traces
+
+
+def split_AP_traces_and_ave_func(trace, ini_i, end_i, type="1d", return_mean=False):
+    """
+    This function takes a 1D or 3D array and splits it into segments based on 
+    the provided start (ini_i) and end (end_i) indices, handling cases where the 
+    lengths of the split segments may differ. Optionally, it computes the mean of 
+    the split segments, while ignoring NaNs (used for padding).
+
+    Parameters:
+    trace (np.array): Input 1D or 3D array to be split.
+    ini_i (list or np.array): List of start indices for each segment.
+    end_i (list or np.array): List of end indices for each segment.
+    type (str): Indicates whether the input array is "1d" or "3d". Default is "1d".
+    return_mean (bool): If True, returns the average of the split arrays. Default is False.
+
+    Returns:
+    np.array: An array containing the split traces. If return_mean is True, returns the 
+    mean of the split traces, with NaNs ignored during averaging.
+    """
+    
+    # Number of segments to be split from the trace
+    n_peaks = len(ini_i)
+    
+    # Splitting the trace into individual segments based on ini_i and end_i
+    splitted_traces = [trace[ini:end, ...] for ini, end in zip(ini_i, end_i)]
+    
+    # Find the maximum length of the segments to ensure consistent array dimensions
+    max_len = max([segment.shape[0] for segment in splitted_traces])
+    
+    # Pad shorter segments with NaN values to match the maximum length
+    padded_traces = [np.pad(segment, ((0, max_len - segment.shape[0]),) + ((0, 0),) * (segment.ndim - 1), 
+                            mode='constant', constant_values=np.nan) for segment in splitted_traces]
+    
+    # Reshaping based on whether the input array is 1D or 3D
+    if type == "1d":
+        # Convert list of arrays into a 2D numpy array (n_peaks x max_len)
+        padded_traces = np.array(padded_traces).reshape(n_peaks, -1)
+    
+    elif type == "3d":
+        # Assumes the input trace is 3D and reshapes accordingly (n_peaks x max_len x img_dim_x x img_dim_y)
+        img_dim_x, img_dim_y = trace.shape[-2:]
+        padded_traces = np.array(padded_traces).reshape(n_peaks, max_len, img_dim_x, img_dim_y)
+
+    # If return_mean is True, compute the mean across the first dimension (n_peaks), ignoring NaN values
+    if return_mean:
+        padded_traces = np.nanmean(padded_traces, axis=0)
+        
+    return padded_traces
+
 
 
 @macro.record
