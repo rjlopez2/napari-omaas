@@ -2926,7 +2926,9 @@ class OMAAS(QWidget):
             time = self.main_plot_widget.axes.lines[0].get_xdata()
             label = self.main_plot_widget.figure.axes[0].lines[0].get_label()
             rmp_method = self.APD_computing_method.currentText()
-            img = self.viewer.layers.selection.active
+            # img = self.viewer.layers.selection.active
+            img_layers, _ = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
+            img = img_layers[0]
             is_interpolated = self.make_interpolation_check.isChecked()
             
 
