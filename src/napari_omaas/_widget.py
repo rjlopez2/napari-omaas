@@ -2947,7 +2947,7 @@ class OMAAS(QWidget):
                                                         # roi_id = roi_id,
                                                         interpolate= is_interpolated,
                                                         curr_file_id = img.metadata["CurrentFileSource"])
-                self.ini_i_spl_traces, self.end_i_spl_traces = self.APs_props['indx_at_AP_upstroke'] - min(self.APs_props['indx_at_AP_upstroke']), self.APs_props['indx_at_AP_end'] + min(self.APs_props['indx_at_AP_upstroke'])
+                self.ini_i_spl_traces, self.end_i_spl_traces = self.APs_props['indx_at_AP_upstroke'] - min(self.APs_props['indx_at_AP_upstroke']), self.APs_props['indx_at_AP_end'] + min(self.APs_props['indx_at_AP_upstroke'])*2//3
                 # self.ini_i_spl_traces, self.end_i_spl_traces = upstroke_indx, end_indx
                 
             except Exception as e:
