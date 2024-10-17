@@ -4612,7 +4612,7 @@ class InterctiveWindowMapErode(QWidget):
         ##############
         # Callbacks ##
         ##############
-        self.accept_post_processing_changes_btn.clicked.connect(self._apply_erosion_btn_func)
+        self.accept_post_processing_changes_btn.clicked.connect(self._apply_postprocessing_methods_func)
         self.n_pixels_erode_slider.valueChanged.connect(self.n_pixels_erode_slider_func)
         self.small_holes_size_map_spinbox.valueChanged.connect(self.n_pixels_erode_slider_func)
         # self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
@@ -4622,7 +4622,7 @@ class InterctiveWindowMapErode(QWidget):
         self.reset_all_postprocessing_map_btn.clicked.connect(self._reset_all_btn_func)
 
 
-    def _apply_erosion_btn_func(self):
+    def _apply_postprocessing_methods_func(self):
 
         try:
             self.n_pixels_erode_slider_func()
