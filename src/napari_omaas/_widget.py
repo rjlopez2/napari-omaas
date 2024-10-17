@@ -1160,8 +1160,8 @@ class OMAAS(QWidget):
         self.n_pixels_erode.setValue(1)
         self.postprocessing_group.glayout.addWidget(self.n_pixels_erode, 4, 1, 1, 1)
 
-        self.preview_erode_btn = QPushButton("Preview")
-        self.postprocessing_group.glayout.addWidget(self.preview_erode_btn, 4, 2, 1, 1)
+        self.preview_postProcessingMAP_btn = QPushButton("Preview")
+        self.postprocessing_group.glayout.addWidget(self.preview_postProcessingMAP_btn, 4, 2, 1, 1)
 
 
         # Adding mapping subtabs
@@ -1426,7 +1426,7 @@ class OMAAS(QWidget):
         self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
         self.plot_curr_map_btn.clicked.connect(self._plot_curr_map_btn_fun)
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
-        self.preview_erode_btn.clicked.connect(self._preview_erode_btn_func)
+        self.preview_postProcessingMAP_btn.clicked.connect(self._preview_postProcessingMAP_btn_func)
         self.crop_all_views_and_rotate_btn.clicked.connect(self._crop_all_views_and_rotate_btn_func)
         self.join_all_views_and_rotate_btn.clicked.connect(self._join_all_views_and_rotate_btn_func)
         
@@ -4338,7 +4338,7 @@ class OMAAS(QWidget):
     
     
     
-    def _preview_erode_btn_func(self):
+    def _preview_postProcessingMAP_btn_func(self):
         # self.w = AnotherWindow()
         # self.w.show()
 
