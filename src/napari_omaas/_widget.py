@@ -4346,9 +4346,6 @@ class OMAAS(QWidget):
         self.InterctiveWindod_edit_map.show()
 
     
-    def _close_preview_erode_window_btn(self):
-        self.InterctiveWindowMapErode.close()
-
     def _crop_all_views_and_rotate_btn_func(self):
         try:
         # 1. get mask from current Image using auto segemntation
@@ -4600,10 +4597,13 @@ class InterctiveWindowMapErode(QWidget):
         # self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 4, 0, 1, 3)
 
         self.accept_post_processing_changes_btn = QPushButton("Acept changes")
-        self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 3)
+        self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 2)
 
         self.reset_all_postprocessing_map_btn = QPushButton("reset")
-        self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 3, 1, 2)
+        self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 2, 1, 2)
+       
+        self.close_postprocessing_map_window_btn = QPushButton("close")
+        self.preview_map_erode_group.glayout.addWidget(self.close_postprocessing_map_window_btn, 3, 4, 1, 1)
 
                   
         
@@ -4620,6 +4620,7 @@ class InterctiveWindowMapErode(QWidget):
         self.gaussian_radius.valueChanged.connect(self._apply_gaussian_filt_on_map_func)
         # self.reset_erosion_btn.clicked.connect(self._reset_all_btn_func)
         self.reset_all_postprocessing_map_btn.clicked.connect(self._reset_all_btn_func)
+        self.close_postprocessing_map_window_btn.clicked.connect(self._close_postprocessing_windows_func)
 
 
     def _apply_postprocessing_methods_func(self):
@@ -4736,6 +4737,9 @@ class InterctiveWindowMapErode(QWidget):
             self.preview_plotter_widget.canvas.draw()
         except Exception as e:
             raise CustomException(e, sys)
+        
+    def _close_postprocessing_windows_func(self):
+        self.close()
 
         
     
