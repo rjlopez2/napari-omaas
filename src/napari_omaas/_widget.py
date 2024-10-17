@@ -1160,8 +1160,8 @@ class OMAAS(QWidget):
         self.n_pixels_erode.setValue(1)
         self.postprocessing_group.glayout.addWidget(self.n_pixels_erode, 4, 1, 1, 1)
 
-        self.preview_erode_btn = QPushButton("Preview")
-        self.postprocessing_group.glayout.addWidget(self.preview_erode_btn, 4, 2, 1, 1)
+        self.preview_postProcessingMAP_btn = QPushButton("Preview")
+        self.postprocessing_group.glayout.addWidget(self.preview_postProcessingMAP_btn, 4, 2, 1, 1)
 
 
         # Adding mapping subtabs
@@ -1426,7 +1426,7 @@ class OMAAS(QWidget):
         self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
         self.plot_curr_map_btn.clicked.connect(self._plot_curr_map_btn_fun)
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
-        self.preview_erode_btn.clicked.connect(self._preview_erode_btn_func)
+        self.preview_postProcessingMAP_btn.clicked.connect(self._preview_postProcessingMAP_btn_func)
         self.crop_all_views_and_rotate_btn.clicked.connect(self._crop_all_views_and_rotate_btn_func)
         self.join_all_views_and_rotate_btn.clicked.connect(self._join_all_views_and_rotate_btn_func)
         
@@ -4338,7 +4338,7 @@ class OMAAS(QWidget):
     
     
     
-    def _preview_erode_btn_func(self):
+    def _preview_postProcessingMAP_btn_func(self):
         # self.w = AnotherWindow()
         # self.w.show()
 
@@ -4346,9 +4346,6 @@ class OMAAS(QWidget):
         self.InterctiveWindod_edit_map.show()
 
     
-    def _close_preview_erode_window_btn(self):
-        self.InterctiveWindowMapErode.close()
-
     def _crop_all_views_and_rotate_btn_func(self):
         try:
         # 1. get mask from current Image using auto segemntation
@@ -4600,10 +4597,13 @@ class InterctiveWindowMapErode(QWidget):
         # self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 4, 0, 1, 3)
 
         self.accept_post_processing_changes_btn = QPushButton("Acept changes")
-        self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 3)
+        self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 2)
 
         self.reset_all_postprocessing_map_btn = QPushButton("reset")
-        self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 3, 1, 2)
+        self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 2, 1, 2)
+       
+        self.close_postprocessing_map_window_btn = QPushButton("close")
+        self.preview_map_erode_group.glayout.addWidget(self.close_postprocessing_map_window_btn, 3, 4, 1, 1)
 
                   
         
@@ -4612,7 +4612,7 @@ class InterctiveWindowMapErode(QWidget):
         ##############
         # Callbacks ##
         ##############
-        self.accept_post_processing_changes_btn.clicked.connect(self._apply_erosion_btn_func)
+        self.accept_post_processing_changes_btn.clicked.connect(self._apply_postprocessing_methods_func)
         self.n_pixels_erode_slider.valueChanged.connect(self.n_pixels_erode_slider_func)
         self.small_holes_size_map_spinbox.valueChanged.connect(self.n_pixels_erode_slider_func)
         # self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
@@ -4620,9 +4620,10 @@ class InterctiveWindowMapErode(QWidget):
         self.gaussian_radius.valueChanged.connect(self._apply_gaussian_filt_on_map_func)
         # self.reset_erosion_btn.clicked.connect(self._reset_all_btn_func)
         self.reset_all_postprocessing_map_btn.clicked.connect(self._reset_all_btn_func)
+        self.close_postprocessing_map_window_btn.clicked.connect(self._close_postprocessing_windows_func)
 
 
-    def _apply_erosion_btn_func(self):
+    def _apply_postprocessing_methods_func(self):
 
         try:
             self.n_pixels_erode_slider_func()
@@ -4657,7 +4658,7 @@ class InterctiveWindowMapErode(QWidget):
             
             self.o.add_result_img(result_img=self.result_map_image, 
                                 operation_name="Postprocessing_maps[test]", 
-                                custom_img_name=f"{final_string}_PostProMap", 
+                                custom_img_name=f"{final_string}", 
                                 method_name="crop_from_shape",
                                 custom_inputs = input_imgs,
                                 custom_metadata= self.viewer.layers.selection.active.metadata,
@@ -4736,6 +4737,9 @@ class InterctiveWindowMapErode(QWidget):
             self.preview_plotter_widget.canvas.draw()
         except Exception as e:
             raise CustomException(e, sys)
+        
+    def _close_postprocessing_windows_func(self):
+        self.close()
 
         
     
