@@ -3246,179 +3246,181 @@ class OMAAS(QWidget):
         # NOTE: you need to decide if you use image form the selector o from the 
         # the napary layer list!!! and assert accordingly the image properties
 
-        
-        # assert that a profile was created
-        if hasattr(self, "data_main_canvas"):
+        try:
+            # # assert that a profile was created
+            # if hasattr(self, "data_main_canvas"):
 
-            time = self.data_main_canvas["x"][0]
-            _, AP_peaks_indx, _ = return_AP_ini_end_indx_func(self.data_main_canvas["y"][0], promi=self.prominence)
-            # assert that you have a single AP detected
-            if len(AP_peaks_indx) == 1:
+            #     time = self.data_main_canvas["x"][0]
+            #     _, AP_peaks_indx, _ = return_AP_ini_end_indx_func(self.data_main_canvas["y"][0], promi=self.prominence)
+            #     # assert that you have a single AP detected
+            #     if len(AP_peaks_indx) == 1:
 
-                #########################
-                #  start computing maps #
-                #########################
+                    #########################
+                    #  start computing maps #
+                    #########################
 
-                percentage = self.slider_APD_map_percentage.value()
-                # current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
-                current_img_selection_name = self.viewer.layers.selection.active.name
-                current_img_selection = self.viewer.layers[current_img_selection_name]
+            percentage = self.slider_APD_map_percentage.value()
+            # current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+            current_img_selection_name = self.viewer.layers.selection.active.name
+            current_img_selection = self.viewer.layers[current_img_selection_name]
 
-                if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
-                    return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
+            if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
+                return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
 
-                # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
-                map_type = self.toggle_map_type.checkState()
-                
-                # check for "CycleTime" in metadtata
-                if "CycleTime" in self.img_metadata_dict:
-                    cycl_t = self.img_metadata_dict["CycleTime"]
-                else:
-                    cycl_t = 1
-                
-                is_interpolated = self.make_interpolation_check.isChecked()
-
-                if map_type == 0:
-                
-                    results = return_maps(current_img_selection.data, 
-                                         cycle_time=cycl_t,
-                                         map_type = map_type,
-                                         percentage = percentage)
-                    params = {"Activation_map":{"cycle_time": cycl_t,
-                              "map_type": map_type,
-                              "percentage": percentage}}
-                    meth_name = return_maps.__name__
-                    sufix = "ActMap"
-                    
-                    # self.add_result_img(result_img=results, 
-                    #                 img_custom_name=current_img_selection.name, 
-                    #                 single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
-                    #                 operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-                    
-                    
-                
-                elif map_type == 2:
-                    image = current_img_selection.data.copy()
-                    n_frames, y_size, x_size = image.shape
-                    rmp_method = self.APD_computing_method.currentText()
-                    apd_percentage = self.slider_APD_percentage.value()
-
-                    results = np.zeros((y_size, x_size))
-                    mask = np.isnan(image[0, ...])
-                    results[mask] = np.nan
-
-                    for y_px  in progress(range(y_size)):
-                        for x_px in progress(range(x_size)):
-                            if not np.isnan(results[y_px, x_px]).any():
-                                try:
-                                    APs_props = compute_APD_props_func(image[:, y_px, x_px],
-                                                                    curr_img_name = current_img_selection_name, 
-                                                                    # cycle_length_ms= self.curr_img_metadata["CycleTime"],
-                                                                    cycle_length_ms= self.xscale,
-                                                                    rmp_method = rmp_method, 
-                                                                    apd_perc = apd_percentage, 
-                                                                    promi=self.prominence, 
-                                                                    interpolate = is_interpolated)
-                                    if not APs_props["APD"]:
-                                        print(f"Could not detect APD at pixel coordinate: [{y_px}, {x_px}].")
-                                        results[y_px, x_px] = np.nan
-                                    else:
-                                        apd_value = APs_props["APD"]
-                                        results[y_px, x_px] = apd_value
-                                
-                                except Exception as e:
-                                    results[y_px, x_px] = np.nan
-                                    # print(CustomException(e, sys))    
-                                    print(CustomException(e, sys, additional_info=f"error @ pixel [{y_px}, {x_px}]"))
-                            # else:
-                            #     APD[:, y_px, x_px] = 0
-                    
-                    # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
-                    # self.average_AP_plot_widget.axes.legend()
-                    # self.average_AP_plot_widget.canvas.draw()
-                    np.clip(results, a_min=0, a_max=None, out=results)
-
-                    params = {"APD_maps": {"curr_img_name": current_img_selection_name,
-                            "cycle_length_ms": self.xscale,
-                            "rmp_method" : rmp_method, 
-                            "apd_perc" : apd_percentage,
-                            "promi":self.prominence,
-                            "interpolate" : is_interpolated}}
-                    meth_name = compute_APD_props_func.__name__
-                    sufix = f"APDMap{percentage}"
-                    
-                    # self.add_result_img(result_img=APD, 
-                    #                     auto_metadata=False, 
-                    #                     custom_metadata=current_img_selection.metadata,
-                    #                     img_custom_name=current_img_selection.name, 
-                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                    #                     operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
-
-                    print("finished")
-
-                    # results,  mask_repol_indx_out, t_index_out,  resting_V = return_maps(current_img_selection.data, 
-                    #                                                                     cycle_time=cycl_t,
-                    #                                                                     map_type = map_type,
-                    #                                                                     percentage = percentage)
-
-                    # self._preview_multiples_traces_func()
-                    
-                    # _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                    # if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
-                    #     ndim = current_img_selection.ndim
-                    #     dshape = current_img_selection.data.shape
-                    #     _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
-
-                    #     if len(y_px) == 1 and len(x_px) == 1:
-                    #         self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "green", 
-                    #                                                  label=f'AP_ini',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "red", 
-                    #                                                  label=f'AP_end',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "grey", 
-                    #                                                  label=f'AP_resting_V',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.legend()
-                    #         self.average_AP_plot_widget.canvas.draw()
-                        # else:
-                        #     warn(" Not ROI larger than a single pixel. Please reduce the size to plot it")
-
-
-                    
-                    # self.add_result_img(result_img=APD, 
-                    #                     auto_metadata=False, 
-                    #                     custom_metadata=current_img_selection.metadata,
-                    #                     img_custom_name=current_img_selection.name, 
-                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                    #                     add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-                self.add_result_img(result_img=results, 
-                                    operation_name="Generate_maps", 
-                                    method_name=meth_name, 
-                                    custom_img_name=current_img_selection.name, 
-                                    custom_metadata=current_img_selection.metadata, 
-                                    sufix=sufix, parameters=params)
-
-
-                self.add_record_fun()
-                print("Map generated")
+            # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
+            map_type = self.toggle_map_type.checkState()
+            
+            # check for "CycleTime" in metadtata
+            if "CycleTime" in self.img_metadata_dict:
+                cycl_t = self.img_metadata_dict["CycleTime"]
             else:
-                return warn("Either non or more than 1 AP detected. Please average your traces, clip 1 AP or make sure you have at least one AP detected by changing the 'Sensitivity threshold'.") 
-       
-        else:
-            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
+                cycl_t = 1
+            
+            is_interpolated = self.make_interpolation_check.isChecked()
+
+            if map_type == 0:
+            
+                results = return_maps(current_img_selection.data, 
+                                    cycle_time=cycl_t,
+                                    map_type = map_type,
+                                    percentage = percentage)
+                params = {"Activation_map":{"cycle_time": cycl_t,
+                        "map_type": map_type,
+                        "percentage": percentage}}
+                meth_name = return_maps.__name__
+                sufix = "ActMap"
+                
+                # self.add_result_img(result_img=results, 
+                #                 img_custom_name=current_img_selection.name, 
+                #                 single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
+                #                 operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                
+                
+            
+            elif map_type == 2:
+                image = current_img_selection.data.copy()
+                n_frames, y_size, x_size = image.shape
+                rmp_method = self.APD_computing_method.currentText()
+                apd_percentage = self.slider_APD_percentage.value()
+
+                results = np.zeros((y_size, x_size))
+                mask = np.isnan(image[0, ...])
+                results[mask] = np.nan
+
+                for y_px  in progress(range(y_size)):
+                    for x_px in progress(range(x_size)):
+                        if not np.isnan(results[y_px, x_px]).any():
+                            try:
+                                APs_props = compute_APD_props_func(image[:, y_px, x_px],
+                                                                curr_img_name = current_img_selection_name, 
+                                                                # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                                cycle_length_ms= self.xscale,
+                                                                rmp_method = rmp_method, 
+                                                                apd_perc = apd_percentage, 
+                                                                promi=self.prominence, 
+                                                                interpolate = is_interpolated)
+                                if not APs_props["APD"]:
+                                    print(f"Could not detect APD at pixel coordinate: [{y_px}, {x_px}].")
+                                    results[y_px, x_px] = np.nan
+                                else:
+                                    apd_value = APs_props["APD"]
+                                    results[y_px, x_px] = apd_value
+                            
+                            except Exception as e:
+                                results[y_px, x_px] = np.nan
+                                # print(CustomException(e, sys))    
+                                print(CustomException(e, sys, additional_info=f"error @ pixel [{y_px}, {x_px}]"))
+                        # else:
+                        #     APD[:, y_px, x_px] = 0
+                
+                # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
+                # self.average_AP_plot_widget.axes.legend()
+                # self.average_AP_plot_widget.canvas.draw()
+                np.clip(results, a_min=0, a_max=None, out=results)
+
+                params = {"APD_maps": {"curr_img_name": current_img_selection_name,
+                        "cycle_length_ms": self.xscale,
+                        "rmp_method" : rmp_method, 
+                        "apd_perc" : apd_percentage,
+                        "promi":self.prominence,
+                        "interpolate" : is_interpolated}}
+                meth_name = compute_APD_props_func.__name__
+                sufix = f"APDMap{percentage}"
+                
+                # self.add_result_img(result_img=APD, 
+                #                     auto_metadata=False, 
+                #                     custom_metadata=current_img_selection.metadata,
+                #                     img_custom_name=current_img_selection.name, 
+                #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
+                #                     operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
+
+                print("finished")
+
+                # results,  mask_repol_indx_out, t_index_out,  resting_V = return_maps(current_img_selection.data, 
+                #                                                                     cycle_time=cycl_t,
+                #                                                                     map_type = map_type,
+                #                                                                     percentage = percentage)
+
+                # self._preview_multiples_traces_func()
+                
+                # _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                # if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
+                #     ndim = current_img_selection.ndim
+                #     dshape = current_img_selection.data.shape
+                #     _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
+
+                #     if len(y_px) == 1 and len(x_px) == 1:
+                #         self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
+                #                                                  linestyle='dashed', 
+                #                                                  color = "green", 
+                #                                                  label=f'AP_ini',
+                #                                                  lw = 0.5, 
+                #                                                  alpha = 0.8)
+                        
+                #         self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
+                #                                                  linestyle='dashed', 
+                #                                                  color = "red", 
+                #                                                  label=f'AP_end',
+                #                                                  lw = 0.5, 
+                #                                                  alpha = 0.8)
+                        
+                #         self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
+                #                                                  linestyle='dashed', 
+                #                                                  color = "grey", 
+                #                                                  label=f'AP_resting_V',
+                #                                                  lw = 0.5, 
+                #                                                  alpha = 0.8)
+                        
+                #         self.average_AP_plot_widget.axes.legend()
+                #         self.average_AP_plot_widget.canvas.draw()
+                    # else:
+                    #     warn(" Not ROI larger than a single pixel. Please reduce the size to plot it")
+
+
+                
+                # self.add_result_img(result_img=APD, 
+                #                     auto_metadata=False, 
+                #                     custom_metadata=current_img_selection.metadata,
+                #                     img_custom_name=current_img_selection.name, 
+                #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
+                #                     add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+            self.add_result_img(result_img=results, 
+                                operation_name="Generate_maps", 
+                                method_name=meth_name, 
+                                custom_img_name=current_img_selection.name, 
+                                custom_metadata=current_img_selection.metadata, 
+                                sufix=sufix, parameters=params)
+
+
+            self.add_record_fun()
+            print("Map generated")
+            #     else:
+            #         return warn("Either non or more than 1 AP detected. Please average your traces, clip 1 AP or make sure you have at least one AP detected by changing the 'Sensitivity threshold'.") 
+        
+            # else:
+            #     return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
+        except Exception as e:
+            raise CustomException(e, sys)
 
 
 
