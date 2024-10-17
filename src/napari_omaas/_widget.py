@@ -3092,7 +3092,10 @@ class OMAAS(QWidget):
             
 
             # ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
-            ini_i, end_i = self.ini_i_spl_traces, self.end_i_spl_traces
+            # ini_i, end_i = self.ini_i_spl_traces.tolist(), self.end_i_spl_traces.tolist()
+            end_i = self.end_i_spl_traces.tolist() if not isinstance( self.end_i_spl_traces, list ) else self.end_i_spl_traces
+            ini_i = self.ini_i_spl_traces.tolist() if not isinstance( self.ini_i_spl_traces, list ) else self.ini_i_spl_traces
+
 
             if len(ini_i) > 1:
 
