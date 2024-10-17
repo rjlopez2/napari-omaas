@@ -4657,7 +4657,7 @@ class InterctiveWindowMapErode(QWidget):
             
             self.o.add_result_img(result_img=self.result_map_image, 
                                 operation_name="Postprocessing_maps[test]", 
-                                custom_img_name=f"{final_string}_PostProMap", 
+                                custom_img_name=f"{final_string}", 
                                 method_name="crop_from_shape",
                                 custom_inputs = input_imgs,
                                 custom_metadata= self.viewer.layers.selection.active.metadata,
