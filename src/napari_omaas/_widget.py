@@ -71,6 +71,7 @@ from .utils import (
     segement_region_based_func,
     optimap_mot_correction,
     crop_from_shape,
+    concatenate_and_padd_with_nan_2d_arrays,
     macro,
     return_maps,
     apply_FIR_filt_func,
@@ -4277,7 +4278,7 @@ class OMAAS(QWidget):
 
             elif len(selectedItems) > 1:
                 current_selection = [self.viewer.layers[item].data for item in selectedItems]
-                self.map_data = np.concatenate(current_selection, axis = 1)
+                self.map_data = concatenate_and_padd_with_nan_2d_arrays(current_selection)
             
             else:
                 return warn(f"No image selected. Please select an Image from the selector")

@@ -1128,6 +1128,43 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
     
 #     return splitted_traces
 
+def concatenate_and_padd_with_nan_2d_arrays(arrays):
+    """
+    Concatenates multiple 2D arrays with different sizes into one larger array.
+    
+    If the arrays have different shapes, they will be padded with NaN values 
+    to ensure the final concatenated array has a consistent size.
+    
+    Parameters:
+    arrays (list of np.ndarray): A list containing 2D numpy arrays to be concatenated.
+
+    Returns:
+    np.ndarray: A single 2D numpy array where all input arrays are stacked along the
+                second axis (horizontally), padded with NaNs where the arrays are smaller.
+    
+    Example:
+    >>> a1 = np.array([[1, 2], [3, 4]])
+    >>> a2 = np.array([[5, 6, 7]])
+    >>> a3 = np.array([[8]])
+    >>> concatenate_with_nan([a1, a2, a3])
+    array([[ 1.,  2., nan],
+           [ 3.,  4., nan],
+           [ 5.,  6.,  7.],
+           [ 8., nan, nan]])
+    """
+    # Find the maximum shape (height and width) among all the arrays
+    max_rows = max(arr.shape[0] for arr in arrays)
+    max_cols = max(arr.shape[1] for arr in arrays)
+
+    # Create a list of padded arrays
+    padded_arrays = [np.pad(arr, ((0, max_rows - arr.shape[0]), 
+                                  (0, max_cols - arr.shape[1])), 
+                            mode='constant', constant_values=np.nan)
+                     for arr in arrays]
+    
+    # Concatenate them along the second axis (horizontally)
+    return np.hstack(padded_arrays)
+
 
 def split_AP_traces_and_ave_func(trace, ini_i, end_i, type="1d", return_mean=False):
     """
