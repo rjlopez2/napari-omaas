@@ -2312,37 +2312,39 @@ class OMAAS(QWidget):
             # get selection of images iand shape from the selector
             selected_img_list, selected_shps_list = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
 
-            for img_indx, img in enumerate(selected_img_list):
+            try:
+                
+                for img_indx, img in enumerate(selected_img_list):
 
                 # for shape_indx, shape in enumerate(selected_shps_list[0].data):
-                for shape_indx in range(len(selected_shps_list[0].data)):
-                    if 'ID' in self.shape_layer.features.iloc[shape_indx]:
-                        roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
-                    else:
-                        roi_id = f"{shape_indx}"
+                    for shape_indx in range(len(selected_shps_list[0].data)):
+                        if 'ID' in self.shape_layer.features.iloc[shape_indx]:
+                            roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
+                        else:
+                            roi_id = f"{shape_indx}"
 
-                    img_label = f"{img.name}_{selected_shps_list[0]}_ROI:{roi_id}"
-                    
-                    if len(img_label) > 40:
-                        img_label = img_label[4:][:15] + "..." + img_label[-9:]
-                        # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
+                        img_label = f"{img.name}_{selected_shps_list[0]}_ROI:{roi_id}"
+                        
+                        if len(img_label) > 40:
+                            img_label = img_label[4:][:15] + "..." + img_label[-9:]
+                            # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
 
 
-                    # update detected APs labels
-                    # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
-                    # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
-                    #                                           cycle_length_ms = self.xscale,
-                    #                                           promi=self.prominence)]
-                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
-                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
+                        # update detected APs labels
+                        # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
+                        # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
+                        #                                           cycle_length_ms = self.xscale,
+                        #                                           promi=self.prominence)]
+                        n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
+                        self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                        self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
-                    # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
-                    # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
-                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=img_label, alpha=0.8)
+                        # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+                        # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
+                        self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=img_label, alpha=0.8)
 
-                    ##### catch error here and exit nicely for the user with a warning or so #####
-                    try:
+                        ##### catch error here and exit nicely for the user with a warning or so #####
+                        # try:
 
                         self.APs_props = compute_APD_props_func(traces[img_indx + shape_indx],
                                                         curr_img_name = img.name, 
@@ -2398,39 +2400,39 @@ class OMAAS(QWidget):
                         
                         print(f"APD computed on image '{img.name}' with roi: {shape_indx}")
 
-                    except Exception as e:
-                        # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-                        raise CustomException(e, sys)
+                        # except Exception as e:
+                        #     # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                        #     raise CustomException(e, sys)
 
-            self._APD_plot_widget.axes.legend(fontsize="8")
-            self._APD_plot_widget.canvas.draw()
+                    self._APD_plot_widget.axes.legend(fontsize="8")
+                    self._APD_plot_widget.canvas.draw()
 
-        try:
+            # try:
 
-            self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
-            # convert back to the correct type the numeric columns
-            cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
-            cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
+                self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
+                # convert back to the correct type the numeric columns
+                cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
+                cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
 
-            self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
-            # convert numeric values to ms and round then
-            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
+                self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
+                # convert numeric values to ms and round then
+                self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
 
-            
-            model = PandasModel(self.APD_props_df[["image_name",
-                                            "ROI_id", 
-                                            "AP_id" ,
-                                            "APD_perc" ,
-                                            "APD",
-                                            "AcTime_dVdtmax",
-                                            "BasCycLength_bcl"]])
-                # self.APD_propert_table = QTableView()
-            self.APD_propert_table.setModel(model)
+                
+                model = PandasModel(self.APD_props_df[["image_name",
+                                                "ROI_id", 
+                                                "AP_id" ,
+                                                "APD_perc" ,
+                                                "APD",
+                                                "AcTime_dVdtmax",
+                                                "BasCycLength_bcl"]])
+                    # self.APD_propert_table = QTableView()
+                self.APD_propert_table.setModel(model)
 
-            self.add_record_fun()
-        except Exception as e:
-            # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-            raise e
+                self.add_record_fun()
+            except Exception as e:
+                # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                raise CustomException(e, sys)
         else:
             return warn("Create a trace first by clicking on 'Display Profile'") 
 
@@ -2654,12 +2656,12 @@ class OMAAS(QWidget):
                     if file_format == ".csv":
                         file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_csv(file_path, index=False)
-                        warn(f"File '{filename}{file_format}' exported to: {file_path}.")
+                        warn(f"File '{filename}{file_format}' exported to: {file_path}")
 
                     elif file_format == ".xlsx":
                         file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_excel(file_path, index=False)
-                        warn(f"File '{filename}{file_format}' exported to: {file_path}.")
+                        warn(f"File '{filename}{file_format}' exported to: {file_path}")
                 else:
                     return warn("No APD results table found or len of the table is < 0.")
             else:
