@@ -1112,7 +1112,7 @@ class OMAAS(QWidget):
             QtWidgets.QAbstractItemView.ExtendedSelection
         )
         # self.map_imgs_selector.addItems(["Option 1", "Option 2", "Option 3", "Option 4"])
-        self.postprocessing_group.glayout.addWidget(self.map_imgs_selector, 1, 1, 1, 4)
+        self.postprocessing_group.glayout.addWidget(self.o.map_imgs_selector, 1, 1, 1, 4)
 
         self.map_lower_clip_limit_label = QLabel("Set Lower limit")
         self.postprocessing_group.glayout.addWidget(self.map_lower_clip_limit_label, 2, 0, 1, 1)
@@ -4630,7 +4630,8 @@ class InterctiveWindowMapErode(QWidget):
 
         try:
             self.n_pixels_erode_slider_func()
-            # current_image = self.viewer.layers.selection.active
+            img_items = [item.text() for item in self.o.map_imgs_selector.selectedItems()]
+            current_map_image = self.viewer.layers[img_items[0]]
             # self.o.img_title
             # Step 1: Split the strings into parts
             split_strings = [s.split('_') for s in self.o._get_imgs2d_from_map_selector()]
@@ -4664,7 +4665,7 @@ class InterctiveWindowMapErode(QWidget):
                                 custom_img_name=f"{final_string}", 
                                 method_name="crop_from_shape",
                                 custom_inputs = input_imgs,
-                                custom_metadata= self.viewer.layers.selection.active.metadata,
+                                custom_metadata= current_map_image.metadata,
                                 sufix="PostProMap", 
                                 parameters=params)
             print("Image exported")
