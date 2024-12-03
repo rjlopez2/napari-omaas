@@ -1112,7 +1112,7 @@ class OMAAS(QWidget):
             QtWidgets.QAbstractItemView.ExtendedSelection
         )
         # self.map_imgs_selector.addItems(["Option 1", "Option 2", "Option 3", "Option 4"])
-        self.postprocessing_group.glayout.addWidget(self.o.map_imgs_selector, 1, 1, 1, 4)
+        self.postprocessing_group.glayout.addWidget(self.map_imgs_selector, 1, 1, 1, 4)
 
         self.map_lower_clip_limit_label = QLabel("Set Lower limit")
         self.postprocessing_group.glayout.addWidget(self.map_lower_clip_limit_label, 2, 0, 1, 1)
