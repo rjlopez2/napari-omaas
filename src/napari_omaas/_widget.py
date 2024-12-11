@@ -662,14 +662,14 @@ class OMAAS(QWidget):
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value_label, 1, 0, 1, 1)
         
         self.pad_value = QComboBox()
-        self.pad_value.addItems(["background", "0", "NaN"])
+        self.pad_value.addItems(["bkgrnd", "0", "NaN"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value, 1, 1, 1, 1)
         
         self.crop_view_orientation_label = QLabel("Orientation:")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_view_orientation_label, 1, 2, 1, 1)
         
         self.crop_view_orientation = QComboBox()
-        self.crop_view_orientation.addItems(["horizontal", "vertical"])
+        self.crop_view_orientation.addItems(["H", "V"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_view_orientation, 1, 3, 1, 1)
 
         self.view0_rotate_label = QLabel("View 0")
@@ -708,14 +708,14 @@ class OMAAS(QWidget):
                             self.view3_rotate
                             ]
         
-        self.return_bounding_boxes_only_btn = QCheckBox("Return only bounding boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 0, 1, 1)
+        self.return_bounding_boxes_only_btn = QPushButton("Return only bounding boxes")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 2, 1, 2)
 
         self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 4, 1, 4)
 
         self.crop_all_views_and_rotate_form_box_btn = QPushButton("Rearrange from boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 3, 4, 1, 4)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 2, 0, 1, 2)
 
 
         self.join_all_views_and_rotate_group = VHGroup('Join cropped/individual views', orientation='G')
@@ -1429,6 +1429,7 @@ class OMAAS(QWidget):
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
         self.preview_postProcessingMAP_btn.clicked.connect(self._preview_postProcessingMAP_btn_func)
         self.crop_all_views_and_rotate_btn.clicked.connect(self._crop_all_views_and_rotate_btn_func)
+        self.return_bounding_boxes_only_btn.clicked.connect(lambda: self._crop_all_views_and_rotate_btn_func(return_only_bounding_box=True))
         self.join_all_views_and_rotate_btn.clicked.connect(self._join_all_views_and_rotate_btn_func)
         
         
@@ -4349,7 +4350,7 @@ class OMAAS(QWidget):
         self.InterctiveWindod_edit_map.show()
 
     
-    def _crop_all_views_and_rotate_btn_func(self):
+    def _crop_all_views_and_rotate_btn_func(self, return_only_bounding_box = False):
         try:
         # 1. get mask from current Image using auto segemntation
 
@@ -4381,7 +4382,7 @@ class OMAAS(QWidget):
                                                                                             area_threshold=1000,
                                                                                             vertical_padding=v_padding,
                                                                                             horizontal_padding=h_padding)
-                if self.return_bounding_boxes_only_btn.isChecked():
+                if return_only_bounding_box:
                     return self.viewer.add_shapes(bounding_boxes)
 
                 # 3. arrange and combine boxes
