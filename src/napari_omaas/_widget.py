@@ -662,14 +662,14 @@ class OMAAS(QWidget):
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value_label, 1, 0, 1, 1)
         
         self.pad_value = QComboBox()
-        self.pad_value.addItems(["bkgrnd", "0", "NaN"])
+        self.pad_value.addItems(["background", "0", "NaN"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.pad_value, 1, 1, 1, 1)
         
         self.crop_view_orientation_label = QLabel("Orientation:")
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_view_orientation_label, 1, 2, 1, 1)
         
         self.crop_view_orientation = QComboBox()
-        self.crop_view_orientation.addItems(["H", "V"])
+        self.crop_view_orientation.addItems(["horizontal", "vertical"])
         self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_view_orientation, 1, 3, 1, 1)
 
         self.view0_rotate_label = QLabel("View 0")
@@ -709,14 +709,16 @@ class OMAAS(QWidget):
                             ]
         
         self.return_bounding_boxes_only_btn = QPushButton("Return only bounding boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 2, 1, 2)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 3, 2, 1, 2)
 
         self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 4, 1, 4)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 3, 4, 1, 4)
 
         self.crop_all_views_and_rotate_form_box_btn = QPushButton("Rearrange from boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 2, 0, 1, 2)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 3, 0, 1, 2)
 
+        self.return_mask_form_rearranging = QCheckBox("Return Mask")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_mask_form_rearranging, 2, 6, 1, 2)
 
         self.join_all_views_and_rotate_group = VHGroup('Join cropped/individual views', orientation='G')
         self._layers_processing_layout.addWidget(self.join_all_views_and_rotate_group.gbox, 2, 0, 1, 2)
@@ -4402,11 +4404,11 @@ class OMAAS(QWidget):
                 arranged_labels = arrange_cropped_images([(label, None, None) for label in cropped_labels_3d], 
                                                          arrangement=orientation, 
                                                          padding_value=0)
-                
-                self.add_result_label(arranged_labels[0], 
-                                            img_custom_name="Heart_labels", 
-                                            single_label_sufix = f"NullBckgrnd", 
-                                            add_to_metadata = f"Background image masked")
+                if self.return_mask_form_rearranging.isChecked():
+                    self.add_result_label(arranged_labels[0], 
+                                                img_custom_name="Heart_labels", 
+                                                single_label_sufix = f"NullBckgrnd", 
+                                                add_to_metadata = f"Background image masked")
                 
                 self.add_result_img(result_img=results, 
                                 operation_name="crop_and_rearrange_views", 
