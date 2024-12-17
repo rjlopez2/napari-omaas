@@ -708,15 +708,17 @@ class OMAAS(QWidget):
                             self.view3_rotate
                             ]
         
-        self.return_bounding_boxes_only_btn = QCheckBox("Return only bounding boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 0, 1, 1)
+        self.return_bounding_boxes_only_btn = QPushButton("Return only bounding boxes")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 3, 2, 1, 2)
 
         self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 4, 1, 4)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 3, 4, 1, 4)
 
         self.crop_all_views_and_rotate_form_box_btn = QPushButton("Rearrange from boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 3, 4, 1, 4)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 3, 0, 1, 2)
 
+        self.return_mask_form_rearranging = QCheckBox("Return Mask")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_mask_form_rearranging, 2, 6, 1, 2)
 
         self.join_all_views_and_rotate_group = VHGroup('Join cropped/individual views', orientation='G')
         self._layers_processing_layout.addWidget(self.join_all_views_and_rotate_group.gbox, 2, 0, 1, 2)
@@ -1429,6 +1431,7 @@ class OMAAS(QWidget):
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
         self.preview_postProcessingMAP_btn.clicked.connect(self._preview_postProcessingMAP_btn_func)
         self.crop_all_views_and_rotate_btn.clicked.connect(self._crop_all_views_and_rotate_btn_func)
+        self.return_bounding_boxes_only_btn.clicked.connect(lambda: self._crop_all_views_and_rotate_btn_func(return_only_bounding_box=True))
         self.join_all_views_and_rotate_btn.clicked.connect(self._join_all_views_and_rotate_btn_func)
         
         
@@ -2312,37 +2315,39 @@ class OMAAS(QWidget):
             # get selection of images iand shape from the selector
             selected_img_list, selected_shps_list = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
 
-            for img_indx, img in enumerate(selected_img_list):
+            try:
+                
+                for img_indx, img in enumerate(selected_img_list):
 
                 # for shape_indx, shape in enumerate(selected_shps_list[0].data):
-                for shape_indx in range(len(selected_shps_list[0].data)):
-                    if 'ID' in self.shape_layer.features.iloc[shape_indx]:
-                        roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
-                    else:
-                        roi_id = f"{shape_indx}"
+                    for shape_indx in range(len(selected_shps_list[0].data)):
+                        if 'ID' in self.shape_layer.features.iloc[shape_indx]:
+                            roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
+                        else:
+                            roi_id = f"{shape_indx}"
 
-                    img_label = f"{img.name}_{selected_shps_list[0]}_ROI:{roi_id}"
-                    
-                    if len(img_label) > 40:
-                        img_label = img_label[4:][:15] + "..." + img_label[-9:]
-                        # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
+                        img_label = f"{img.name}_{selected_shps_list[0]}_ROI:{roi_id}"
+                        
+                        if len(img_label) > 40:
+                            img_label = img_label[4:][:15] + "..." + img_label[-9:]
+                            # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
 
 
-                    # update detected APs labels
-                    # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
-                    # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
-                    #                                           cycle_length_ms = self.xscale,
-                    #                                           promi=self.prominence)]
-                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
-                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
+                        # update detected APs labels
+                        # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
+                        # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
+                        #                                           cycle_length_ms = self.xscale,
+                        #                                           promi=self.prominence)]
+                        n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
+                        self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                        self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
-                    # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
-                    # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
-                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=img_label, alpha=0.8)
+                        # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+                        # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
+                        self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=img_label, alpha=0.8)
 
-                    ##### catch error here and exit nicely for the user with a warning or so #####
-                    try:
+                        ##### catch error here and exit nicely for the user with a warning or so #####
+                        # try:
 
                         self.APs_props = compute_APD_props_func(traces[img_indx + shape_indx],
                                                         curr_img_name = img.name, 
@@ -2398,39 +2403,39 @@ class OMAAS(QWidget):
                         
                         print(f"APD computed on image '{img.name}' with roi: {shape_indx}")
 
-                    except Exception as e:
-                        # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-                        raise CustomException(e, sys)
+                        # except Exception as e:
+                        #     # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                        #     raise CustomException(e, sys)
 
-            self._APD_plot_widget.axes.legend(fontsize="8")
-            self._APD_plot_widget.canvas.draw()
+                    self._APD_plot_widget.axes.legend(fontsize="8")
+                    self._APD_plot_widget.canvas.draw()
 
-        try:
+            # try:
 
-            self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
-            # convert back to the correct type the numeric columns
-            cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
-            cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
+                self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
+                # convert back to the correct type the numeric columns
+                cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
+                cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
 
-            self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
-            # convert numeric values to ms and round then
-            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
+                self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
+                # convert numeric values to ms and round then
+                self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
 
-            
-            model = PandasModel(self.APD_props_df[["image_name",
-                                            "ROI_id", 
-                                            "AP_id" ,
-                                            "APD_perc" ,
-                                            "APD",
-                                            "AcTime_dVdtmax",
-                                            "BasCycLength_bcl"]])
-                # self.APD_propert_table = QTableView()
-            self.APD_propert_table.setModel(model)
+                
+                model = PandasModel(self.APD_props_df[["image_name",
+                                                "ROI_id", 
+                                                "AP_id" ,
+                                                "APD_perc" ,
+                                                "APD",
+                                                "AcTime_dVdtmax",
+                                                "BasCycLength_bcl"]])
+                    # self.APD_propert_table = QTableView()
+                self.APD_propert_table.setModel(model)
 
-            self.add_record_fun()
-        except Exception as e:
-            # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-            raise e
+                self.add_record_fun()
+            except Exception as e:
+                # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                raise CustomException(e, sys)
         else:
             return warn("Create a trace first by clicking on 'Display Profile'") 
 
@@ -2654,12 +2659,12 @@ class OMAAS(QWidget):
                     if file_format == ".csv":
                         file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_csv(file_path, index=False)
-                        warn(f"File '{filename}{file_format}' exported to: {file_path}.")
+                        warn(f"File '{filename}{file_format}' exported to: {file_path}")
 
                     elif file_format == ".xlsx":
                         file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_excel(file_path, index=False)
-                        warn(f"File '{filename}{file_format}' exported to: {file_path}.")
+                        warn(f"File '{filename}{file_format}' exported to: {file_path}")
                 else:
                     return warn("No APD results table found or len of the table is < 0.")
             else:
@@ -4347,7 +4352,7 @@ class OMAAS(QWidget):
         self.InterctiveWindod_edit_map.show()
 
     
-    def _crop_all_views_and_rotate_btn_func(self):
+    def _crop_all_views_and_rotate_btn_func(self, return_only_bounding_box = False):
         try:
         # 1. get mask from current Image using auto segemntation
 
@@ -4379,7 +4384,7 @@ class OMAAS(QWidget):
                                                                                             area_threshold=1000,
                                                                                             vertical_padding=v_padding,
                                                                                             horizontal_padding=h_padding)
-                if self.return_bounding_boxes_only_btn.isChecked():
+                if return_only_bounding_box:
                     return self.viewer.add_shapes(bounding_boxes)
 
                 # 3. arrange and combine boxes
@@ -4399,11 +4404,11 @@ class OMAAS(QWidget):
                 arranged_labels = arrange_cropped_images([(label, None, None) for label in cropped_labels_3d], 
                                                          arrangement=orientation, 
                                                          padding_value=0)
-                
-                self.add_result_label(arranged_labels[0], 
-                                            img_custom_name="Heart_labels", 
-                                            single_label_sufix = f"NullBckgrnd", 
-                                            add_to_metadata = f"Background image masked")
+                if self.return_mask_form_rearranging.isChecked():
+                    self.add_result_label(arranged_labels[0], 
+                                                img_custom_name="Heart_labels", 
+                                                single_label_sufix = f"NullBckgrnd", 
+                                                add_to_metadata = f"Background image masked")
                 
                 self.add_result_img(result_img=results, 
                                 operation_name="crop_and_rearrange_views", 
@@ -4628,7 +4633,8 @@ class InterctiveWindowMapErode(QWidget):
 
         try:
             self.n_pixels_erode_slider_func()
-            # current_image = self.viewer.layers.selection.active
+            img_items = [item.text() for item in self.o.map_imgs_selector.selectedItems()]
+            current_map_image = self.viewer.layers[img_items[0]]
             # self.o.img_title
             # Step 1: Split the strings into parts
             split_strings = [s.split('_') for s in self.o._get_imgs2d_from_map_selector()]
@@ -4662,7 +4668,7 @@ class InterctiveWindowMapErode(QWidget):
                                 custom_img_name=f"{final_string}", 
                                 method_name="crop_from_shape",
                                 custom_inputs = input_imgs,
-                                custom_metadata= self.viewer.layers.selection.active.metadata,
+                                custom_metadata= current_map_image.metadata,
                                 sufix="PostProMap", 
                                 parameters=params)
             print("Image exported")
