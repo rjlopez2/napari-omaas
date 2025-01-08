@@ -71,6 +71,7 @@ from .utils import (
     segement_region_based_func,
     optimap_mot_correction,
     crop_from_shape,
+    concatenate_and_padd_with_nan_2d_arrays,
     macro,
     return_maps,
     apply_FIR_filt_func,
@@ -194,9 +195,9 @@ class OMAAS(QWidget):
 
         # self.splt_chann_label = QLabel("Split Channels")
         # self.pre_processing_group.glayout.addWidget(self.splt_chann_label, 3, 6, 1, 1)
-        self.splt_chann_btn = QPushButton("Split Channels")
-        self.splt_chann_btn.setToolTip(("Split the current Image stack when using dual illumination."))
-        self.pre_processing_group.glayout.addWidget(self.splt_chann_btn, 2, 3, 1, 1)
+        self.split_chann_btn = QPushButton("Split Channels")
+        self.split_chann_btn.setToolTip(("Split the current Image stack when using dual illumination."))
+        self.pre_processing_group.glayout.addWidget(self.split_chann_btn, 2, 3, 1, 1)
 
         # self.glob_norm_data_btn = QPushButton("Normalize (global)")
         # self.pre_processing_group.glayout.addWidget(self.glob_norm_data_btn, 2, 2, 1, 1)
@@ -707,15 +708,17 @@ class OMAAS(QWidget):
                             self.view3_rotate
                             ]
         
-        self.return_bounding_boxes_only_btn = QCheckBox("Return only bounding boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 2, 0, 1, 1)
+        self.return_bounding_boxes_only_btn = QPushButton("Return only bounding boxes")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_bounding_boxes_only_btn, 3, 2, 1, 2)
 
         self.crop_all_views_and_rotate_btn = QPushButton("Rearrange views")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 2, 4, 1, 4)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_btn, 3, 4, 1, 4)
 
         self.crop_all_views_and_rotate_form_box_btn = QPushButton("Rearrange from boxes")
-        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 3, 4, 1, 4)
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.crop_all_views_and_rotate_form_box_btn, 3, 0, 1, 2)
 
+        self.return_mask_form_rearranging = QCheckBox("Return Mask")
+        self.crop_all_views_and_rotate_group.glayout.addWidget(self.return_mask_form_rearranging, 2, 6, 1, 2)
 
         self.join_all_views_and_rotate_group = VHGroup('Join cropped/individual views', orientation='G')
         self._layers_processing_layout.addWidget(self.join_all_views_and_rotate_group.gbox, 2, 0, 1, 2)
@@ -1160,8 +1163,8 @@ class OMAAS(QWidget):
         self.n_pixels_erode.setValue(1)
         self.postprocessing_group.glayout.addWidget(self.n_pixels_erode, 4, 1, 1, 1)
 
-        self.preview_erode_btn = QPushButton("Preview")
-        self.postprocessing_group.glayout.addWidget(self.preview_erode_btn, 4, 2, 1, 1)
+        self.preview_postProcessingMAP_btn = QPushButton("Preview")
+        self.postprocessing_group.glayout.addWidget(self.preview_postProcessingMAP_btn, 4, 2, 1, 1)
 
 
         # Adding mapping subtabs
@@ -1364,7 +1367,7 @@ class OMAAS(QWidget):
         self.inv_data_btn.clicked.connect(self._on_click_inv_data_btn)
         self.apply_normalization_btn.clicked.connect(self._on_click_norm_data_btn)
         self.inv_and_norm_data_btn.clicked.connect(self._on_click_inv_and_norm_data_btn)
-        self.splt_chann_btn.clicked.connect(self._on_click_splt_chann)
+        self.split_chann_btn.clicked.connect(self._on_click_splt_chann)
         # self.glob_norm_data_btn.clicked.connect(self._on_click_glob_norm_data_btn)
         # self.rmv_backg_btn.clicked.connect(self._on_click_seg_heart_btn)
 
@@ -1426,8 +1429,9 @@ class OMAAS(QWidget):
         self.x_scale_box.textChanged.connect(self._update_x_scale_box_func)
         self.plot_curr_map_btn.clicked.connect(self._plot_curr_map_btn_fun)
         self.clear_curr_map_btn.clicked.connect(self._clear_curr_map_btn_func)
-        self.preview_erode_btn.clicked.connect(self._preview_erode_btn_func)
+        self.preview_postProcessingMAP_btn.clicked.connect(self._preview_postProcessingMAP_btn_func)
         self.crop_all_views_and_rotate_btn.clicked.connect(self._crop_all_views_and_rotate_btn_func)
+        self.return_bounding_boxes_only_btn.clicked.connect(lambda: self._crop_all_views_and_rotate_btn_func(return_only_bounding_box=True))
         self.join_all_views_and_rotate_btn.clicked.connect(self._join_all_views_and_rotate_btn_func)
         
         
@@ -2311,37 +2315,39 @@ class OMAAS(QWidget):
             # get selection of images iand shape from the selector
             selected_img_list, selected_shps_list = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
 
-            for img_indx, img in enumerate(selected_img_list):
+            try:
+                
+                for img_indx, img in enumerate(selected_img_list):
 
                 # for shape_indx, shape in enumerate(selected_shps_list[0].data):
-                for shape_indx in range(len(selected_shps_list[0].data)):
-                    if 'ID' in self.shape_layer.features.iloc[shape_indx]:
-                        roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
-                    else:
-                        roi_id = f"{shape_indx}"
+                    for shape_indx in range(len(selected_shps_list[0].data)):
+                        if 'ID' in self.shape_layer.features.iloc[shape_indx]:
+                            roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
+                        else:
+                            roi_id = f"{shape_indx}"
 
-                    img_label = f"{img.name}_{selected_shps_list[0]}_ROI:{roi_id}"
-                    
-                    if len(img_label) > 40:
-                        img_label = img_label[4:][:15] + "..." + img_label[-9:]
-                        # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
+                        img_label = f"{img.name}_{selected_shps_list[0]}_ROI:{roi_id}"
+                        
+                        if len(img_label) > 40:
+                            img_label = img_label[4:][:15] + "..." + img_label[-9:]
+                            # warn("Label name too long to accomodate aesthetics. Truncated to 40 characters")
 
 
-                    # update detected APs labels
-                    # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
-                    # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
-                    #                                           cycle_length_ms = self.xscale,
-                    #                                           promi=self.prominence)]
-                    n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
-                    self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
-                    self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
+                        # update detected APs labels
+                        # n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray=traces[img_indx + shape_indx])
+                        # peaks_indx_props = [split_peaks_1d_traces(my_1d_array=traces[img_indx + shape_indx], 
+                        #                                           cycle_length_ms = self.xscale,
+                        #                                           promi=self.prominence)]
+                        n_peaks = return_peaks_found_fun(promi=self.prominence, np_1Darray = traces[img_indx + shape_indx])
+                        self.APD_peaks_help_box_label.setText(f'[AP detected]: {n_peaks}')
+                        self.APD_peaks_help_box_label_2.setText(f'[AP detected]: {n_peaks}')
 
-                    # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
-                    # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
-                    self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=img_label, alpha=0.8)
+                        # self.APD_axes.plot(time, traces[img_indx + shpae_indx], label=f'{lname}_ROI-{shpae_indx}', alpha=0.5)
+                        # self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=f'{img.name}_ROI-{shape_indx}', alpha=0.8)
+                        self._APD_plot_widget.axes.plot(time[img_indx + shape_indx], traces[img_indx + shape_indx], label=img_label, alpha=0.8)
 
-                    ##### catch error here and exit nicely for the user with a warning or so #####
-                    try:
+                        ##### catch error here and exit nicely for the user with a warning or so #####
+                        # try:
 
                         self.APs_props = compute_APD_props_func(traces[img_indx + shape_indx],
                                                         curr_img_name = img.name, 
@@ -2355,7 +2361,8 @@ class OMAAS(QWidget):
                                                         interpolate= is_interpolated,
                                                         curr_file_id = img.metadata["CurrentFileSource"])
                         # collect indexes of AP for plotting AP boudaries: ini, end, baseline
-                        ini_indx = self.APs_props["indx_at_AP_upstroke"]
+                        ini_indx = self.APs_props["indx_at_AP_resting"]
+                        upstroke_indx = self.APs_props["indx_at_AP_upstroke"]
                         peak_indx = self.APs_props["indx_at_AP_peak"]
                         end_indx = self.APs_props["indx_at_AP_end"]
 
@@ -2368,6 +2375,14 @@ class OMAAS(QWidget):
                                             linestyles='dashed', color = "green", 
                                             # label=f'AP_ini',
                                             lw = 0.5, alpha = 0.8)
+                        # plot point at upstroke
+                        self._APD_plot_widget.axes.scatter(
+                                            time[img_indx + shape_indx][upstroke_indx], 
+                                            traces[img_indx + shape_indx][upstroke_indx],
+                                            marker="_",
+                                            color = "yellow", 
+                                            # label=f'AP_upstroke',
+                                            lw = 0.5, alpha = 0.5)
                         # plot vline of AP end
                         self._APD_plot_widget.axes.vlines(time[img_indx + shape_indx][end_indx], 
                                             ymin= y_min,
@@ -2388,39 +2403,39 @@ class OMAAS(QWidget):
                         
                         print(f"APD computed on image '{img.name}' with roi: {shape_indx}")
 
-                    except Exception as e:
-                        # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-                        raise e
+                        # except Exception as e:
+                        #     # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                        #     raise CustomException(e, sys)
 
-            self._APD_plot_widget.axes.legend(fontsize="8")
-            self._APD_plot_widget.canvas.draw()
+                    self._APD_plot_widget.axes.legend(fontsize="8")
+                    self._APD_plot_widget.canvas.draw()
 
-        try:
+            # try:
 
-            self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
-            # convert back to the correct type the numeric columns
-            cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
-            cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
+                self.APD_props_df = pd.DataFrame( [pro for pro in APD_props]).explode(column = list(APD_props[0].keys())).reset_index(drop=True)
+                # convert back to the correct type the numeric columns
+                cols_to_keep = ["image_name", "ROI_id", "AP_id" ]
+                cols_to_numeric = self.APD_props_df.columns.difference(cols_to_keep)
 
-            self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
-            # convert numeric values to ms and round then
-            self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
+                self.APD_props_df[cols_to_numeric] = self.APD_props_df[cols_to_numeric].apply(pd.to_numeric, errors = "coerce")
+                # convert numeric values to ms and round then
+                self.APD_props_df = self.APD_props_df.apply(lambda x: np.round(x, 2) if x.dtypes == "float64" else x ) 
 
-            
-            model = PandasModel(self.APD_props_df[["image_name",
-                                            "ROI_id", 
-                                            "AP_id" ,
-                                            "APD_perc" ,
-                                            "APD",
-                                            "AcTime_dVdtmax",
-                                            "BasCycLength_bcl"]])
-                # self.APD_propert_table = QTableView()
-            self.APD_propert_table.setModel(model)
+                
+                model = PandasModel(self.APD_props_df[["image_name",
+                                                "ROI_id", 
+                                                "AP_id" ,
+                                                "APD_perc" ,
+                                                "APD",
+                                                "AcTime_dVdtmax",
+                                                "BasCycLength_bcl"]])
+                    # self.APD_propert_table = QTableView()
+                self.APD_propert_table.setModel(model)
 
-            self.add_record_fun()
-        except Exception as e:
-            # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
-            raise e
+                self.add_record_fun()
+            except Exception as e:
+                # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
+                raise CustomException(e, sys)
         else:
             return warn("Create a trace first by clicking on 'Display Profile'") 
 
@@ -2644,12 +2659,12 @@ class OMAAS(QWidget):
                     if file_format == ".csv":
                         file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_csv(file_path, index=False)
-                        warn(f"File '{filename}{file_format}' exported to: {file_path}.")
+                        warn(f"File '{filename}{file_format}' exported to: {file_path}")
 
                     elif file_format == ".xlsx":
                         file_path = os.path.join(output_dir, f"{filename}{file_format}")
                         self.APD_props_df.to_excel(file_path, index=False)
-                        warn(f"File '{filename}{file_format}' exported to: {file_path}.")
+                        warn(f"File '{filename}{file_format}' exported to: {file_path}")
                 else:
                     return warn("No APD results table found or len of the table is < 0.")
             else:
@@ -2916,13 +2931,34 @@ class OMAAS(QWidget):
             traces = self.main_plot_widget.axes.lines[0].get_ydata()
             time = self.main_plot_widget.axes.lines[0].get_xdata()
             label = self.main_plot_widget.figure.axes[0].lines[0].get_label()
+            rmp_method = self.APD_computing_method.currentText()
+            # img = self.viewer.layers.selection.active
+            img_layers, _ = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
+            img = img_layers[0]
+            is_interpolated = self.make_interpolation_check.isChecked()
+            
 
             try:
-                self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
-                                                                                    #    cycle_length_ms = self.xscale, 
-                                                                                    promi= self.prominence)
+            #     self.ini_i_spl_traces, _, self.end_i_spl_traces = return_AP_ini_end_indx_func(my_1d_array = traces, 
+            #                                                                         #    cycle_length_ms = self.xscale, 
+            #                                                                         promi= self.prominence)
+                self.APs_props = compute_APD_props_func(traces,
+                                                        curr_img_name = img.name, 
+                                                        # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                        cycle_length_ms= self.xscale,
+                                                        rmp_method = rmp_method, 
+                                                        apd_perc = 100, 
+                                                        promi=self.prominence, 
+                                                        roi_indx=0, 
+                                                        # roi_id = roi_id,
+                                                        interpolate= is_interpolated,
+                                                        curr_file_id = img.metadata["CurrentFileSource"])
+                self.ini_i_spl_traces, self.end_i_spl_traces = self.APs_props['indx_at_AP_upstroke'] - min(self.APs_props['indx_at_AP_upstroke']), self.APs_props['indx_at_AP_end'] + min(self.APs_props['indx_at_AP_upstroke'])*2//3
+                # self.ini_i_spl_traces, self.end_i_spl_traces = upstroke_indx, end_indx
+                
             except Exception as e:
-                print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
+                print(CustomException(e, sys))
+                # print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'return_AP_ini_end_indx_func' : --->> {e} <----")
                 return
 
             self.slider_N_APs.setRange(0, len(self.ini_i_spl_traces) - 1)
@@ -2931,7 +2967,7 @@ class OMAAS(QWidget):
             self.average_AP_plot_widget.figure.clear()
             self.average_AP_plot_widget.add_single_axes()
             
-            if self.ini_i_spl_traces.size == 1:
+            if len(self.ini_i_spl_traces) == 1:
                 self.average_AP_plot_widget.axes.plot(time, traces, "--", label = f"AP [{0}]_{label}", alpha = 0.8)
                 # remove splitted_stack value if exists
 
@@ -2942,13 +2978,13 @@ class OMAAS(QWidget):
                     # else:
                 #         raise AttributeError
                 except Exception as e:
-                    return print(f"You have the following error @ method '_preview_multiples_traces_func' with function: 'splitted_stack' : --->> {e} <----")
+                    print(CustomException(e, sys))
                 
 
                 warn(f"Only one AP detected")
                 print(f"{'*'*5} Preview from image: '{self.viewer.layers.selection.active.name}' created {'*'*5}")
 
-            elif self.ini_i_spl_traces.size > 1:
+            elif len(self.ini_i_spl_traces) > 1:
 
                 # NOTE: need to fix this function
                 self.splitted_stack = split_AP_traces_and_ave_func(traces, self.ini_i_spl_traces, self.end_i_spl_traces, type = "1d", return_mean=False)
@@ -3057,11 +3093,17 @@ class OMAAS(QWidget):
 
         
         # assert that you have content in the canvas
-        if len(self.average_AP_plot_widget.figure.axes) != 0 and hasattr(self, "data_main_canvas"):            
+        if len(self.average_AP_plot_widget.figure.axes) != 0 and hasattr(self, "data_main_canvas"):
 
-            ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+            
 
-            if ini_i.size > 1:
+            # ini_i, _, end_i = return_AP_ini_end_indx_func(my_1d_array = self.data_main_canvas["y"][0], promi= self.prominence)
+            # ini_i, end_i = self.ini_i_spl_traces.tolist(), self.end_i_spl_traces.tolist()
+            end_i = self.end_i_spl_traces.tolist() if not isinstance( self.end_i_spl_traces, list ) else self.end_i_spl_traces
+            ini_i = self.ini_i_spl_traces.tolist() if not isinstance( self.ini_i_spl_traces, list ) else self.ini_i_spl_traces
+
+
+            if len(ini_i) > 1:
 
                 img_items, _ = self._get_imgs_and_shapes_items_from_selector(return_layer=True)
                 if len(img_items) > 1:
@@ -3069,8 +3111,8 @@ class OMAAS(QWidget):
                 current_img_selected = img_items[0]
                 params={"prestep": {"method_name": "return_AP_ini_end_indx_func",
                                       "parameters": {"promi": self.prominence}},
-                        "ini_index": ini_i.tolist(),
-                        "end_index": end_i.tolist()}
+                        "ini_index": ini_i,
+                        "end_index": end_i}
                 
                 results= split_AP_traces_and_ave_func(current_img_selected.data, ini_i, end_i, type = "3d", return_mean=True)
 
@@ -3083,9 +3125,9 @@ class OMAAS(QWidget):
                 print(f"{'*'*5} Average from image: '{current_img_selected.name,}' created {'*'*5}")
                 self.add_record_fun()
 
-            elif ini_i.size == 1:
-                return warn(f"Only {ini_i.size} AP detected. No average computed.")
-            elif ini_i.size < 1:
+            elif len(ini_i) == 1:
+                return warn(f"Only {len(ini_i)} AP detected. No average computed.")
+            elif len(ini_i) < 1:
                 self._on_click_clear_AP_splitted_btn_fun()
                 return warn("No AP detected")
 
@@ -3210,179 +3252,181 @@ class OMAAS(QWidget):
         # NOTE: you need to decide if you use image form the selector o from the 
         # the napary layer list!!! and assert accordingly the image properties
 
-        
-        # assert that a profile was created
-        if hasattr(self, "data_main_canvas"):
+        try:
+            # # assert that a profile was created
+            # if hasattr(self, "data_main_canvas"):
 
-            time = self.data_main_canvas["x"][0]
-            _, AP_peaks_indx, _ = return_AP_ini_end_indx_func(self.data_main_canvas["y"][0], promi=self.prominence)
-            # assert that you have a single AP detected
-            if len(AP_peaks_indx) == 1:
+            #     time = self.data_main_canvas["x"][0]
+            #     _, AP_peaks_indx, _ = return_AP_ini_end_indx_func(self.data_main_canvas["y"][0], promi=self.prominence)
+            #     # assert that you have a single AP detected
+            #     if len(AP_peaks_indx) == 1:
 
-                #########################
-                #  start computing maps #
-                #########################
+                    #########################
+                    #  start computing maps #
+                    #########################
 
-                percentage = self.slider_APD_map_percentage.value()
-                # current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
-                current_img_selection_name = self.viewer.layers.selection.active.name
-                current_img_selection = self.viewer.layers[current_img_selection_name]
+            percentage = self.slider_APD_map_percentage.value()
+            # current_img_selection_name = self.listImagewidget.selectedItems()[0].text()
+            current_img_selection_name = self.viewer.layers.selection.active.name
+            current_img_selection = self.viewer.layers[current_img_selection_name]
 
-                if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
-                    return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
+            if not isinstance(current_img_selection, Image)  or  current_img_selection.ndim !=3 :
+                return warn(f"Select an Image layer with ndim = 3 to apply this function. \nThe selected layer: '{current_img_selection_name}' is of type: '{type(current_img_selection)}' and has ndim = '{current_img_selection.ndim}'")
 
-                # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
-                map_type = self.toggle_map_type.checkState()
-                
-                # check for "CycleTime" in metadtata
-                if "CycleTime" in self.img_metadata_dict:
-                    cycl_t = self.img_metadata_dict["CycleTime"]
-                else:
-                    cycl_t = 1
-                
-                is_interpolated = self.make_interpolation_check.isChecked()
-
-                if map_type == 0:
-                
-                    results = return_maps(current_img_selection.data, 
-                                         cycle_time=cycl_t,
-                                         map_type = map_type,
-                                         percentage = percentage)
-                    params = {"Activation_map":{"cycle_time": cycl_t,
-                              "map_type": map_type,
-                              "percentage": percentage}}
-                    meth_name = return_maps.__name__
-                    sufix = "ActMap"
-                    
-                    # self.add_result_img(result_img=results, 
-                    #                 img_custom_name=current_img_selection.name, 
-                    #                 single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
-                    #                 operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-                    
-                    
-                
-                elif map_type == 2:
-                    image = current_img_selection.data.copy()
-                    n_frames, y_size, x_size = image.shape
-                    rmp_method = self.APD_computing_method.currentText()
-                    apd_percentage = self.slider_APD_percentage.value()
-
-                    results = np.zeros((y_size, x_size))
-                    mask = np.isnan(image[0, ...])
-                    results[mask] = np.nan
-
-                    for y_px  in progress(range(y_size)):
-                        for x_px in progress(range(x_size)):
-                            if not np.isnan(results[y_px, x_px]).any():
-                                try:
-                                    APs_props = compute_APD_props_func(image[:, y_px, x_px],
-                                                                    curr_img_name = current_img_selection_name, 
-                                                                    # cycle_length_ms= self.curr_img_metadata["CycleTime"],
-                                                                    cycle_length_ms= self.xscale,
-                                                                    rmp_method = rmp_method, 
-                                                                    apd_perc = apd_percentage, 
-                                                                    promi=self.prominence, 
-                                                                    interpolate = is_interpolated)
-                                    if not APs_props["APD"]:
-                                        print(f"Could not detect APD at pixel coordinate: [{y_px}, {x_px}].")
-                                        results[y_px, x_px] = np.nan
-                                    else:
-                                        apd_value = APs_props["APD"]
-                                        results[y_px, x_px] = apd_value
-                                
-                                except Exception as e:
-                                    results[y_px, x_px] = np.nan
-                                    # print(CustomException(e, sys))    
-                                    print(CustomException(e, sys, additional_info=f"error @ pixel [{y_px}, {x_px}]"))
-                            # else:
-                            #     APD[:, y_px, x_px] = 0
-                    
-                    # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
-                    # self.average_AP_plot_widget.axes.legend()
-                    # self.average_AP_plot_widget.canvas.draw()
-                    np.clip(results, a_min=0, a_max=None, out=results)
-
-                    params = {"APD_maps": {"curr_img_name": current_img_selection_name,
-                            "cycle_length_ms": self.xscale,
-                            "rmp_method" : rmp_method, 
-                            "apd_perc" : apd_percentage,
-                            "promi":self.prominence,
-                            "interpolate" : is_interpolated}}
-                    meth_name = compute_APD_props_func.__name__
-                    sufix = f"APDMap{percentage}"
-                    
-                    # self.add_result_img(result_img=APD, 
-                    #                     auto_metadata=False, 
-                    #                     custom_metadata=current_img_selection.metadata,
-                    #                     img_custom_name=current_img_selection.name, 
-                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                    #                     operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
-
-                    print("finished")
-
-                    # results,  mask_repol_indx_out, t_index_out,  resting_V = return_maps(current_img_selection.data, 
-                    #                                                                     cycle_time=cycl_t,
-                    #                                                                     map_type = map_type,
-                    #                                                                     percentage = percentage)
-
-                    # self._preview_multiples_traces_func()
-                    
-                    # _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
-                    # if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
-                    #     ndim = current_img_selection.ndim
-                    #     dshape = current_img_selection.data.shape
-                    #     _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
-
-                    #     if len(y_px) == 1 and len(x_px) == 1:
-                    #         self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "green", 
-                    #                                                  label=f'AP_ini',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "red", 
-                    #                                                  label=f'AP_end',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
-                    #                                                  linestyle='dashed', 
-                    #                                                  color = "grey", 
-                    #                                                  label=f'AP_resting_V',
-                    #                                                  lw = 0.5, 
-                    #                                                  alpha = 0.8)
-                            
-                    #         self.average_AP_plot_widget.axes.legend()
-                    #         self.average_AP_plot_widget.canvas.draw()
-                        # else:
-                        #     warn(" Not ROI larger than a single pixel. Please reduce the size to plot it")
-
-
-                    
-                    # self.add_result_img(result_img=APD, 
-                    #                     auto_metadata=False, 
-                    #                     custom_metadata=current_img_selection.metadata,
-                    #                     img_custom_name=current_img_selection.name, 
-                    #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
-                    #                     add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
-                self.add_result_img(result_img=results, 
-                                    operation_name="Generate_maps", 
-                                    method_name=meth_name, 
-                                    custom_img_name=current_img_selection.name, 
-                                    custom_metadata=current_img_selection.metadata, 
-                                    sufix=sufix, parameters=params)
-
-
-                self.add_record_fun()
-                print("Map generated")
+            # NOTE: 2 states for map type: 0 for Act maps and 2 for APD maps
+            map_type = self.toggle_map_type.checkState()
+            
+            # check for "CycleTime" in metadtata
+            if "CycleTime" in self.img_metadata_dict:
+                cycl_t = self.img_metadata_dict["CycleTime"]
             else:
-                return warn("Either non or more than 1 AP detected. Please average your traces, clip 1 AP or make sure you have at least one AP detected by changing the 'Sensitivity threshold'.") 
-       
-        else:
-            return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
+                cycl_t = 1
+            
+            is_interpolated = self.make_interpolation_check.isChecked()
+
+            if map_type == 0:
+            
+                results = return_maps(current_img_selection.data, 
+                                    cycle_time=cycl_t,
+                                    map_type = map_type,
+                                    percentage = percentage)
+                params = {"Activation_map":{"cycle_time": cycl_t,
+                        "map_type": map_type,
+                        "percentage": percentage}}
+                meth_name = return_maps.__name__
+                sufix = "ActMap"
+                
+                # self.add_result_img(result_img=results, 
+                #                 img_custom_name=current_img_selection.name, 
+                #                 single_label_sufix=f"ActMap_Interp{str(is_interpolated)[0]}", 
+                #                 operation_name = f"Activattion Map cycle_time={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+                
+                
+            
+            elif map_type == 2:
+                image = current_img_selection.data.copy()
+                n_frames, y_size, x_size = image.shape
+                rmp_method = self.APD_computing_method.currentText()
+                apd_percentage = self.slider_APD_percentage.value()
+
+                results = np.zeros((y_size, x_size))
+                mask = np.isnan(image[0, ...])
+                results[mask] = np.nan
+
+                for y_px  in progress(range(y_size)):
+                    for x_px in progress(range(x_size)):
+                        if not np.isnan(results[y_px, x_px]).any():
+                            try:
+                                APs_props = compute_APD_props_func(image[:, y_px, x_px],
+                                                                curr_img_name = current_img_selection_name, 
+                                                                # cycle_length_ms= self.curr_img_metadata["CycleTime"],
+                                                                cycle_length_ms= self.xscale,
+                                                                rmp_method = rmp_method, 
+                                                                apd_perc = apd_percentage, 
+                                                                promi=self.prominence, 
+                                                                interpolate = is_interpolated)
+                                if not APs_props["APD"]:
+                                    print(f"Could not detect APD at pixel coordinate: [{y_px}, {x_px}].")
+                                    results[y_px, x_px] = np.nan
+                                else:
+                                    apd_value = APs_props["APD"]
+                                    results[y_px, x_px] = apd_value
+                            
+                            except Exception as e:
+                                results[y_px, x_px] = np.nan
+                                # print(CustomException(e, sys))    
+                                print(CustomException(e, sys, additional_info=f"error @ pixel [{y_px}, {x_px}]"))
+                        # else:
+                        #     APD[:, y_px, x_px] = 0
+                
+                # self.average_AP_plot_widget.axes.plot(time, image[:, y_px, x_px], "-", label = "test", alpha = 0.8)
+                # self.average_AP_plot_widget.axes.legend()
+                # self.average_AP_plot_widget.canvas.draw()
+                np.clip(results, a_min=0, a_max=None, out=results)
+
+                params = {"APD_maps": {"curr_img_name": current_img_selection_name,
+                        "cycle_length_ms": self.xscale,
+                        "rmp_method" : rmp_method, 
+                        "apd_perc" : apd_percentage,
+                        "promi":self.prominence,
+                        "interpolate" : is_interpolated}}
+                meth_name = compute_APD_props_func.__name__
+                sufix = f"APDMap{percentage}"
+                
+                # self.add_result_img(result_img=APD, 
+                #                     auto_metadata=False, 
+                #                     custom_metadata=current_img_selection.metadata,
+                #                     img_custom_name=current_img_selection.name, 
+                #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
+                #                     operation_name = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, promi={self.prominence}, interpolate={self.make_interpolation_check.isChecked()}")
+
+                print("finished")
+
+                # results,  mask_repol_indx_out, t_index_out,  resting_V = return_maps(current_img_selection.data, 
+                #                                                                     cycle_time=cycl_t,
+                #                                                                     map_type = map_type,
+                #                                                                     percentage = percentage)
+
+                # self._preview_multiples_traces_func()
+                
+                # _, shapes_items = self._get_imgs_and_shapes_items_from_selector(return_img=True)
+                # if isinstance(current_img_selection, Image) and len(shapes_items) > 0:
+                #     ndim = current_img_selection.ndim
+                #     dshape = current_img_selection.data.shape
+                #     _, y_px, x_px = np.nonzero(shapes_items[0].to_masks(dshape[-2:]))
+
+                #     if len(y_px) == 1 and len(x_px) == 1:
+                #         self.average_AP_plot_widget.axes.axvline(x = t_index_out[y_px, x_px ] * cycl_t, #* 1000, 
+                #                                                  linestyle='dashed', 
+                #                                                  color = "green", 
+                #                                                  label=f'AP_ini',
+                #                                                  lw = 0.5, 
+                #                                                  alpha = 0.8)
+                        
+                #         self.average_AP_plot_widget.axes.axvline(x = mask_repol_indx_out[y_px, x_px ] * cycl_t,# * 1000, 
+                #                                                  linestyle='dashed', 
+                #                                                  color = "red", 
+                #                                                  label=f'AP_end',
+                #                                                  lw = 0.5, 
+                #                                                  alpha = 0.8)
+                        
+                #         self.average_AP_plot_widget.axes.axhline(y = resting_V,# * 1000, 
+                #                                                  linestyle='dashed', 
+                #                                                  color = "grey", 
+                #                                                  label=f'AP_resting_V',
+                #                                                  lw = 0.5, 
+                #                                                  alpha = 0.8)
+                        
+                #         self.average_AP_plot_widget.axes.legend()
+                #         self.average_AP_plot_widget.canvas.draw()
+                    # else:
+                    #     warn(" Not ROI larger than a single pixel. Please reduce the size to plot it")
+
+
+                
+                # self.add_result_img(result_img=APD, 
+                #                     auto_metadata=False, 
+                #                     custom_metadata=current_img_selection.metadata,
+                #                     img_custom_name=current_img_selection.name, 
+                #                     single_label_sufix=f"APDMap{percentage}_Interp{str(is_interpolated)[0]}", 
+                #                     add_to_metadata = f"APD{percentage} Map cycle_time_ms={round(cycl_t, 4)}, interpolate={self.make_interpolation_check.isChecked()}")
+            self.add_result_img(result_img=results, 
+                                operation_name="Generate_maps", 
+                                method_name=meth_name, 
+                                custom_img_name=current_img_selection.name, 
+                                custom_metadata=current_img_selection.metadata, 
+                                sufix=sufix, parameters=params)
+
+
+            self.add_record_fun()
+            print("Map generated")
+            #     else:
+            #         return warn("Either non or more than 1 AP detected. Please average your traces, clip 1 AP or make sure you have at least one AP detected by changing the 'Sensitivity threshold'.") 
+        
+            # else:
+            #     return warn("Make first a Preview of the APs detected using the 'Preview traces' button.") 
+        except Exception as e:
+            raise CustomException(e, sys)
 
 
 
@@ -3956,9 +4000,13 @@ class OMAAS(QWidget):
                                         method_name="indexing", 
                                         sufix="Clip", parameters=params)
                     # self.add_record_fun()
-                    # self.plot_profile_btn.setChecked(False)
                     self.is_range_clicked_checkbox.setChecked(False)
-                    self.plot_last_generated_img()
+                    self.plot_profile_btn.setChecked(False)
+                    self.listImagewidget.clearSelection()
+                    new_img_indx = len([self.listImagewidget.item(n).text() for n in range(self.listImagewidget.count())]) -1
+                    self.listImagewidget.item(new_img_indx).setSelected(True)
+                    self.plot_profile_btn.setChecked(True)
+                    # self.plot_last_generated_img()
                     
                     print(f"{'*'*5} Clipping from time index: [{start_indx}:{end_indx}] to image: '{image.name}'. {'*'*5}")
             else:
@@ -4235,7 +4283,7 @@ class OMAAS(QWidget):
 
             elif len(selectedItems) > 1:
                 current_selection = [self.viewer.layers[item].data for item in selectedItems]
-                self.map_data = np.concatenate(current_selection, axis = 1)
+                self.map_data = concatenate_and_padd_with_nan_2d_arrays(current_selection)
             
             else:
                 return warn(f"No image selected. Please select an Image from the selector")
@@ -4296,7 +4344,7 @@ class OMAAS(QWidget):
     
     
     
-    def _preview_erode_btn_func(self):
+    def _preview_postProcessingMAP_btn_func(self):
         # self.w = AnotherWindow()
         # self.w.show()
 
@@ -4304,10 +4352,7 @@ class OMAAS(QWidget):
         self.InterctiveWindod_edit_map.show()
 
     
-    def _close_preview_erode_window_btn(self):
-        self.InterctiveWindowMapErode.close()
-
-    def _crop_all_views_and_rotate_btn_func(self):
+    def _crop_all_views_and_rotate_btn_func(self, return_only_bounding_box = False):
         try:
         # 1. get mask from current Image using auto segemntation
 
@@ -4339,7 +4384,7 @@ class OMAAS(QWidget):
                                                                                             area_threshold=1000,
                                                                                             vertical_padding=v_padding,
                                                                                             horizontal_padding=h_padding)
-                if self.return_bounding_boxes_only_btn.isChecked():
+                if return_only_bounding_box:
                     return self.viewer.add_shapes(bounding_boxes)
 
                 # 3. arrange and combine boxes
@@ -4359,11 +4404,11 @@ class OMAAS(QWidget):
                 arranged_labels = arrange_cropped_images([(label, None, None) for label in cropped_labels_3d], 
                                                          arrangement=orientation, 
                                                          padding_value=0)
-                
-                self.add_result_label(arranged_labels[0], 
-                                            img_custom_name="Heart_labels", 
-                                            single_label_sufix = f"NullBckgrnd", 
-                                            add_to_metadata = f"Background image masked")
+                if self.return_mask_form_rearranging.isChecked():
+                    self.add_result_label(arranged_labels[0], 
+                                                img_custom_name="Heart_labels", 
+                                                single_label_sufix = f"NullBckgrnd", 
+                                                add_to_metadata = f"Background image masked")
                 
                 self.add_result_img(result_img=results, 
                                 operation_name="crop_and_rearrange_views", 
@@ -4558,10 +4603,13 @@ class InterctiveWindowMapErode(QWidget):
         # self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 4, 0, 1, 3)
 
         self.accept_post_processing_changes_btn = QPushButton("Acept changes")
-        self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 3)
+        self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 2)
 
         self.reset_all_postprocessing_map_btn = QPushButton("reset")
-        self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 3, 1, 2)
+        self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 2, 1, 2)
+       
+        self.close_postprocessing_map_window_btn = QPushButton("close")
+        self.preview_map_erode_group.glayout.addWidget(self.close_postprocessing_map_window_btn, 3, 4, 1, 1)
 
                   
         
@@ -4570,7 +4618,7 @@ class InterctiveWindowMapErode(QWidget):
         ##############
         # Callbacks ##
         ##############
-        self.accept_post_processing_changes_btn.clicked.connect(self._apply_erosion_btn_func)
+        self.accept_post_processing_changes_btn.clicked.connect(self._apply_postprocessing_methods_func)
         self.n_pixels_erode_slider.valueChanged.connect(self.n_pixels_erode_slider_func)
         self.small_holes_size_map_spinbox.valueChanged.connect(self.n_pixels_erode_slider_func)
         # self.apply_gaussian_filt_btn.clicked.connect(self._apply_gaussian_filt_btn_func)
@@ -4578,13 +4626,15 @@ class InterctiveWindowMapErode(QWidget):
         self.gaussian_radius.valueChanged.connect(self._apply_gaussian_filt_on_map_func)
         # self.reset_erosion_btn.clicked.connect(self._reset_all_btn_func)
         self.reset_all_postprocessing_map_btn.clicked.connect(self._reset_all_btn_func)
+        self.close_postprocessing_map_window_btn.clicked.connect(self._close_postprocessing_windows_func)
 
 
-    def _apply_erosion_btn_func(self):
+    def _apply_postprocessing_methods_func(self):
 
         try:
             self.n_pixels_erode_slider_func()
-            # current_image = self.viewer.layers.selection.active
+            img_items = [item.text() for item in self.o.map_imgs_selector.selectedItems()]
+            current_map_image = self.viewer.layers[img_items[0]]
             # self.o.img_title
             # Step 1: Split the strings into parts
             split_strings = [s.split('_') for s in self.o._get_imgs2d_from_map_selector()]
@@ -4615,10 +4665,10 @@ class InterctiveWindowMapErode(QWidget):
             
             self.o.add_result_img(result_img=self.result_map_image, 
                                 operation_name="Postprocessing_maps[test]", 
-                                custom_img_name=f"{final_string}_PostProMap", 
+                                custom_img_name=f"{final_string}", 
                                 method_name="crop_from_shape",
                                 custom_inputs = input_imgs,
-                                custom_metadata= self.viewer.layers.selection.active.metadata,
+                                custom_metadata= current_map_image.metadata,
                                 sufix="PostProMap", 
                                 parameters=params)
             print("Image exported")
@@ -4694,6 +4744,9 @@ class InterctiveWindowMapErode(QWidget):
             self.preview_plotter_widget.canvas.draw()
         except Exception as e:
             raise CustomException(e, sys)
+        
+    def _close_postprocessing_windows_func(self):
+        self.close()
 
         
     

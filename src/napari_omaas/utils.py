@@ -842,9 +842,10 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
     dfdt =  (dfdt - dfdt.min()) /  dfdt.max()
     # dff_filt = signal.savgol_filter(dff, filter_size, 2)
     
-    AP_ini = []
-    AP_peak = []
-    AP_end = [] 
+    indx_AP_upstroke = []
+    indx_AP_peak = []
+    indx_AP_end = []
+    indx_AP_resting = []
 
     for peak in range(len(peaks_times)):
         #  Find RMP and APD
@@ -852,7 +853,8 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
         bcl = bcl_list[peak]
         # Find interval of AP in indices
-        ini_indx = np.max(np.append(np.argwhere(time >= peaks_times[peak] - bcl/1.5)[0], 0))
+        ini_indx = np.argmax(time >= (peaks_times[peak] - bcl / 1.5))  # finds the first True index
+        ini_indx = max(ini_indx, 0)  # ensures the index is at least 0
         
         if peak + 1 == len(peaks_times):
             end_indx = np.argmax(time)
@@ -892,7 +894,7 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
 
             # dfdt_max, dfdt_max_indx = np.max(dfdt_interpolated), np.argmax(dfdt_interpolated)
             activation_time[peak] = time[upstroke_indx]
-            dVdtmax[peak] = dfdt[upstroke_indx] * cycle_length_ms
+            dVdtmax[peak] = np.max(dfdt) * cycle_length_ms
 
 
         # compute RMP from before and after upstroke
@@ -932,6 +934,8 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         amp_V = (((100 - apd_perc) / 100) * (V_max - resting_V[peak])) + resting_V[peak]
         # Find index where the AP has recovered the given percentage (or if it didnt, take the last index)
         current_APD_segment = np_1Darray[AP_peaks_indx[peak] + 1 : end_indx]
+        indx_baseline = np.argwhere(np_1Darray[ini_indx:upstroke_indx][::-1] <= resting_V[peak]) # look backwards and find the first index where the the baseline start
+        resting_V_indx = upstroke_indx - indx_baseline[0][0] if indx_baseline.size > 0 else upstroke_indx - np.argwhere(np_1Darray[ini_indx:upstroke_indx][::-1] <= np.mean(np_1Darray[ini_indx:upstroke_indx]))[0][0] # uses index of baseline if exists otherwise get the average from ini_indx:upstroke_indx
         repol_index =  AP_peaks_indx[peak] + np.minimum(np.argmax(current_APD_segment <= amp_V) , current_APD_segment.shape[-1] -1)
         pre_repol_index = repol_index - 2
         # generate fine grid for interpolation in ms
@@ -941,11 +945,13 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         repol_index_interpolated = np.append(np.argwhere(Vm_interpolated <= amp_V), time_fine_grid.size -1 ).min()
 
         repol_time[peak] = time_fine_grid[repol_index_interpolated] #* 1000
-        APD[peak] = repol_time[peak] - activation_time[peak]
+        # APD[peak] = repol_time[peak] - activation_time[peak]
+        APD[peak] = repol_time[peak] - time[resting_V_indx]
 
-        AP_ini.append(upstroke_indx) 
-        AP_peak.append(AP_peaks_indx[peak]) 
-        AP_end.append(repol_index ) 
+        indx_AP_upstroke.append(upstroke_indx) 
+        indx_AP_peak.append(AP_peaks_indx[peak]) 
+        indx_AP_end.append(repol_index )
+        indx_AP_resting.append(resting_V_indx)
 
 
 
@@ -969,12 +975,13 @@ def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 
         "amp_Vmax":amp_Vmax,
         "BasCycLength_bcl":bcl_list,
         "resting_V":resting_V,
-        "time_at_AP_upstroke":time[AP_ini],
-        "time_at_AP_peak":time[AP_peak], 
-        "time_at_AP_end":time[AP_end], 
-        "indx_at_AP_upstroke":AP_ini, 
-        "indx_at_AP_peak":AP_peak, 
-        "indx_at_AP_end":AP_end,
+        "time_at_AP_upstroke":time[indx_AP_upstroke],
+        "time_at_AP_peak":time[indx_AP_peak], 
+        "time_at_AP_end":time[indx_AP_end], 
+        "indx_at_AP_resting":indx_AP_resting,
+        "indx_at_AP_upstroke":indx_AP_upstroke,
+        "indx_at_AP_peak":indx_AP_peak, 
+        "indx_at_AP_end":indx_AP_end,
         "curr_file_id":file_id
         }
      
@@ -1093,33 +1100,120 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
     
 
 @macro.record
-def split_AP_traces_and_ave_func(trace, ini_i, end_i, type = "1d", return_mean = False):
-    """
-    This function takes a 1d or 3D array, ini index, end index of ap 
-    previously computed with function 'return_AP_ini_end_indx_func' 
-    and return the splitted arrays for each AP.
-    """
-    # must check that all len are the same
-    n_peaks = len(ini_i)
+# def split_AP_traces_and_ave_func(trace, ini_i, end_i, type = "1d", return_mean = False):
+#     """
+#     This function takes a 1d or 3D array, ini index, end index of ap 
+#     previously computed with function 'return_AP_ini_end_indx_func' 
+#     and return the splitted arrays for each AP.
+#     """
+#     # must check that all len are the same
+#     n_peaks = len(ini_i)
     
-    splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
-    # take the small trace len and adjust the other traces to that
-    min_dim = np.min([trace[0].shape for trace in splitted_traces])
-    splitted_traces = [trace[0][:min_dim] for trace in splitted_traces]
+#     splitted_traces = [[trace[ini:end, ...]] for ini, end in zip(ini_i, end_i)]
+#     # take the small trace len and adjust the other traces to that
+#     min_dim = np.min([trace[0].shape for trace in splitted_traces])
+#     splitted_traces = [trace[0][:min_dim] for trace in splitted_traces]
 
-    if type == "1d":
-        splitted_traces = np.array(splitted_traces).reshape(n_peaks, -1)
+#     if type == "1d":
+#         splitted_traces = np.array(splitted_traces).reshape(n_peaks, -1)
     
-    elif type == "3d":
-        img_dim_x, img_dim_y = trace.shape[-2:]
-        splitted_traces = np.array(splitted_traces).reshape( n_peaks, -1, img_dim_x, img_dim_y)
+#     elif type == "3d":
+#         img_dim_x, img_dim_y = trace.shape[-2:]
+#         splitted_traces = np.array(splitted_traces).reshape( n_peaks, -1, img_dim_x, img_dim_y)
     
 
-    if return_mean:
-        splitted_traces = np.mean(np.array([trace for trace in splitted_traces]), axis=(0))
+#     if return_mean:
+#         splitted_traces = np.mean(np.array([trace for trace in splitted_traces]), axis=(0))
         
     
-    return splitted_traces
+#     return splitted_traces
+
+def concatenate_and_padd_with_nan_2d_arrays(arrays):
+    """
+    Concatenates multiple 2D arrays with different sizes into one larger array.
+    
+    If the arrays have different shapes, they will be padded with NaN values 
+    to ensure the final concatenated array has a consistent size.
+    
+    Parameters:
+    arrays (list of np.ndarray): A list containing 2D numpy arrays to be concatenated.
+
+    Returns:
+    np.ndarray: A single 2D numpy array where all input arrays are stacked along the
+                second axis (horizontally), padded with NaNs where the arrays are smaller.
+    
+    Example:
+    >>> a1 = np.array([[1, 2], [3, 4]])
+    >>> a2 = np.array([[5, 6, 7]])
+    >>> a3 = np.array([[8]])
+    >>> concatenate_with_nan([a1, a2, a3])
+    array([[ 1.,  2., nan],
+           [ 3.,  4., nan],
+           [ 5.,  6.,  7.],
+           [ 8., nan, nan]])
+    """
+    # Find the maximum shape (height and width) among all the arrays
+    max_rows = max(arr.shape[0] for arr in arrays)
+    max_cols = max(arr.shape[1] for arr in arrays)
+
+    # Create a list of padded arrays
+    padded_arrays = [np.pad(arr, ((0, max_rows - arr.shape[0]), 
+                                  (0, max_cols - arr.shape[1])), 
+                            mode='constant', constant_values=np.nan)
+                     for arr in arrays]
+    
+    # Concatenate them along the second axis (horizontally)
+    return np.hstack(padded_arrays)
+
+
+def split_AP_traces_and_ave_func(trace, ini_i, end_i, type="1d", return_mean=False):
+    """
+    This function takes a 1D or 3D array and splits it into segments based on 
+    the provided start (ini_i) and end (end_i) indices, handling cases where the 
+    lengths of the split segments may differ. Optionally, it computes the mean of 
+    the split segments, while ignoring NaNs (used for padding).
+
+    Parameters:
+    trace (np.array): Input 1D or 3D array to be split.
+    ini_i (list or np.array): List of start indices for each segment.
+    end_i (list or np.array): List of end indices for each segment.
+    type (str): Indicates whether the input array is "1d" or "3d". Default is "1d".
+    return_mean (bool): If True, returns the average of the split arrays. Default is False.
+
+    Returns:
+    np.array: An array containing the split traces. If return_mean is True, returns the 
+    mean of the split traces, with NaNs ignored during averaging.
+    """
+    
+    # Number of segments to be split from the trace
+    n_peaks = len(ini_i)
+    
+    # Splitting the trace into individual segments based on ini_i and end_i
+    splitted_traces = [trace[ini:end, ...] for ini, end in zip(ini_i, end_i)]
+    
+    # Find the maximum length of the segments to ensure consistent array dimensions
+    max_len = max([segment.shape[0] for segment in splitted_traces])
+    
+    # Pad shorter segments with NaN values to match the maximum length
+    padded_traces = [np.pad(segment, ((0, max_len - segment.shape[0]),) + ((0, 0),) * (segment.ndim - 1), 
+                            mode='constant', constant_values=np.nan) for segment in splitted_traces]
+    
+    # Reshaping based on whether the input array is 1D or 3D
+    if type == "1d":
+        # Convert list of arrays into a 2D numpy array (n_peaks x max_len)
+        padded_traces = np.array(padded_traces).reshape(n_peaks, -1)
+    
+    elif type == "3d":
+        # Assumes the input trace is 3D and reshapes accordingly (n_peaks x max_len x img_dim_x x img_dim_y)
+        img_dim_x, img_dim_y = trace.shape[-2:]
+        padded_traces = np.array(padded_traces).reshape(n_peaks, max_len, img_dim_x, img_dim_y)
+
+    # If return_mean is True, compute the mean across the first dimension (n_peaks), ignoring NaN values
+    if return_mean:
+        padded_traces = np.nanmean(padded_traces, axis=0)
+        
+    return padded_traces
+
 
 
 @macro.record
