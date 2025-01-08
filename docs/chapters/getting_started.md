@@ -132,8 +132,6 @@ The next example shows how to compute action potential duration (APD) in the sam
 You can also perform additional operations on images, such as normalization, temporal/spatial filters, segmentation, but also apply more advanced image processing methods such as motion tracking/compensation, etc.
 For detailed examples, pleaase refer to the tutorials.
 
-----------------------------------
-
 
 
 
