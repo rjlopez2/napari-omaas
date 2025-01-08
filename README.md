@@ -7,26 +7,33 @@
 [![codecov](https://codecov.io/gh/rjlopez2/napari-omaas/branch/main/graph/badge.svg)](https://codecov.io/gh/rjlopez2/napari-omaas)
 [![napari hub](https://img.shields.io/endpoint?url=https://api.napari-hub.org/shields/napari-omaas)](https://napari-hub.org/plugins/napari-omaas)
 
-**napari-OMAAS stands for Optical Mapping Acquisition and Analysis Software for panoramic heart imaging**
+napari-OMAAS stands for **Optical Mapping Acquisition and Analysis Software** for panoramic heart imaging.
 
 This napari plugin intends to be an analysis and acquisition tool for optical mapping in potentiometric (V<sub>m</sub>) or calcium (Ca<sup>2+</sup>) fluorescence signals obtained from panoramic imaging of intact hearts.
 
- It supports reading images in .sif format and binary files generated from Andor Technologies powered by the [sif_parser] python module.
+ It supports reading images in `.sif` format and binary files generated from Andor Technologies cameras powered by the [sif_parser] python module.
 
 
 
-```{admonition} Experimental ❗️🐲🧪🔭🐗💣🚨🪲☣️❗️
+<!-- ```{admonition} Experimental ❗️🐲🧪🔭🐗💣🚨🪲☣️❗️
 :class: warning
 This plugin is in early development/experimental stage so expect braking changes and bugs at anytime.
-```
-# Examples
+``` -->
+## Examples
 
-The following example ilustrate how to perform normalization (pixelwise) on a time serie image and plot its 2d profile along the t dimension withing the average data from the ROI selected.
+<br /> 
+
+### Plot profile
+
+The following example ilustrate how to perform normalization (pixelwise) on a time serie image and plot its 2d profile along the *t* dimension withing the averaged ROI selected pixels.
 
 ![](https://github.com/rjlopez2/napari-omaas/blob/documentation/example_imgs/Oct-31-2023%2016-45-55_plot_profile.gif?raw=true)
 
 ----------------------------------
-The next example shows how to compute action potential duration in the same image stack.
+
+### APD estimation 
+
+The next example shows how to compute action potential duration (APD) in the same image stack.
 
 ![](https://github.com/rjlopez2/napari-omaas/blob/documentation/example_imgs/Oct-31-2023%2016-49-02_APD_analysis.gif?raw=true)
 
