@@ -11,9 +11,18 @@ chapters/getting_started.md
 ```{toctree}
 :maxdepth: 2
 :hidden:
-:caption: 📖 Tutorials
+:caption: 📘 Tutorials
 
 tutorials/tutorials.md
+
+```
+
+```{toctree}
+:maxdepth: 2
+:hidden:
+:caption: 📄 Example Scripts
+
+scripts_examples/scripts_examples.md
 
 ```
 
