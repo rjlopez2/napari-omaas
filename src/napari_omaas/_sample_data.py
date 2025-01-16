@@ -226,7 +226,6 @@ from __future__ import annotations
 #     return [(data, add_kwargs, "image")]
 
 
-import os
 import zipfile
 import requests
 import sif_parser
@@ -236,18 +235,18 @@ from napari.types import LayerData
 from napari.utils import progress
 import tempfile  # For creating a temporary directory
 
-# Define constants for the sample data URLs (replace with actual URLs)
-SAMPLE_DATA_URL = "https://physiologie.unibe.ch/~odening/group/data/4viewpanoramicstackimage.zip"  # Replace with your .zip file URL
+# Define constants for the sample data URL
+SAMPLE_DATA_URL = "https://physiologie.unibe.ch/~odening/group/data/4viewpanoramicstackimage.zip"
 
-# Create a temporary directory for the session
+# Use a temporary directory for the session
 SESSION_TEMP_DIR = Path(tempfile.gettempdir()) / "napari_omaas_sample_data"
 SESSION_TEMP_DIR.mkdir(exist_ok=True)
 
-SAMPLE_ZIP_FILE = SESSION_TEMP_DIR / "sample.zip"
+SAMPLE_ZIP_FILE = SESSION_TEMP_DIR / "4viewpanoramicstackimage.zip"
 
 
 def download_file(url, dest_path):
-    """Download a file from a given URL to a specific path with progress tracking."""
+    """Download a file from a URL to a specific path with progress tracking."""
     print(f"Downloading file from {url}...")
     response = requests.get(url, stream=True)
     response.raise_for_status()
@@ -261,28 +260,41 @@ def download_file(url, dest_path):
     print(f"File downloaded to {dest_path}")
 
 
-def extract_zip_and_find_sif(zip_path):
-    """Extract a zip file and find the first .sif file in its contents."""
+def extract_zip_and_get_sif_path(zip_path):
+    """
+    Extract a .zip file and return the path of the .sif file inside it.
+
+    Parameters
+    ----------
+    zip_path : Path
+        Path to the .zip file.
+
+    Returns
+    -------
+    Path
+        Path to the extracted .sif file.
+    """
     print(f"Extracting {zip_path}...")
     with zipfile.ZipFile(zip_path, "r") as z:
         z.extractall(SESSION_TEMP_DIR)
 
-    # Find the first .sif file in the extracted contents
+    # Find the .sif file in the extracted contents
     sif_files = list(SESSION_TEMP_DIR.glob("*.sif"))
     if not sif_files:
         raise FileNotFoundError("No .sif file found in the extracted zip.")
-    
-    print(f"Found .sif file: {sif_files[0]}")
-    return sif_files[0]
+
+    sif_path = sif_files[0]  # Assume there's only one .sif file
+    print(f"Found .sif file: {sif_path}")
+    return sif_path
 
 
-def get_sample_data():
-    """Ensure the sample data is downloaded and return the path to the .sif file."""
+def ensure_sample_data():
+    """Download and extract the sample data if not already present."""
     if not SAMPLE_ZIP_FILE.exists():
         download_file(SAMPLE_DATA_URL, SAMPLE_ZIP_FILE)
-    
-    # Extract and find the .sif file
-    sif_path = extract_zip_and_find_sif(SAMPLE_ZIP_FILE)
+
+    # Extract and get the .sif file path
+    sif_path = extract_zip_and_get_sif_path(SAMPLE_ZIP_FILE)
     return sif_path
 
 
@@ -294,14 +306,18 @@ def make_sample_data():
     -------
     data : list of LayerData tuples
     """
-    sif_path = get_sample_data()
+    sif_path = ensure_sample_data()
     data, info = sif_parser.np_open(sif_path)
 
     metadata = {key: val for key, val in info.items() if not key.startswith("timestamp")}
-    metadata['source'] = str(sif_path)
+    metadata["source"] = str(sif_path)
 
-    add_kwargs = {"colormap": "turbo", 
-                  "metadata": metadata, 
-                  "name": sif_path.name.split('.')[0]} # need to exploitaly set the name here otherwise get not assigned by default.
+    add_kwargs = {
+        "colormap": "turbo",
+        "metadata": metadata,
+        "name": sif_path.stem,  # Use the .sif file's actual name (stem)
+    }
     return [(data, add_kwargs, "image")]
+
+
 
