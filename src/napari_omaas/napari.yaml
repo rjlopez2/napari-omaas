@@ -22,26 +22,21 @@ contributions:
       title: Make example function widget
     - id: napari-omaas.get_reader
       python_name: napari_omaas._reader:napari_get_reader
-      title: Open sif data with napari-omaas default reader
+      title: Open sif data with napari-omaas default reader  
   writers:
     - command: napari-omaas.write_multiple
       layer_types: ['image*','labels*']
       filename_extensions: []
     - command: napari-omaas.write_single_image
       layer_types: ['image']
-      filename_extensions: ['.npy']
+      filename_extensions: ['.npy']  
   sample_data:
     - command: napari-omaas.make_sample_data
-      display_name: napari OMAAS
-      key: heartsample
+      display_name: Heart Sample 1
+      key: heart_sample_1
   widgets:
     - command: napari-omaas.make_qwidget
-      display_name: Optical Mapping Analysis
-    - command: napari-omaas.make_magic_widget
-      display_name: Example Magic Widget
-    - command: napari-omaas.make_func_widget
-      autogenerate: true
-      display_name: Example Function Widget
+      display_name: Optical Mapping Analysis  
   readers:
     - command: napari-omaas.get_reader
       accepts_directories: true
