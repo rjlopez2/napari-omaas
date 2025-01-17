@@ -15,8 +15,8 @@ sys.path.insert(0, os.path.abspath('../..'))
 
 # -- Convert tutorials -------------------------------------------------------
 # convert notebooks to python files for download
-def convert_notebooks():
-    tutorials = Path(__file__).parent / "tutorials"
+def convert_notebooks(chapter_folder):
+    tutorials = Path(__file__).parent / chapter_folder
     output_folder = tutorials / "converted"
     output_folder.mkdir(exist_ok=True)
 
@@ -39,7 +39,8 @@ def convert_notebooks():
         jupytext.write(nb, output_folder / f'{path.stem}.ipynb', fmt="ipynb", config=config)
         nb['cells'] = list(filter(remove_markdown, nb.cells))
         jupytext.write(nb, output_folder / f'{path.stem}.py', fmt="py:percent", config=config)
-convert_notebooks()
+convert_notebooks("tutorials")
+convert_notebooks("scripts_examples")
 
 
 # -- Project information -----------------------------------------------------
@@ -68,6 +69,9 @@ extensions = [
 
 templates_path = ['_templates']
 exclude_patterns = []
+# execution_excludepatterns = ['*dual*', '*red*']
+# execution_timeout = -1
+nb_execution_allow_errors=True
 
 
 # List of patterns, relative to source directory, that match files and
