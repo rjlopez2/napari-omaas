@@ -238,6 +238,7 @@ import sif_parser  # Assuming files in the folder are .sif files or compatible w
 # Define constants for the sample data URLs
 SIF_SAMPLE_URL = "https://physiologie.unibe.ch/~odening/group/data/4viewpanoramicstackimage.zip"  # Existing .sif dataset
 FOLDER_SAMPLE_URL = "https://physiologie.unibe.ch/~odening/group/data/single_illumination_spool_data_sample.zip"  # New dataset (folder inside .zip)
+FOLDER_SAMPLE_URL_DUAL = "https://physiologie.unibe.ch/~odening/group/data/dual_illumination_spool_data_sample.zip"  # New dataset (folder inside .zip)
 
 # Use a temporary directory for the session
 SESSION_TEMP_DIR = Path(tempfile.gettempdir()) / "napari_omaas_sample_data"
@@ -245,6 +246,7 @@ SESSION_TEMP_DIR.mkdir(exist_ok=True)
 
 SIF_ZIP_FILE = SESSION_TEMP_DIR / "sif_sample.zip"
 FOLDER_ZIP_FILE = SESSION_TEMP_DIR / "folder_sample.zip"
+FOLDER_ZIP_FILE_DUAL = SESSION_TEMP_DIR / "folder_sample_dual.zip"
 
 
 def download_file(url, dest_path):
@@ -344,3 +346,30 @@ def make_folder_sample_data():
         "name": folder_path.stem,
     }
     return [(data, add_kwargs, "image")]
+
+
+def make_folder_sample_data_dual():
+        """
+        Create a sample dataset for a folder that contains a spool dataset.
+
+        Returns
+        -------
+        data : list of LayerData tuples
+        """
+        folder_path = ensure_sample_data(FOLDER_SAMPLE_URL_DUAL, FOLDER_ZIP_FILE_DUAL)
+        spool_folder = os.listdir(folder_path)
+        if not spool_folder:
+            raise FileNotFoundError("No folder found in the ziped dataset.")
+        folder_path = folder_path / spool_folder[0] # assume there are only one file in the zipped file.
+
+        data, info = sif_parser.np_spool_open(str(folder_path))
+
+        metadata = {key: val for key, val in info.items() if not key.startswith("timestamp")}
+        metadata["source"] = str(spool_folder)
+
+        add_kwargs = {
+            "colormap": "turbo",
+            "metadata": metadata,
+            "name": folder_path.stem,
+        }
+        return [(data, add_kwargs, "image")]
