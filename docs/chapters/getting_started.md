@@ -1,6 +1,13 @@
 
 # Installation
 
+```{admonition} Note
+:class: note
+for me:
+- [ ] refactor the way of installing napari omaas using just conda-forge in the environment_OMAAS_CPU.yml
+- [ ] add support and installation for GPU usage
+```
+
 To use this plugin you will need first to install napari, a fast, interactive viewer for multi-dimensional images in Python. Find more info about napari usage and installation [here](https://napari.org/stable/).
 
 ```{admonition} Important
@@ -28,12 +35,12 @@ pip install git+https://github.com/rjlopez2/napari-omaas.git
 :class: Note
 This is a recommended method we currently use to install napari-omaas and all additional dependencies in a custom environment:
 ```
-1. Download manually or via comand line the `environment_OMAAS_CPU.yml` file from the [OMAAS](https://github.com/rjlopez2/napari-omaas) repository. This repo contain a number of configuration files for our experiments setup.
+1. Download manually or via comand line the `environment_OMAAS_CPU.yml` file from the [OMAAS](https://github.com/rjlopez2/napari-omaas) repository. This repo contains a number of configuration files for our experiments setup.
 
 ```sh
 curl -O https://raw.githubusercontent.com/rjlopez2/OMAAS/master/setup_files/environments/environment_OMAAS_CPU.yml
 ```
-2. Cretae the environment using the downlowded file.
+2. Create the environment using the recipe from the downlowded file.
 
 ```sh
 conda create -f environment_OMAAS_CPU.yml
@@ -70,8 +77,8 @@ This plugin can read images generated with Andor Technologies cameras. It has be
 
 ### Via command line
 
-<details>
-<summary>Click to expand</summary>
+<!-- <details>
+<summary>Click to expand</summary> -->
 
 First activate your environment and then launch the application with the following command:
 
@@ -80,12 +87,12 @@ conda activate omaas_base
 napari -w napari-omaas
 ```
 A new window should appera showing the Napari viewer with the `napari-omaas` pluging attached.
-</details>
+<!-- </details> -->
 
 ### Via Jupyter-Notebook or python script
 
-<details>
-<summary>Click to expand</summary>
+<!-- <details>
+<summary>Click to expand</summary> -->
 
 ```python
 import napari
@@ -103,46 +110,29 @@ to display the metadata use the standard call to the corresponding layer:
 ```python
 viewer.layers['my_image'].metadata
 ```
-</details>
-<br>
+<!-- </details>
+<br> -->
 
-You can also perform some basic operations on images, such as normalization, temporal/spatial filters, plot profile, but also apply more advanced image processing methods such as motion tracking/compensation, etc.
-<br><br>
-# Examples
+### Plot profile
 
-The following example ilustrate how to perform normalization (pixelwise) on a time serie image and plot its 2d profile along the t dimension withing the average data from the ROI selected.
+The following example ilustrate how to perform normalization (pixelwise) on a time serie image and plot its 2d profile along the *t* dimension withing the averaged ROI selected pixels.
 
 ![](https://github.com/rjlopez2/napari-omaas/blob/documentation/example_imgs/Oct-31-2023%2016-45-55_plot_profile.gif?raw=true)
 
+----------------------------------
 
-The next example shows how to compute action potential duration in the same image stack.
+### APD estimation 
+
+The next example shows how to compute action potential duration (APD) in the same image stack.
 
 ![](https://github.com/rjlopez2/napari-omaas/blob/documentation/example_imgs/Oct-31-2023%2016-49-02_APD_analysis.gif?raw=true)
 
-# Roadmap
+----------------------------------
 
-This plugin is composed of two major components: **analysis** and **acquisition**.
+You can also perform additional operations on images, such as normalization, temporal/spatial filters, segmentation, but also apply more advanced image processing methods such as motion tracking/compensation, etc.
+For detailed examples, pleaase refer to the tutorials.
 
-Bellow is a list of some features this plugin aims to do.
 
-## Analysis Features
-    
-- [x] Read sif files from Andor Technologies.
-- [x] Display time profile of ROIs on image sequences.
-- [x] Normalize images.
-    - [x] Perform peak analysis of action potential / Calcium traces.
-    - [x] Add motion correction.
-    - [x] APD analysis.
-    - [x] Create activation maps.
-    - [x] Segment images.
-    - [ ] Automatic crop and alignment of heart ROIs.
-- [x] Export results, metadata and analysis log.
-
-## Acquisition Features
-
-- [ ] Control Zyla camera for the acquisition of data
-    - [ ] test using the PYME module
-- [ ] Real-time analysis(?)
 
 
 [pip]: https://pypi.org/project/pip/

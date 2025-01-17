@@ -8,40 +8,36 @@ contributions:
     - id: napari-omaas.write_single_image
       python_name: napari_omaas._writer:write_single_image
       title: Save image data with napari OMAAS
-    - id: napari-omaas.make_sample_data
-      python_name: napari_omaas._sample_data:make_sample_data
-      title: Load sample data from napari OMAAS
+    - id: napari-omaas.make_sif_sample_data
+      python_name: napari_omaas._sample_data:make_sif_sample_data
+      title: Load sample data in sif format from napari OMAAS
+    - id: napari-omaas.make_folder_sample_data
+      python_name: napari_omaas._sample_data:make_folder_sample_data
+      title: Load sample data in spooling (binary) format from napari OMAAS    
     - id: napari-omaas.make_qwidget
       python_name: napari_omaas._widget:OMAAS
       title: Optical Mapping Analysis
-    - id: napari-omaas.make_magic_widget
-      python_name: napari_omaas._widget:example_magic_widget
-      title: Make example magic widget
-    - id: napari-omaas.make_func_widget
-      python_name: napari_omaas._widget:example_function_widget
-      title: Make example function widget
     - id: napari-omaas.get_reader
       python_name: napari_omaas._reader:napari_get_reader
-      title: Open sif data with napari-omaas default reader
+      title: Open sif data with napari-omaas default reader  
   writers:
     - command: napari-omaas.write_multiple
       layer_types: ['image*','labels*']
       filename_extensions: []
     - command: napari-omaas.write_single_image
       layer_types: ['image']
-      filename_extensions: ['.npy']
+      filename_extensions: ['.npy']  
   sample_data:
-    - command: napari-omaas.make_sample_data
-      display_name: napari OMAAS
-      key: heartsample
+    - command: napari-omaas.make_sif_sample_data
+      display_name: Example SIF Dataset
+      key: heart_sample_1
+    - command: napari-omaas.make_folder_sample_data
+      display_name: Example spool Dataset
+      key: heart_sample_2
+    
   widgets:
     - command: napari-omaas.make_qwidget
-      display_name: Optical Mapping Analysis
-    - command: napari-omaas.make_magic_widget
-      display_name: Example Magic Widget
-    - command: napari-omaas.make_func_widget
-      autogenerate: true
-      display_name: Example Function Widget
+      display_name: Optical Mapping Analysis  
   readers:
     - command: napari-omaas.get_reader
       accepts_directories: true
