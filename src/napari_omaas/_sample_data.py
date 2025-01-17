@@ -227,6 +227,7 @@ from __future__ import annotations
 
 
 import zipfile
+import os
 import requests
 from pathlib import Path
 from napari.types import LayerData
@@ -236,7 +237,7 @@ import sif_parser  # Assuming files in the folder are .sif files or compatible w
 
 # Define constants for the sample data URLs
 SIF_SAMPLE_URL = "https://physiologie.unibe.ch/~odening/group/data/4viewpanoramicstackimage.zip"  # Existing .sif dataset
-FOLDER_SAMPLE_URL = "https://example.com/path/to/folder_dataset.zip"  # New dataset (folder inside .zip)
+FOLDER_SAMPLE_URL = "https://physiologie.unibe.ch/~odening/group/data/single_illumination_spool_data_sample.zip"  # New dataset (folder inside .zip)
 
 # Use a temporary directory for the session
 SESSION_TEMP_DIR = Path(tempfile.gettempdir()) / "napari_omaas_sample_data"
@@ -304,7 +305,7 @@ def make_sif_sample_data():
     if not sif_files:
         raise FileNotFoundError("No .sif files found in the sample dataset.")
 
-    sif_path = sif_files[0]  # Use the first .sif file
+    sif_path = sif_files[0] # assume there are only one file in the zipped file.
     data, info = sif_parser.np_open(sif_path)
 
     metadata = {key: val for key, val in info.items() if not key.startswith("timestamp")}
@@ -320,29 +321,26 @@ def make_sif_sample_data():
 
 def make_folder_sample_data():
     """
-    Create a sample dataset for a folder with multiple files.
+    Create a sample dataset for a folder that contains a spool dataset.
 
     Returns
     -------
     data : list of LayerData tuples
     """
     folder_path = ensure_sample_data(FOLDER_SAMPLE_URL, FOLDER_ZIP_FILE)
-    sif_files = list(folder_path.glob("*.sif"))
-    if not sif_files:
-        raise FileNotFoundError("No .sif files found in the folder dataset.")
+    spool_folder = os.listdir(folder_path)
+    if not spool_folder:
+        raise FileNotFoundError("No folder found in the ziped dataset.")
+    folder_path = folder_path / spool_folder[0] # assume there are only one file in the zipped file.
 
-    layer_data = []
-    for sif_path in sif_files:
-        data, info = sif_parser.np_open(sif_path)
+    data, info = sif_parser.np_spool_open(str(folder_path))
 
-        metadata = {key: val for key, val in info.items() if not key.startswith("timestamp")}
-        metadata["source"] = str(sif_path)
+    metadata = {key: val for key, val in info.items() if not key.startswith("timestamp")}
+    metadata["source"] = str(spool_folder)
 
-        add_kwargs = {
-            "colormap": "turbo",
-            "metadata": metadata,
-            "name": sif_path.stem,
-        }
-        layer_data.append((data, add_kwargs, "image"))
-
-    return layer_data
+    add_kwargs = {
+        "colormap": "turbo",
+        "metadata": metadata,
+        "name": folder_path.stem,
+    }
+    return [(data, add_kwargs, "image")]
