@@ -8,8 +8,11 @@ contributions:
     - id: napari-omaas.write_single_image
       python_name: napari_omaas._writer:write_single_image
       title: Save image data with napari OMAAS
-    - id: napari-omaas.make_sample_data
-      python_name: napari_omaas._sample_data:make_sample_data
+    - id: napari-omaas.make_sif_sample_data
+      python_name: napari_omaas._sample_data:make_sif_sample_data
+      title: Load sample data from napari OMAAS
+    - id: napari-omaas.make_folder_sample_data
+      python_name: napari_omaas._sample_data:make_sif_sample_data
       title: Load sample data from napari OMAAS
     - id: napari-omaas.make_qwidget
       python_name: napari_omaas._widget:OMAAS
@@ -31,9 +34,12 @@ contributions:
       layer_types: ['image']
       filename_extensions: ['.npy']  
   sample_data:
-    - command: napari-omaas.make_sample_data
-      display_name: Heart Sample 1
+    - command: napari-omaas.make_sif_sample_data
+      display_name: Example SIF Dataset
       key: heart_sample_1
+    - command: napari_omaas.make_folder_sample_data
+      display_name: Example Folder Dataset
+      key: folder_sample
   widgets:
     - command: napari-omaas.make_qwidget
       display_name: Optical Mapping Analysis  
