@@ -69,7 +69,7 @@ extensions = [
 
 templates_path = ['_templates']
 exclude_patterns = []
-nb_execution_excludepatterns = ['*dual*', '*APD*']
+nb_execution_excludepatterns = ['*dual*', '*APD*', '*red*']
 nb_execution_timeout = -1
 nb_execution_allow_errors=True
 
