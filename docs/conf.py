@@ -69,15 +69,15 @@ extensions = [
 
 templates_path = ['_templates']
 exclude_patterns = []
-# execution_excludepatterns = ['*dual*', '*red*']
-# execution_timeout = -1
+nb_execution_excludepatterns = ['*dual*', '*APD*']
+nb_execution_timeout = -1
 nb_execution_allow_errors=True
 
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'tutorials/converted']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'tutorials/converted', 'scripts_example/converted']
 
 # configuration of bibtex_bibfiles settings
 bibtex_bibfiles = ['refs.bib']
