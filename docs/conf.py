@@ -77,7 +77,7 @@ nb_execution_allow_errors=True
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'tutorials/converted', 'scripts_example/converted']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', 'tutorials/converted', 'scripts_examples/converted']
 
 # configuration of bibtex_bibfiles settings
 bibtex_bibfiles = ['refs.bib']
