@@ -117,19 +117,14 @@ def make_folder_sample_data():
     spool_folder = os.listdir(folder_path)
     if not spool_folder:
         raise FileNotFoundError("No folder found in the ziped dataset.")
+    
     folder_path = folder_path / spool_folder[0] # assume there are only one file in the zipped file.
 
-    data, info = reader_sif_function(str(folder_path))
+    image = reader_sif_function(str(folder_path))
+    data, add_kwargs, layer_type = image[0]
+    add_kwargs["name"] = folder_path.stem
 
-    metadata = {key: val for key, val in info.items() if not key.startswith("timestamp")}
-    metadata["source"] = str(spool_folder)
-
-    add_kwargs = {
-        "colormap": "turbo",
-        "metadata": metadata,
-        "name": folder_path.stem,
-    }
-    return [(data, add_kwargs, "image")]
+    return [(data, add_kwargs, layer_type)]
 
 
 def make_folder_sample_data_dual():
@@ -144,7 +139,8 @@ def make_folder_sample_data_dual():
     spool_folder = os.listdir(folder_path)
     if not spool_folder:
         raise FileNotFoundError("No folder found in the ziped dataset.")
-        folder_path = folder_path / spool_folder[0] # assume there are only one file in the zipped file.
+    
+    folder_path = folder_path / spool_folder[0] # assume there are only one file in the zipped file.
 
     image = reader_sif_function(str(folder_path))
     data, add_kwargs, layer_type = image[0]
