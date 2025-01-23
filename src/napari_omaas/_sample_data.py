@@ -15,7 +15,6 @@ from pathlib import Path
 from napari.types import LayerData
 from napari.utils import progress
 import tempfile  # For creating a temporary directory
-# import sif_parser  # Assuming files in the folder are .sif files or compatible with this plugin
 from napari_omaas._reader import reader_sif_function
 
 # Define constants for the sample data URLs
@@ -120,7 +119,7 @@ def make_folder_sample_data():
         raise FileNotFoundError("No folder found in the ziped dataset.")
     folder_path = folder_path / spool_folder[0] # assume there are only one file in the zipped file.
 
-    data, info = sif_parser.np_spool_open(str(folder_path))
+    data, info = reader_sif_function(str(folder_path))
 
     metadata = {key: val for key, val in info.items() if not key.startswith("timestamp")}
     metadata["source"] = str(spool_folder)
