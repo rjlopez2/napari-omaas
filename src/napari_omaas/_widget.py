@@ -4602,13 +4602,13 @@ class InterctiveWindowMapErode(QWidget):
         # self.apply_gaussian_filt_btn = QPushButton( "View changes")
         # self.preview_map_erode_group.glayout.addWidget(self.apply_gaussian_filt_btn, 4, 0, 1, 3)
 
-        self.accept_post_processing_changes_btn = QPushButton("Acept changes")
+        self.accept_post_processing_changes_btn = QPushButton("Accept changes")
         self.preview_map_erode_group.glayout.addWidget(self.accept_post_processing_changes_btn, 3, 0, 1, 2)
 
-        self.reset_all_postprocessing_map_btn = QPushButton("reset")
+        self.reset_all_postprocessing_map_btn = QPushButton("Reset")
         self.preview_map_erode_group.glayout.addWidget(self.reset_all_postprocessing_map_btn, 3, 2, 1, 2)
        
-        self.close_postprocessing_map_window_btn = QPushButton("close")
+        self.close_postprocessing_map_window_btn = QPushButton("Close")
         self.preview_map_erode_group.glayout.addWidget(self.close_postprocessing_map_window_btn, 3, 4, 1, 1)
 
                   

@@ -14,6 +14,9 @@ contributions:
     - id: napari-omaas.make_folder_sample_data
       python_name: napari_omaas._sample_data:make_folder_sample_data
       title: Load sample data in spooling (binary) format from napari OMAAS    
+    - id: napari-omaas.make_folder_sample_data_dual
+      python_name: napari_omaas._sample_data:make_folder_sample_data_dual
+      title: Load sample data in spooling (binary) format from napari OMAAS    
     - id: napari-omaas.make_qwidget
       python_name: napari_omaas._widget:OMAAS
       title: Optical Mapping Analysis
@@ -29,11 +32,14 @@ contributions:
       filename_extensions: ['.npy']  
   sample_data:
     - command: napari-omaas.make_sif_sample_data
-      display_name: Example SIF Dataset
-      key: heart_sample_1
+      display_name: Example SIF Dataset (Singel illumination RED)
+      key: heart_sample_freiburg
     - command: napari-omaas.make_folder_sample_data
-      display_name: Example spool Dataset
-      key: heart_sample_2
+      display_name: Example spool Dataset (Singel illumination RED)
+      key: heart_sample_single_illumination
+    - command: napari-omaas.make_folder_sample_data_dual
+      display_name: Example spool Dataset (Dual illumination RED/BLUE)
+      key: heart_sample_dual_illumination
     
   widgets:
     - command: napari-omaas.make_qwidget
