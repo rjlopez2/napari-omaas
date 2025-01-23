@@ -134,17 +134,17 @@ def make_folder_sample_data():
 
 
 def make_folder_sample_data_dual():
-        """
-        Create a sample dataset for a folder that contains a spool dataset.
+    """
+    Create a sample dataset for a folder that contains a spool dataset.
 
-        Returns
-        -------
-        data : list of LayerData tuples
-        """
-        folder_path = ensure_sample_data(FOLDER_SAMPLE_URL_DUAL, FOLDER_ZIP_FILE_DUAL)
-        spool_folder = os.listdir(folder_path)
-        if not spool_folder:
-            raise FileNotFoundError("No folder found in the ziped dataset.")
+    Returns
+    -------
+    data : list of LayerData tuples
+    """
+    folder_path = ensure_sample_data(FOLDER_SAMPLE_URL_DUAL, FOLDER_ZIP_FILE_DUAL)
+    spool_folder = os.listdir(folder_path)
+    if not spool_folder:
+        raise FileNotFoundError("No folder found in the ziped dataset.")
         folder_path = folder_path / spool_folder[0] # assume there are only one file in the zipped file.
 
     image = reader_sif_function(str(folder_path))
