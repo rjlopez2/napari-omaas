@@ -2323,6 +2323,9 @@ class OMAAS(QWidget):
                     for shape_indx in range(len(selected_shps_list[0].data)):
                         if 'ID' in self.shape_layer.features.iloc[shape_indx]:
                             roi_id = self.shape_layer.features.iloc[shape_indx]['ID']
+                            if 'position' in self.shape_layer.features.iloc[shape_indx]:
+                                roi_id = f"{self.shape_layer.features.iloc[shape_indx]['ID'].split('_')[0]}_{self.shape_layer.features.iloc[shape_indx]['position']}"
+
                         else:
                             roi_id = f"{shape_indx}"
 
