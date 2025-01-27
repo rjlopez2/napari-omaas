@@ -90,7 +90,7 @@ bibtex_reference_style = 'author_year'
 
 html_title = 'napari-omaas'
 html_theme = "furo"
-# html_static_path = ['_static']
+html_static_path = ['_static']
 
 
 autoclass_content = 'both'
