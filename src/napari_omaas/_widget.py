@@ -4419,6 +4419,9 @@ class OMAAS(QWidget):
                                 method_name="crop_from_shape", 
                                 custom_metadata= current_selection.metadata, 
                                 sufix="Crop", parameters=None)
+            
+            else:
+                return warn("Please select an image leyer.")
                 
         # arrange_cropped_images
             print("cropping")
