@@ -73,6 +73,7 @@ nb_execution_excludepatterns = ['*illumination*', '*APD*']
 # nb_execution_excludepatterns = [ '*APD*']
 nb_execution_timeout = -1
 nb_execution_allow_errors=True
+myst_heading_anchors = 4
 
 
 # List of patterns, relative to source directory, that match files and
