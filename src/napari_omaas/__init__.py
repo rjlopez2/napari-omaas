@@ -1,4 +1,4 @@
-__version__ = "1.0.0"
+__version__ = "1.0.1"
 
 from ._sample_data import make_sif_sample_data, make_folder_sample_data, make_folder_sample_data_dual
 from ._widget import OMAAS, example_magic_widget
