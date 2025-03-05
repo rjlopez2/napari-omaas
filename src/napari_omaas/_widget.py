@@ -72,7 +72,6 @@ from .utils import (
     optimap_mot_correction,
     crop_from_shape,
     concatenate_and_padd_with_nan_2d_arrays,
-    macro,
     return_maps,
     apply_FIR_filt_func,
     gaussian_filter_nan,
@@ -1391,8 +1390,6 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_detection_threshold_2.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
-        self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
-        self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
         self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
         self.search_spool_dir_btn.clicked.connect(self._search_and_load_spool_dir_func)
         self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
@@ -1473,7 +1470,7 @@ class OMAAS(QWidget):
                     )
                 print(f"{'*'*5} Applying '{invert_signal.__name__}' to image: '{current_selection}' {'*'*5} ")
                 
-                self.add_record_fun()
+                
             else:
                 return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
         except Exception as e:
@@ -1522,7 +1519,7 @@ class OMAAS(QWidget):
                     parameters=parameters, 
                     track_metadata=add_metadata,
                     )
-                self.add_record_fun()
+                
                 print(f"{'*'*5} Applying normalization:'{type_of_normalization}' to image: '{current_selection}' {'*'*5} ")
             except Exception as e:
                 raise CustomException(e, sys)
@@ -1569,7 +1566,7 @@ class OMAAS(QWidget):
                                     custom_outputs=[curr_img_name + "_Ch0", curr_img_name + "_Ch1"],
                                     parameters=params)
 
-                self.add_record_fun()
+                
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -1758,7 +1755,7 @@ class OMAAS(QWidget):
                         "wind_size": kernel_size
                         }
                 
-                self.add_record_fun()
+                
                 self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"SpatFilt{filter_type[:4]}", parameters=params)
                 print(f"{'*'*5} Applying '{filter_type}' filter to image: '{current_selection}' {'*'*5} ")
                 
@@ -2086,7 +2083,7 @@ class OMAAS(QWidget):
 
     #         self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
         
-    #         self.add_record_fun()
+    #         
 
             
     #     else:
@@ -2146,7 +2143,7 @@ class OMAAS(QWidget):
                     "cutoff_freq": cutoff_freq_value,
                     }
                 
-                self.add_record_fun()
+                
                 print(f"{'*'*5} Applying '{filter_type}' filter to image: '{current_selection}' {'*'*5} ")
                 self.add_result_img(result_img=results, operation_name="Temporal_filter", method_name=met_name, sufix= f"TempFilt{filter_type[:4]}", parameters=params)
                 
@@ -2435,7 +2432,7 @@ class OMAAS(QWidget):
                     # self.APD_propert_table = QTableView()
                 self.APD_propert_table.setModel(model)
 
-                self.add_record_fun()
+                
             except Exception as e:
                 # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
                 raise CustomException(e, sys)
@@ -2489,20 +2486,6 @@ class OMAAS(QWidget):
             print(CustomException(e, sys))
             # print(f">>>>> this is a known error when computing peaks found while creating shapes interactively: '{e}'")
 
-
-
-
-    def _on_click_clear_macro_btn(self, event):
-        self.macro_box_text.clear()
-        macro.clear()
-
-    def add_record_fun(self):
-        self.macro_box_text.clear()
-        self.macro_box_text.insertPlainText(repr(macro))
-    
-    def _on_click_clear_last_step_macro_btn(self):
-        macro.pop()
-        self.add_record_fun()
     
     def _search_and_load_spool_dir_func(self, event=None):
         self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", self.dir_box_text.text())
@@ -3092,7 +3075,7 @@ class OMAAS(QWidget):
         #     print(f'computing "local_normal_fun" to image {current_selection}')
         #     results = local_normal_fun(current_selection.data)
         #     self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
-        #     self.add_record_fun()
+        #     
 
         
         # assert that you have content in the canvas
@@ -3126,7 +3109,7 @@ class OMAAS(QWidget):
                                     method_name=split_AP_traces_and_ave_func.__name__,
                                     sufix="AveAP", parameters=params)
                 print(f"{'*'*5} Average from image: '{current_img_selected.name,}' created {'*'*5}")
-                self.add_record_fun()
+                
 
             elif len(ini_i) == 1:
                 return warn(f"Only {len(ini_i)} AP detected. No average computed.")
@@ -3421,7 +3404,7 @@ class OMAAS(QWidget):
                                 sufix=sufix, parameters=params)
 
 
-            self.add_record_fun()
+            
             print("Map generated")
             #     else:
             #         return warn("Either non or more than 1 AP detected. Please average your traces, clip 1 AP or make sure you have at least one AP detected by changing the 'Sensitivity threshold'.") 
@@ -3838,7 +3821,7 @@ class OMAAS(QWidget):
                     
                         
                 
-                self.add_record_fun()
+                
             
             except Exception as e:
                 raise CustomException(e, sys)
@@ -4002,7 +3985,7 @@ class OMAAS(QWidget):
                                         operation_name= "clip_image",
                                         method_name="indexing", 
                                         sufix="Clip", parameters=params)
-                    # self.add_record_fun()
+                    # 
                     self.is_range_clicked_checkbox.setChecked(False)
                     self.plot_profile_btn.setChecked(False)
                     self.listImagewidget.clearSelection()
@@ -4168,7 +4151,7 @@ class OMAAS(QWidget):
                                 sufix="MotStab", 
                                 parameters=params)
             
-            self.add_record_fun()
+            
 
         else:
             
@@ -4233,7 +4216,7 @@ class OMAAS(QWidget):
             
             self.rotate_l_crop.setChecked(False)
             self.rotate_r_crop.setChecked(False)
-            self.add_record_fun()
+            
             print(f"image '{img_name}' cropped")
             # return
 
