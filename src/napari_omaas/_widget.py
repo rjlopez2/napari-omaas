@@ -72,7 +72,6 @@ from .utils import (
     optimap_mot_correction,
     crop_from_shape,
     concatenate_and_padd_with_nan_2d_arrays,
-    macro,
     return_maps,
     apply_FIR_filt_func,
     gaussian_filter_nan,
@@ -1181,32 +1180,40 @@ class OMAAS(QWidget):
 
         ######## Macro record group ########
         self._settings_layout.setAlignment(Qt.AlignTop)
-        self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
-        self._settings_layout.addWidget(self.macro_group.gbox)
+        self.processing_steps_group = VHGroup('Tracking analyis steps', orientation='G')
 
         self.record_script_label = QLabel("Your current actions")
         self.record_script_label.setToolTip('Display bellow the recorded set of actions of your processing pipeline.')
-        self.macro_group.glayout.addWidget(self.record_script_label, 1, 0, 1, 4)
+        self.processing_steps_group.glayout.addWidget(self.record_script_label, 1, 0, 1, 4)
        
-        self.macro_box_text = QPlainTextEdit()
-        self.macro_box_text.setStyleSheet("border: 1px solid black;") 
-        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
-        self.macro_group.glayout.addWidget(self.macro_box_text, 2, 0, 1, 4)
+        self.processing_steps_tree = QTreeWidget()
+        self.processing_steps_tree.setColumnCount(2)
+        self.processing_steps_tree.setHeaderLabels(["Step ID", "Operation"])
+        # self.processing_steps_tree.setStyleSheet("border: 1px solid black;") 
+        # self.processing_steps_tree.setPlaceholderText("###### Start doing operations to populate your macro ######")
+        self.processing_steps_group.glayout.addWidget(self.processing_steps_tree, 2, 0, 1, 4)
 
-        self.activate_macro_label = QLabel("Enable/disable Macro recording")
-        self.activate_macro_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
-        self.macro_group.glayout.addWidget(self.activate_macro_label, 3, 0, 1, 1)
+        # self.activate_macro_label = QLabel("Enable/disable Macro recording")
+        # self.activate_macro_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
+        # self.processing_steps_group.glayout.addWidget(self.activate_macro_label, 3, 0, 1, 1)
         
-        self.record_macro_check = QCheckBox()
-        self.record_macro_check.setChecked(True) 
-        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 1, 1, 1)
+        # self.record_macro_check = QCheckBox()
+        # self.record_macro_check.setChecked(True) 
+        # self.processing_steps_group.glayout.addWidget(self.record_macro_check,  3, 1, 1, 1)
 
-        self.clear_last_step_macro_btn = QPushButton("Delete last step")
-        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 2, 1, 1)
+        # self.clear_last_step_macro_btn = QPushButton("Delete last step")
+        # self.processing_steps_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 2, 1, 1)
         
-        self.clear_macro_btn = QPushButton("Clear Macro")
-        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 3, 1, 1)       
+        # self.clear_macro_btn = QPushButton("Clear Macro")
+        # self.processing_steps_group.glayout.addWidget(self.clear_macro_btn,  3, 3, 1, 1)       
 
+        self.record_operations_label = QLabel("Record operations")
+        self.record_operations_label.setToolTip('Set on if you want to keep track of the processing steps and operations to be recorded and added to the meatadata.')
+        self.processing_steps_group.glayout.addWidget(self.record_operations_label, 3, 0, 1, 1)
+        
+        self.record_metadata_check = QCheckBox()
+        self.record_metadata_check.setChecked(True) 
+        self.processing_steps_group.glayout.addWidget(self.record_metadata_check,  3, 1, 1, 1)
 
         
         self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
@@ -1239,57 +1246,55 @@ class OMAAS(QWidget):
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
 
-        self.record_operations_label = QLabel("Record operations")
-        self.record_operations_label.setToolTip('Set on if you want to keep track of the processing steps and operations to be recorded and added to the meatadata.')
-        self.metadata_display_group.glayout.addWidget(self.record_operations_label, 1, 0, 1, 1)
-        
-        self.record_metadata_check = QCheckBox()
-        self.record_metadata_check.setChecked(True) 
-        self.metadata_display_group.glayout.addWidget(self.record_metadata_check,  1, 1, 1, 1)
+        self.export_data_metadata_group = VHGroup('Export Data / Processing steps', orientation='G')
 
         self.name_image_to_export_label =  QLabel("Save Image as:")
-        self.metadata_display_group.glayout.addWidget(self.name_image_to_export_label,  2, 0, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.name_image_to_export_label,  0, 0, 1, 1)
 
         self.name_image_to_export =  QLineEdit()
         self.name_image_to_export.setToolTip('Define name to save current selected image + metadata in .tiff format.')
         self.name_image_to_export.setPlaceholderText("my_image")
-        self.metadata_display_group.glayout.addWidget(self.name_image_to_export,  2, 1, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.name_image_to_export,  0, 1, 1, 1)
 
-        self.name_procsteps_to_export_label =  QLabel("Save Processing steps as:")
-        self.metadata_display_group.glayout.addWidget(self.name_procsteps_to_export_label,  2, 2, 1, 1)
+        self.name_procsteps_to_export_label =  QLabel("Save Proc-steps as:")
+        self.export_data_metadata_group.glayout.addWidget(self.name_procsteps_to_export_label,  0, 2, 1, 1)
 
         self.procsteps_file_name =  QLineEdit()
         self.procsteps_file_name.setToolTip('Define name to save processing steps of curremnt image in .yml format.')
         self.procsteps_file_name.setPlaceholderText("ProcessingSteps")
-        self.metadata_display_group.glayout.addWidget(self.procsteps_file_name,  2, 3, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.procsteps_file_name,  0, 3, 1, 1)
 
-
-
-
-        self._save_img_dir_box_text_label = QLabel("To Directory")
+        self._save_img_dir_box_text_label = QLabel("To Directory:")
         self._save_img_dir_box_text_label.setToolTip("Type the directory path or drag and drop folders here to change the current directory.")
-        self.metadata_display_group.glayout.addWidget(self._save_img_dir_box_text_label, 3, 0, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self._save_img_dir_box_text_label, 1, 0, 1, 1)
 
         self.save_img_dir_box_text = QLineEdit()
         self.save_img_dir_box_text.installEventFilter(self)
         self.save_img_dir_box_text.setAcceptDrops(True)
         self.save_img_dir_box_text.setDragEnabled(True)
         self.save_img_dir_box_text.setPlaceholderText(os.getcwd())
-        self.metadata_display_group.glayout.addWidget(self.save_img_dir_box_text, 3, 1, 1, 2)
+        self.export_data_metadata_group.glayout.addWidget(self.save_img_dir_box_text, 1, 1, 1, 2)
 
         self.change_dir_to_save_img_btn = QPushButton("Change Directory")
-        self.metadata_display_group.glayout.addWidget(self.change_dir_to_save_img_btn,  3, 3, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.change_dir_to_save_img_btn,  1, 3, 1, 1)
         
         self.export_image_btn = QPushButton("Export Image + metadata")
-        self.metadata_display_group.glayout.addWidget(self.export_image_btn,  4, 2, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.export_image_btn,  0, 4, 1, 1)
 
-        self.export_processing_steps_btn = QPushButton("Export processing steps")
-        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn, 4, 3, 1, 1)
+        self.export_processing_steps_btn = QPushButton("Export Proc-steps")
+        self.export_data_metadata_group.glayout.addWidget(self.export_processing_steps_btn, 1, 4, 1, 1)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
         # self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
+
+        
+
+
+
         self._settings_layout.addWidget(self.metadata_display_group.gbox)
+        self._settings_layout.addWidget(self.processing_steps_group.gbox)
+        self._settings_layout.addWidget(self.export_data_metadata_group.gbox)
 
 
         ######################
@@ -1391,8 +1396,6 @@ class OMAAS(QWidget):
         self.clear_plot_APD_btn.clicked.connect(self._clear_APD_plot)
         self.slider_APD_detection_threshold.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
         self.slider_APD_detection_threshold_2.valueChanged.connect(self._get_APD_thre_slider_vlaue_func)
-        self.clear_macro_btn.clicked.connect(self._on_click_clear_macro_btn)
-        self.clear_last_step_macro_btn.clicked.connect(self._on_click_clear_last_step_macro_btn)
         self.load_spool_dir_btn.clicked.connect(self._load_current_spool_dir_func)
         self.search_spool_dir_btn.clicked.connect(self._search_and_load_spool_dir_func)
         self.copy_APD_rslts_btn.clicked.connect(self._on_click_copy_APD_rslts_btn_func)
@@ -1473,7 +1476,7 @@ class OMAAS(QWidget):
                     )
                 print(f"{'*'*5} Applying '{invert_signal.__name__}' to image: '{current_selection}' {'*'*5} ")
                 
-                self.add_record_fun()
+                
             else:
                 return warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
         except Exception as e:
@@ -1522,7 +1525,7 @@ class OMAAS(QWidget):
                     parameters=parameters, 
                     track_metadata=add_metadata,
                     )
-                self.add_record_fun()
+                
                 print(f"{'*'*5} Applying normalization:'{type_of_normalization}' to image: '{current_selection}' {'*'*5} ")
             except Exception as e:
                 raise CustomException(e, sys)
@@ -1569,7 +1572,7 @@ class OMAAS(QWidget):
                                     custom_outputs=[curr_img_name + "_Ch0", curr_img_name + "_Ch1"],
                                     parameters=params)
 
-                self.add_record_fun()
+                
         else:
             warn(f"Select an Image layer to apply this function. \nThe selected layer: '{current_selection}' is of type: '{current_selection._type_string}'")
 
@@ -1758,7 +1761,7 @@ class OMAAS(QWidget):
                         "wind_size": kernel_size
                         }
                 
-                self.add_record_fun()
+                
                 self.add_result_img(result_img=results, operation_name="Saptial_filter", method_name=met_name, sufix= f"SpatFilt{filter_type[:4]}", parameters=params)
                 print(f"{'*'*5} Applying '{filter_type}' filter to image: '{current_selection}' {'*'*5} ")
                 
@@ -2086,7 +2089,7 @@ class OMAAS(QWidget):
 
     #         self.add_result_img(results, MotCorr_fp = foot_print, rs = radius_size, nw=n_warps)
         
-    #         self.add_record_fun()
+    #         
 
             
     #     else:
@@ -2146,7 +2149,7 @@ class OMAAS(QWidget):
                     "cutoff_freq": cutoff_freq_value,
                     }
                 
-                self.add_record_fun()
+                
                 print(f"{'*'*5} Applying '{filter_type}' filter to image: '{current_selection}' {'*'*5} ")
                 self.add_result_img(result_img=results, operation_name="Temporal_filter", method_name=met_name, sufix= f"TempFilt{filter_type[:4]}", parameters=params)
                 
@@ -2246,6 +2249,25 @@ class OMAAS(QWidget):
                     # self.viewer.layers.selection.active.metadata = self.img_metadata_dict
                     # self.viewer.layers.selection.active.metadata = self.viewer.layers.selection.active.metadata["shaped_metadata"][0] if "shaped_metadata" in self.viewer.layers.selection.active.metadata else self.img_metadata_dict
                     # self.viewer.layers.selection.active.metadata = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
+                    if "ProcessingSteps" in self.img_metadata_dict:
+                        self.processing_steps_tree.clear()
+                        # items = []
+                        # for step in range(len(self.img_metadata_dict['ProcessingSteps'])):
+                        #     item = QTreeWidgetItem([str(step + 1), self.img_metadata_dict['ProcessingSteps'][step]['operation']])
+                        #     items.append(item)
+                            # for key, values in self.img_metadata_dict['ProcessingSteps'][0].items():
+                            #     item = QTreeWidgetItem([key, str(values)])
+                            #     items.append(item)
+                        # self.processing_steps_tree.insertTopLevelItems(0, items)
+
+                        for item in self.img_metadata_dict['ProcessingSteps']:
+                            parent_item = QTreeWidgetItem(self.processing_steps_tree, [str(item.get('id', 'No ID')), item.get('operation', 'No Operation')])
+                            self.processing_steps_tree.addTopLevelItem(parent_item)
+                            self.add_children_tree_widget(parent_item, item)
+
+                    else:
+                        self.processing_steps_tree.clear()
+
                     if "CycleTime" in self.img_metadata_dict:
                         # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
                         self.metadata_tree.clear()
@@ -2285,6 +2307,7 @@ class OMAAS(QWidget):
                     self.name_image_to_export.setText(None)
                     self.fps_val.setText("")
                     self.metadata_tree.clear()
+                    self.processing_steps_tree.clear()
                     # self.x_scale_box.clear()
                     # self.x_scale_box.setText(f"{1}")
                     # self.xscale = 1
@@ -2435,7 +2458,7 @@ class OMAAS(QWidget):
                     # self.APD_propert_table = QTableView()
                 self.APD_propert_table.setModel(model)
 
-                self.add_record_fun()
+                
             except Exception as e:
                 # warn(f"ERROR: Computing APD parameters fails witht error: {repr(e)}.")
                 raise CustomException(e, sys)
@@ -2489,20 +2512,6 @@ class OMAAS(QWidget):
             print(CustomException(e, sys))
             # print(f">>>>> this is a known error when computing peaks found while creating shapes interactively: '{e}'")
 
-
-
-
-    def _on_click_clear_macro_btn(self, event):
-        self.macro_box_text.clear()
-        macro.clear()
-
-    def add_record_fun(self):
-        self.macro_box_text.clear()
-        self.macro_box_text.insertPlainText(repr(macro))
-    
-    def _on_click_clear_last_step_macro_btn(self):
-        macro.pop()
-        self.add_record_fun()
     
     def _search_and_load_spool_dir_func(self, event=None):
         self.spool_dir = QFileDialog.getExistingDirectory(self, "Select Spool Directory", self.dir_box_text.text())
@@ -3092,7 +3101,7 @@ class OMAAS(QWidget):
         #     print(f'computing "local_normal_fun" to image {current_selection}')
         #     results = local_normal_fun(current_selection.data)
         #     self.add_result_img(result_img=results, single_label_sufix="LocNor", add_to_metadata = "Local_norm_signal")
-        #     self.add_record_fun()
+        #     
 
         
         # assert that you have content in the canvas
@@ -3126,7 +3135,7 @@ class OMAAS(QWidget):
                                     method_name=split_AP_traces_and_ave_func.__name__,
                                     sufix="AveAP", parameters=params)
                 print(f"{'*'*5} Average from image: '{current_img_selected.name,}' created {'*'*5}")
-                self.add_record_fun()
+                
 
             elif len(ini_i) == 1:
                 return warn(f"Only {len(ini_i)} AP detected. No average computed.")
@@ -3421,7 +3430,7 @@ class OMAAS(QWidget):
                                 sufix=sufix, parameters=params)
 
 
-            self.add_record_fun()
+            
             print("Map generated")
             #     else:
             #         return warn("Either non or more than 1 AP detected. Please average your traces, clip 1 AP or make sure you have at least one AP detected by changing the 'Sensitivity threshold'.") 
@@ -3838,7 +3847,7 @@ class OMAAS(QWidget):
                     
                         
                 
-                self.add_record_fun()
+                
             
             except Exception as e:
                 raise CustomException(e, sys)
@@ -4002,7 +4011,7 @@ class OMAAS(QWidget):
                                         operation_name= "clip_image",
                                         method_name="indexing", 
                                         sufix="Clip", parameters=params)
-                    # self.add_record_fun()
+                    # 
                     self.is_range_clicked_checkbox.setChecked(False)
                     self.plot_profile_btn.setChecked(False)
                     self.listImagewidget.clearSelection()
@@ -4168,7 +4177,7 @@ class OMAAS(QWidget):
                                 sufix="MotStab", 
                                 parameters=params)
             
-            self.add_record_fun()
+            
 
         else:
             
@@ -4233,7 +4242,7 @@ class OMAAS(QWidget):
             
             self.rotate_l_crop.setChecked(False)
             self.rotate_r_crop.setChecked(False)
-            self.add_record_fun()
+            
             print(f"image '{img_name}' cropped")
             # return
 
@@ -4459,6 +4468,19 @@ class OMAAS(QWidget):
                             sufix="Join",
                             parameters=None)
         print("lalala")
+    
+    def add_children_tree_widget(self, parent, dictionary):
+        """Recursively add children to tree items."""
+        if isinstance(dictionary, dict):
+            for key, value in dictionary.items():
+                child = QTreeWidgetItem(parent, [str(key), str(value) if not isinstance(value, (dict, list)) else ""])
+                parent.addChild(child)
+                self.add_children_tree_widget(child, value)  # Recursive call
+        elif isinstance(dictionary, list):
+            for i, item in enumerate(dictionary):
+                child = QTreeWidgetItem(parent, [f"Item {i}", str(item) if not isinstance(item, (dict, list)) else ""])
+                parent.addChild(child)
+                self.add_children_tree_widget(child, item)
 
 
 

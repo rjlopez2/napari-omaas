@@ -31,7 +31,6 @@ from napari.types import ImageData, ShapesData
 import sif_parser
 # from numba import njit
 from napari.utils import progress
-from napari_macrokit import get_macro
 from optimap.image import detect_background_threshold
 from optimap import motion_compensate
 from optimap.video import normalize_pixelwise_slidingwindow, normalize_pixelwise
@@ -86,10 +85,8 @@ backend = import_gpu_or_cpu()
 # from cucim.skimage import transform as transform_gpu
 
 
-# instanciate a macro object
-macro = get_macro("OMAAS_analysis")
 
-@macro.record
+
 def invert_signal(
     data: 'napari.types.ImageData'
     )-> 'napari.types.LayerDataTuple':
@@ -110,7 +107,7 @@ def invert_signal(
 
     return np.nanmax(data) - data
    
-@macro.record
+
 def local_normal_fun(
     image: "napari.types.ImageData")-> "napari.types.ImageData":
 
@@ -131,7 +128,7 @@ def local_normal_fun(
     # return results
     return normalize_pixelwise(image)
 
-@macro.record
+
 def global_normal_fun(
     data: "napari.types.ImageData")-> "napari.types.ImageData":
 
@@ -164,7 +161,7 @@ def global_normal_fun(
     return (im_orig - im_orig.min()) / (im_orig.max() - im_orig.min() )
 
 
-@macro.record
+
 def slide_window_normalization_func(np_array, slide_window = 100):
     # NOTE: you have to check an error here.
     # Either any of the two approach bellow fix issue for dealing with float np.array
@@ -173,7 +170,7 @@ def slide_window_normalization_func(np_array, slide_window = 100):
     return normalize_pixelwise_slidingwindow(np.ascontiguousarray(np_array), window_size=  slide_window)
 
 
-@macro.record
+
 def split_channels_fun(
     data: "napari.types.ImageData")-> "napari.types.LayerDataTuple":
 
@@ -194,7 +191,7 @@ def split_channels_fun(
     ch_2 = data[1::2,:,:]
     return [ch_1, ch_2]
 
-@macro.record
+
 def segment_heart_func( 
     image: "napari.types.ImageData",
     sigma = 2, 
@@ -260,7 +257,7 @@ def segment_heart_func(
     # return raw_img_stack_nobg
     return mask
 
-@macro.record
+
 def apply_gaussian_func (data: "napari.types.ImageData",
     sigma, kernel_size = 3)-> "Image":
 
@@ -325,7 +322,7 @@ def apply_gaussian_func (data: "napari.types.ImageData",
     
 
 
-@macro.record
+
 def apply_median_filt_func (data: "napari.types.ImageData",
     param)-> "Image":
 
@@ -400,7 +397,7 @@ def apply_median_filt_func (data: "napari.types.ImageData",
     # Convert back to CPU array if needed
     return backend['array'].asnumpy(out_img) if backend['use_gpu'] else out_img
 
-@macro.record
+
 def pick_frames_fun(
     image: "napari.types.ImageData",
     n_frames = 5,
@@ -558,7 +555,7 @@ def pick_frames_fun(
 #     return registered_img
 
 ################# NOTE: deprecating function 15.08-2024 #################
-# @macro.record
+# 
 # def scaled_img_func(data, foot_print_size = 10):
 #     foot_print = disk(foot_print_size)
     
@@ -583,7 +580,7 @@ def pick_frames_fun(
 #     return scaled_img
 
 ################# NOTE: deprecating function 15.08-2024 #################
-# @macro.record
+# 
 # def register_img_func(data, orig_data, ref_frame = 1, radius_size = 7, num_warp = 8):
 #     xp, xpx = cp.get_array_module(data), cupyx.scipy.get_array_module(data)
     
@@ -617,7 +614,7 @@ def pick_frames_fun(
 #     return registered_img
 
 
-@macro.record
+
 def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
 
     """
@@ -640,7 +637,7 @@ def transform_to_unit16_func(image: "napari.types.ImageData")-> "Image":
     return image.active.data.astype(np.uint16)
 
 
-@macro.record
+
 def apply_butterworth_filt_func(data: "napari.types.ImageData",
         ac_freq, cf_freq, fil_ord )-> "Image":
         
@@ -680,7 +677,7 @@ def apply_butterworth_filt_func(data: "napari.types.ImageData",
         return filt_image
 
 
-@macro.record
+
 def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq, acquisition_freq
         )-> "Image":
         
@@ -725,7 +722,7 @@ def apply_FIR_filt_func(data: "napari.types.ImageData", n_taps, cf_freq, acquisi
 
 
 
-@macro.record
+
 def apply_box_filter(data: "napari.types.ImageData", kernel_size):
 
     # data = image.active.data
@@ -741,7 +738,7 @@ def apply_box_filter(data: "napari.types.ImageData", kernel_size):
     return (out_img)
 
 
-@macro.record
+
 def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
     
     # data = image.active.data
@@ -758,7 +755,7 @@ def apply_laplace_filter(data: "napari.types.ImageData", kernel_size, sigma):
     return (out_img)
 
 
-@macro.record
+
 def apply_bilateral_filter(data: "napari.types.ImageData", wind_size, sigma_col, sigma_spa):
 
     out_img = np.empty_like(data)
@@ -774,7 +771,7 @@ def apply_bilateral_filter(data: "napari.types.ImageData", wind_size, sigma_col,
     # print(f"elapsed time: {round((end - start)/60, 1)} min")
     return (out_img)
 
-@macro.record
+
 def compute_APD_props_func(np_1Darray, curr_img_name, cycle_length_ms, diff_n = 1, rmp_method = "bcl_to_bcl", apd_perc = 75, promi = 0.18, roi_indx = 0, roi_id = None, interpolate = False, curr_file_id =None):
     
     """
@@ -1099,7 +1096,7 @@ def return_AP_ini_end_indx_func(my_1d_array, promi = 0.03):
     # return splited_arrays
     
 
-@macro.record
+
 # def split_AP_traces_and_ave_func(trace, ini_i, end_i, type = "1d", return_mean = False):
 #     """
 #     This function takes a 1d or 3D array, ini index, end index of ap 
@@ -1216,7 +1213,7 @@ def split_AP_traces_and_ave_func(trace, ini_i, end_i, type="1d", return_mean=Fal
 
 
 
-@macro.record
+
 def return_maps(image: "napari.types.ImageData", cycle_time, percentage, map_type = 0) -> "napari.types.ImageData":
     # data: "napari.types.ImageData")-> "napari.types.ImageData":
     
@@ -1430,7 +1427,7 @@ def return_index_for_map(image: "napari.types.ImageData", cycle_time, percentage
                         # break
                         raise e
 
-@macro.record
+
 def crop_from_shape(shape_layer_data, img_layer):
     dshape = img_layer.data.shape
 
@@ -1618,7 +1615,7 @@ def arrange_cropped_images(cropped_images, arrangement='horizontal', padding_val
 
     return new_image
 
-@macro.record
+
 def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df = False, percentage = 75):
     
     n_frames, y_size, x_size = image.shape
@@ -1636,7 +1633,7 @@ def return_APD_maps(image: "napari.types.ImageData", cycle_time,  interpolate_df
 
 
 
-@macro.record
+
 def segment_image_triangle(np_array, 
                  ):
     """Segment an image using an intensity threshold determined via
@@ -1716,7 +1713,7 @@ def segment_image_triangle(np_array,
     return mask
 
 
-@macro.record
+
 def segment_image_GHT(image, threshold=None, return_threshold=False,
                        small_obj_s = 500,  
                 #   square_s = 15,  
@@ -1753,7 +1750,7 @@ def segment_image_GHT(image, threshold=None, return_threshold=False,
     else:
         return mask
 
-@macro.record
+
 def segement_region_based_func(array_2d, lo_t = 0.05, hi_t = 0.2, expand = None):
     egdes = sobel(array_2d)
     
@@ -1772,7 +1769,7 @@ def segement_region_based_func(array_2d, lo_t = 0.05, hi_t = 0.2, expand = None)
     # print(type(mask))
     return (mask)
 
-@macro.record
+
 def polish_mask(mask, small_obj_s = 1000, small_holes_s = 5):
     
     # Number of pixels you want to reduce from the edges
@@ -1796,7 +1793,7 @@ def polish_mask(mask, small_obj_s = 1000, small_holes_s = 5):
     label_image = label(cleared)
 
     return label_image
-@macro.record
+
 def optimap_mot_correction(np_array, c_k, pre_smooth_t, proe_smooth_s, ref_fr):
     video_warped  =  motion_compensate(video = np_array, 
                                        contrast_kernel= c_k, 
