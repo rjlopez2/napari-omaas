@@ -1181,7 +1181,6 @@ class OMAAS(QWidget):
         ######## Macro record group ########
         self._settings_layout.setAlignment(Qt.AlignTop)
         self.processing_steps_group = VHGroup('Tracking analyis steps', orientation='G')
-        self._settings_layout.addWidget(self.processing_steps_group.gbox)
 
         self.record_script_label = QLabel("Your current actions")
         self.record_script_label.setToolTip('Display bellow the recorded set of actions of your processing pipeline.')
@@ -1247,50 +1246,55 @@ class OMAAS(QWidget):
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
 
+        self.export_data_metadata_group = VHGroup('Export Data / Processing steps', orientation='G')
 
         self.name_image_to_export_label =  QLabel("Save Image as:")
-        self.metadata_display_group.glayout.addWidget(self.name_image_to_export_label,  2, 0, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.name_image_to_export_label,  0, 0, 1, 1)
 
         self.name_image_to_export =  QLineEdit()
         self.name_image_to_export.setToolTip('Define name to save current selected image + metadata in .tiff format.')
         self.name_image_to_export.setPlaceholderText("my_image")
-        self.metadata_display_group.glayout.addWidget(self.name_image_to_export,  2, 1, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.name_image_to_export,  0, 1, 1, 1)
 
-        self.name_procsteps_to_export_label =  QLabel("Save Processing steps as:")
-        self.metadata_display_group.glayout.addWidget(self.name_procsteps_to_export_label,  2, 2, 1, 1)
+        self.name_procsteps_to_export_label =  QLabel("Save Proc-steps as:")
+        self.export_data_metadata_group.glayout.addWidget(self.name_procsteps_to_export_label,  0, 2, 1, 1)
 
         self.procsteps_file_name =  QLineEdit()
         self.procsteps_file_name.setToolTip('Define name to save processing steps of curremnt image in .yml format.')
         self.procsteps_file_name.setPlaceholderText("ProcessingSteps")
-        self.metadata_display_group.glayout.addWidget(self.procsteps_file_name,  2, 3, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.procsteps_file_name,  0, 3, 1, 1)
 
-
-
-
-        self._save_img_dir_box_text_label = QLabel("To Directory")
+        self._save_img_dir_box_text_label = QLabel("To Directory:")
         self._save_img_dir_box_text_label.setToolTip("Type the directory path or drag and drop folders here to change the current directory.")
-        self.metadata_display_group.glayout.addWidget(self._save_img_dir_box_text_label, 3, 0, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self._save_img_dir_box_text_label, 1, 0, 1, 1)
 
         self.save_img_dir_box_text = QLineEdit()
         self.save_img_dir_box_text.installEventFilter(self)
         self.save_img_dir_box_text.setAcceptDrops(True)
         self.save_img_dir_box_text.setDragEnabled(True)
         self.save_img_dir_box_text.setPlaceholderText(os.getcwd())
-        self.metadata_display_group.glayout.addWidget(self.save_img_dir_box_text, 3, 1, 1, 2)
+        self.export_data_metadata_group.glayout.addWidget(self.save_img_dir_box_text, 1, 1, 1, 2)
 
         self.change_dir_to_save_img_btn = QPushButton("Change Directory")
-        self.metadata_display_group.glayout.addWidget(self.change_dir_to_save_img_btn,  3, 3, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.change_dir_to_save_img_btn,  1, 3, 1, 1)
         
         self.export_image_btn = QPushButton("Export Image + metadata")
-        self.metadata_display_group.glayout.addWidget(self.export_image_btn,  4, 2, 1, 1)
+        self.export_data_metadata_group.glayout.addWidget(self.export_image_btn,  0, 4, 1, 1)
 
-        self.export_processing_steps_btn = QPushButton("Export processing steps")
-        self.metadata_display_group.glayout.addWidget(self.export_processing_steps_btn, 4, 3, 1, 1)
+        self.export_processing_steps_btn = QPushButton("Export Proc-steps")
+        self.export_data_metadata_group.glayout.addWidget(self.export_processing_steps_btn, 1, 4, 1, 1)
         # self.layout().addWidget(self.metadata_display_group.gbox) # temporary silence hide the metadatda
 
         # self._settings_layout.setAlignment(Qt.AlignTop)
         # self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
+
+        
+
+
+
         self._settings_layout.addWidget(self.metadata_display_group.gbox)
+        self._settings_layout.addWidget(self.processing_steps_group.gbox)
+        self._settings_layout.addWidget(self.export_data_metadata_group.gbox)
 
 
         ######################
