@@ -1180,32 +1180,41 @@ class OMAAS(QWidget):
 
         ######## Macro record group ########
         self._settings_layout.setAlignment(Qt.AlignTop)
-        self.macro_group = VHGroup('Record the scrips for analyis', orientation='G')
-        self._settings_layout.addWidget(self.macro_group.gbox)
+        self.processing_steps_group = VHGroup('Tracking analyis steps', orientation='G')
+        self._settings_layout.addWidget(self.processing_steps_group.gbox)
 
         self.record_script_label = QLabel("Your current actions")
         self.record_script_label.setToolTip('Display bellow the recorded set of actions of your processing pipeline.')
-        self.macro_group.glayout.addWidget(self.record_script_label, 1, 0, 1, 4)
+        self.processing_steps_group.glayout.addWidget(self.record_script_label, 1, 0, 1, 4)
        
-        self.macro_box_text = QPlainTextEdit()
-        self.macro_box_text.setStyleSheet("border: 1px solid black;") 
-        self.macro_box_text.setPlaceholderText("###### Start doing operations to populate your macro ######")
-        self.macro_group.glayout.addWidget(self.macro_box_text, 2, 0, 1, 4)
+        self.processing_steps_tree = QTreeWidget()
+        self.processing_steps_tree.setColumnCount(2)
+        self.processing_steps_tree.setHeaderLabels(["Step ID", "Operation"])
+        # self.processing_steps_tree.setStyleSheet("border: 1px solid black;") 
+        # self.processing_steps_tree.setPlaceholderText("###### Start doing operations to populate your macro ######")
+        self.processing_steps_group.glayout.addWidget(self.processing_steps_tree, 2, 0, 1, 4)
 
-        self.activate_macro_label = QLabel("Enable/disable Macro recording")
-        self.activate_macro_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
-        self.macro_group.glayout.addWidget(self.activate_macro_label, 3, 0, 1, 1)
+        # self.activate_macro_label = QLabel("Enable/disable Macro recording")
+        # self.activate_macro_label.setToolTip('Set on if you want to keep track of the script for reproducibility or further reuse in batch processing')
+        # self.processing_steps_group.glayout.addWidget(self.activate_macro_label, 3, 0, 1, 1)
         
-        self.record_macro_check = QCheckBox()
-        self.record_macro_check.setChecked(True) 
-        self.macro_group.glayout.addWidget(self.record_macro_check,  3, 1, 1, 1)
+        # self.record_macro_check = QCheckBox()
+        # self.record_macro_check.setChecked(True) 
+        # self.processing_steps_group.glayout.addWidget(self.record_macro_check,  3, 1, 1, 1)
 
-        self.clear_last_step_macro_btn = QPushButton("Delete last step")
-        self.macro_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 2, 1, 1)
+        # self.clear_last_step_macro_btn = QPushButton("Delete last step")
+        # self.processing_steps_group.glayout.addWidget(self.clear_last_step_macro_btn,  3, 2, 1, 1)
         
-        self.clear_macro_btn = QPushButton("Clear Macro")
-        self.macro_group.glayout.addWidget(self.clear_macro_btn,  3, 3, 1, 1)       
+        # self.clear_macro_btn = QPushButton("Clear Macro")
+        # self.processing_steps_group.glayout.addWidget(self.clear_macro_btn,  3, 3, 1, 1)       
 
+        self.record_operations_label = QLabel("Record operations")
+        self.record_operations_label.setToolTip('Set on if you want to keep track of the processing steps and operations to be recorded and added to the meatadata.')
+        self.processing_steps_group.glayout.addWidget(self.record_operations_label, 3, 0, 1, 1)
+        
+        self.record_metadata_check = QCheckBox()
+        self.record_metadata_check.setChecked(True) 
+        self.processing_steps_group.glayout.addWidget(self.record_metadata_check,  3, 1, 1, 1)
 
         
         self._APD_analysis_layout.addWidget(self.APD_plot_group.gbox)
@@ -1238,13 +1247,6 @@ class OMAAS(QWidget):
         self.metadata_tree.setHeaderLabels(["Parameter", "Value"])
         self.metadata_display_group.glayout.addWidget(self.metadata_tree, 0, 0, 1, 4)
 
-        self.record_operations_label = QLabel("Record operations")
-        self.record_operations_label.setToolTip('Set on if you want to keep track of the processing steps and operations to be recorded and added to the meatadata.')
-        self.metadata_display_group.glayout.addWidget(self.record_operations_label, 1, 0, 1, 1)
-        
-        self.record_metadata_check = QCheckBox()
-        self.record_metadata_check.setChecked(True) 
-        self.metadata_display_group.glayout.addWidget(self.record_metadata_check,  1, 1, 1, 1)
 
         self.name_image_to_export_label =  QLabel("Save Image as:")
         self.metadata_display_group.glayout.addWidget(self.name_image_to_export_label,  2, 0, 1, 1)
@@ -2243,6 +2245,25 @@ class OMAAS(QWidget):
                     # self.viewer.layers.selection.active.metadata = self.img_metadata_dict
                     # self.viewer.layers.selection.active.metadata = self.viewer.layers.selection.active.metadata["shaped_metadata"][0] if "shaped_metadata" in self.viewer.layers.selection.active.metadata else self.img_metadata_dict
                     # self.viewer.layers.selection.active.metadata = self.img_metadata_dict["shaped_metadata"][0] if "shaped_metadata" in self.img_metadata_dict else self.img_metadata_dict
+                    if "ProcessingSteps" in self.img_metadata_dict:
+                        self.processing_steps_tree.clear()
+                        # items = []
+                        # for step in range(len(self.img_metadata_dict['ProcessingSteps'])):
+                        #     item = QTreeWidgetItem([str(step + 1), self.img_metadata_dict['ProcessingSteps'][step]['operation']])
+                        #     items.append(item)
+                            # for key, values in self.img_metadata_dict['ProcessingSteps'][0].items():
+                            #     item = QTreeWidgetItem([key, str(values)])
+                            #     items.append(item)
+                        # self.processing_steps_tree.insertTopLevelItems(0, items)
+
+                        for item in self.img_metadata_dict['ProcessingSteps']:
+                            parent_item = QTreeWidgetItem(self.processing_steps_tree, [str(item.get('id', 'No ID')), item.get('operation', 'No Operation')])
+                            self.processing_steps_tree.addTopLevelItem(parent_item)
+                            self.add_children_tree_widget(parent_item, item)
+
+                    else:
+                        self.processing_steps_tree.clear()
+
                     if "CycleTime" in self.img_metadata_dict:
                         # print(f"getting image: '{self.viewer.layers.selection.active.name}'")
                         self.metadata_tree.clear()
@@ -2282,6 +2303,7 @@ class OMAAS(QWidget):
                     self.name_image_to_export.setText(None)
                     self.fps_val.setText("")
                     self.metadata_tree.clear()
+                    self.processing_steps_tree.clear()
                     # self.x_scale_box.clear()
                     # self.x_scale_box.setText(f"{1}")
                     # self.xscale = 1
@@ -4442,6 +4464,19 @@ class OMAAS(QWidget):
                             sufix="Join",
                             parameters=None)
         print("lalala")
+    
+    def add_children_tree_widget(self, parent, dictionary):
+        """Recursively add children to tree items."""
+        if isinstance(dictionary, dict):
+            for key, value in dictionary.items():
+                child = QTreeWidgetItem(parent, [str(key), str(value) if not isinstance(value, (dict, list)) else ""])
+                parent.addChild(child)
+                self.add_children_tree_widget(child, value)  # Recursive call
+        elif isinstance(dictionary, list):
+            for i, item in enumerate(dictionary):
+                child = QTreeWidgetItem(parent, [f"Item {i}", str(item) if not isinstance(item, (dict, list)) else ""])
+                parent.addChild(child)
+                self.add_children_tree_widget(child, item)
 
 
 
